@@ -26,10 +26,10 @@ module.exports = {
   // ==============================
   gameNews: {
     enabled: true,                  // Ativa ou desativa o sistema
-    interval: 2 * 60 * 1000,       // Intervalo de checagem em milissegundos (30 minutos)
+    interval: 1 * 60 * 1000,       // Intervalo de checagem em milissegundos (30 minutos)
     sources: [
       {
-        feed: "https://www.gamespot.com/feeds/game-news",      // URL do feed RSS da Polygon
+        feed: "https://www.polygon.com/rss/index.xml",      // URL do feed RSS da Polygon
         channelId: "1431959790174736446"                   // ID do canal do Discord para Polygon
       },
       {
