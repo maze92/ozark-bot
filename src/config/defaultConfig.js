@@ -1,19 +1,13 @@
 // src/config/defaultConfig.js
 
 module.exports = {
-  // Maximum warnings before auto mute
+  // ==============================
+  // Moderação
+  // ==============================
   maxWarnings: 3,
-
-  // Mute duration in milliseconds (10 minutes)
-  muteDuration: 10 * 60 * 1000,
-
-  // Channel name where automatic logs are sent
+  muteDuration: 10 * 60 * 1000, // 10 minutos
   logChannelName: 'log-bot',
-
-  // Default language
   language: 'en',
-
-  // Prohibited words lists
   bannedWords: {
     en: [
       'fuck','shit','bitch','asshole','dick','bastard','slut','whore',
@@ -27,5 +21,22 @@ module.exports = {
       'desgraçado','filho da puta','corno','viado','retardado','mané',
       'escroto','vagabundo','puta','lixo','nojento','desgraça'
     ]
+  },
+
+  // ==============================
+  // Notícias de jogos (Game News)
+  // ==============================
+  gameNews: {
+    enabled: true,                  // Ativa ou desativa o sistema
+    interval: 30 * 60 * 1000,       // Intervalo de checagem em milissegundos (30 minutos)
+    sources: [
+      {
+        name: "IGN_PC",                                      // Nome do feed
+        feed: "https://feeds.ign.com/ign/pc-all",           // URL RSS
+        channelId: "ID_DO_CANAL"                             // Substituir pelo ID do canal do Discord
+      }
+      // Podemos adicionar mais feeds aqui futuramente
+    ]
   }
 };
+
