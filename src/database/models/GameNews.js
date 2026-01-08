@@ -9,10 +9,12 @@ const gameNewsSchema = new Schema({
   },
   lastLink: {       // URL da última notícia enviada
     type: String,
-    default: undefined  // Deixe o valor como undefined ao invés de null
+    default: null  // 'null' para indicar que o campo ainda não foi preenchido
   }
 }, { timestamps: true }); // Adiciona os campos 'createdAt' e 'updatedAt'
 
+// Criar um índice único para 'source' se não estiver sendo gerado corretamente
+gameNewsSchema.index({ source: 1 }, { unique: true });
+
 // Exporta o modelo
 module.exports = model('GameNews', gameNewsSchema);
-
