@@ -26,7 +26,7 @@ module.exports = {
   // ==============================
   gameNews: {
     enabled: true,                  // Ativa ou desativa o sistema
-    interval: 1 * 60 * 1000,       // Intervalo de checagem em milissegundos (30 minutos)
+    interval: 30 * 60 * 1000,       // Intervalo de checagem em milissegundos (30 minutos)
     sources: [
       {
         name: "GameSpot/Reviews",                                      // Nome do feed
