@@ -33,7 +33,7 @@ module.exports = {
         channelId: "1431959790174736446"                   // ID do canal do Discord para Polygon
       },
       {
-        feed: "https://www.polygon.com/feed/guides/",      // URL do feed RSS do Polygon
+        feed: "https://www.polygon.com/rss/guides.xml",      // URL do feed RSS do Polygon
         channelId: "1458649574729056391"                   // ID do canal do Discord para Polygon
       },
       {
