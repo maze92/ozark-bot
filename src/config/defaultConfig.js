@@ -29,7 +29,7 @@ module.exports = {
     interval: 2 * 60 * 1000,       // Intervalo de checagem em milissegundos (30 minutos)
     sources: [
       {
-        feed: "https://www.polygon.com/feed/gaming/",      // URL do feed RSS da Polygon
+        feed: "https://www.gamespot.com/feeds/game-news",      // URL do feed RSS da Polygon
         channelId: "1431959790174736446"                   // ID do canal do Discord para Polygon
       },
       {
