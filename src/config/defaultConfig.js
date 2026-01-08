@@ -29,19 +29,11 @@ module.exports = {
     interval: 1 * 60 * 1000,       // Intervalo de checagem em milissegundos (30 minutos)
     sources: [
       {
-        feed: "https://www.polygon.com/rss/index.xml",      // URL do feed RSS da Polygon
-        channelId: "1431959790174736446"                   // ID do canal do Discord para Polygon
-      },
-      {
-        feed: "https://www.polygon.com/rss/guides.xml",      // URL do feed RSS do Polygon
-        channelId: "1458649574729056391"                   // ID do canal do Discord para Polygon
-      },
-      {
-        feed: "https://www.polygon.com/feed/entertainment/",      // URL do feed RSS do Polygon
-        channelId: "1458654395280654533"                   // ID do canal do Discord para Polygon
+        name: "IGN_PC",                                      // Nome do feed
+        feed: "https://www.gamespot.com/feeds/news",           // URL RSS
+        channelId: "1431959790174736446"                             // Substituir pelo ID do canal do Discord
       }
       // Podemos adicionar mais feeds aqui futuramente
     ]
   }
 };
-
