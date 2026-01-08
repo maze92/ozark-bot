@@ -38,42 +38,49 @@ module.exports = async (client, config) => {
   setInterval(async () => {
     for (const feed of config.gameNews.sources) {
       try {
+        // Parse o feed RSS
         const parsedFeed = await parser.parseURL(feed.feed);
-        if (!parsedFeed.items.length) continue;
+        if (!parsedFeed.items.length) continue; // Se o feed não tiver itens, continuar com o próximo
 
-        const latestNews = parsedFeed.items[0];
-        if (!latestNews || !latestNews.link) continue;
+        const latestNews = parsedFeed.items[0];  // Pega a última notícia
+        if (!latestNews || !latestNews.link) continue; // Se não tiver link, pula
 
+        // Verificar se é uma notícia nova
         const isNew = await isNewNews(feed.name, latestNews.link);
-        if (!isNew) continue;
+        if (!isNew) continue; // Se não for nova, pula
 
+        // Pega o canal do Discord para enviar a notícia
         const channel = await client.channels.fetch(feed.channelId);
-        if (!channel) continue;
+        if (!channel) {
+          console.warn(`Canal não encontrado para o feed ${feed.name}`);
+          continue;
+        }
 
         // Criar embed da notícia
         const embed = new EmbedBuilder()
           .setTitle(latestNews.title)
           .setURL(latestNews.link)
-          .setDescription(latestNews.contentSnippet || "New")
+          .setDescription(latestNews.contentSnippet || "No description available")
           .setColor(0xe60012)
-          .setFooter({ text: "GameSpot" })
+          .setFooter({ text: feed.name }) // Usando o nome do feed para identificar de onde veio a notícia
           .setTimestamp(new Date(latestNews.pubDate));
 
         if (latestNews.enclosure?.url) {
-          embed.setThumbnail(latestNews.enclosure.url);
+          embed.setThumbnail(latestNews.enclosure.url); // Se a notícia tem imagem, adicionar no embed
         }
 
         // Enviar embed para o Discord
         await channel.send({ embeds: [embed] });
 
-        // Log usando logger.js
+        // Log para o servidor
         if (channel.guild) {
-          logger(channel.guild, "Game News", `New: **${latestNews.title}**`);
+          logger(channel.guild, "Game News", `Nova notícia: **${latestNews.title}**`);
         }
 
       } catch (err) {
-        console.error(`[GameNews] (${feed.name})`, err.message);
+        console.error(`[GameNews] Erro ao processar o feed ${feed.name}:`, err.message);
       }
     }
-  }, config.gameNews.interval);
+  }, config.gameNews.interval); // Intervalo de checagem, em milissegundos
 };
+
