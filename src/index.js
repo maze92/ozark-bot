@@ -1,5 +1,5 @@
 require('dotenv').config();
-require('./database/connect'); // Conexão MongoDB
+require('./database/connect'); // MongoDB
 
 const path = require('path');
 const fs = require('fs');
@@ -10,16 +10,9 @@ const client = require('./bot');
 // ==============================
 client.commands = new Map();
 
-// Caminho correto para a pasta de comandos
-const commandPath = path.join(__dirname, 'commands');
-
-// Ler todos os ficheiros JS dentro de /commands
-const commandFiles = fs
-  .readdirSync(commandPath)
-  .filter(file => file.endsWith('.js'));
-
+const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(f => f.endsWith('.js'));
 for (const file of commandFiles) {
-  const command = require(path.join(commandPath, file));
+  const command = require(path.join(__dirname, 'commands', file));
   client.commands.set(command.name, command);
   console.log(`✅ Loaded command: ${command.name}`);
 }
@@ -27,23 +20,18 @@ for (const file of commandFiles) {
 // ==============================
 // Eventos
 // ==============================
-// ready, messageCreate e guildMemberAdd
 require('./events/ready')(client);
 require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 
 // ==============================
-// Login do bot
+// Login
 // ==============================
 client.login(process.env.TOKEN);
 
 // ==============================
-// Dashboard (Health check)
+// Dashboard
 // ==============================
 const app = require('./dashboard');
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Dashboard running on port ${PORT}`);
-});
-
+app.listen(PORT, () => console.log(`🚀 Dashboard running on port ${PORT}`));
