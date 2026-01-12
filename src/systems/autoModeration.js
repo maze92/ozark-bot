@@ -1,47 +1,30 @@
 const { EmbedBuilder } = require('discord.js');
 const User = require('../database/models/User');
 const config = require('../config/defaultConfig');
+const logger = require('./logger'); // logger centralizado
 
-// Configurações de segurança
+// Configurações
 const bannedWords = [...(config.bannedWords?.pt || []), ...(config.bannedWords?.en || [])];
 const maxWarnings = config.maxWarnings || 3;
-const muteDuration = config.muteDuration || 10 * 60 * 1000; // 10 minutos
-const logChannelName = config.logChannelName || 'log-bot';
+const muteDuration = config.muteDuration || 10 * 60 * 1000;
 
-module.exports = async function autoModeration(message) {
-  // ==============================
-  // Proteções base
-  // ==============================
-  if (!message || !message.content) return;
-  if (message.author?.bot) return;
-  if (!message.guild) return;
+module.exports = async function autoModeration(message, client) {
+  if (!message || !message.content || message.author.bot || !message.guild) return;
 
-  // Evita múltiplos avisos na mesma mensagem
   if (message._automodHandled) return;
   message._automodHandled = true;
 
-  // ==============================
-  // Limpar conteúdo
-  // ==============================
   const cleanContent = message.content
-    .replace(/https?:\/\/\S+/gi, '')               // links
-    .replace(/<:[a-zA-Z0-9_]+:[0-9]+>/g, '')       // emojis custom
+    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/<:[a-zA-Z0-9_]+:[0-9]+>/g, '')
     .toLowerCase();
 
-  // ==============================
-  // Verificar palavras proibidas
-  // ==============================
   const foundWord = bannedWords.find(word => cleanContent.includes(word.toLowerCase()));
   if (!foundWord) return;
 
-  // ==============================
-  // Apagar mensagem ofensiva
-  // ==============================
   await message.delete().catch(() => null);
 
-  // ==============================
   // DB: obter ou criar utilizador
-  // ==============================
   let user = await User.findOne({
     userId: message.author.id,
     guildId: message.guild.id
@@ -56,42 +39,25 @@ module.exports = async function autoModeration(message) {
     });
   }
 
-  // ==============================
   // Incrementar warn
-  // ==============================
   user.warnings += 1;
   await user.save();
 
-  // ==============================
-  // Aviso ao utilizador
-  // ==============================
+  // Aviso ao usuário
   await message.channel.send({
     content: `⚠️ ${message.author}, inappropriate language is not allowed.\n**Warning:** ${user.warnings}/${maxWarnings}`
   }).catch(() => null);
 
-  // ==============================
-  // Log para canal de moderação
-  // ==============================
-  const logChannel = message.guild.channels.cache.find(ch => ch.name === logChannelName);
-  if (logChannel) {
-    logChannel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setTitle('⚠️ Automatic Warn')
-          .setColor('Red')
-          .setDescription(
-            `👤 **User:** ${message.author.tag}\n` +
-            `📄 **Word:** ${foundWord}\n` +
-            `📊 **Warnings:** ${user.warnings}/${maxWarnings}`
-          )
-          .setTimestamp()
-      ]
-    }).catch(() => null);
-  }
+  // Log centralizado via logger.js
+  await logger(
+    client,
+    'Automatic Warn',
+    message.author,
+    message.author,
+    `Word: ${foundWord}\nWarnings: ${user.warnings}/${maxWarnings}`
+  );
 
-  // ==============================
-  // Aplicar Mute se excedeu warns
-  // ==============================
+  // Aplicar mute se excedeu warns
   if (user.warnings >= maxWarnings) {
     if (message.member?.moderatable) {
       try {
@@ -104,27 +70,20 @@ module.exports = async function autoModeration(message) {
           `🔇 ${message.author} has been muted for ${muteDuration / 60000} minutes due to repeated infractions.`
         );
 
-        if (logChannel) {
-          logChannel.send({
-            embeds: [
-              new EmbedBuilder()
-                .setTitle('🔇 Automatic Mute')
-                .setColor('Orange')
-                .setDescription(
-                  `👤 **User:** ${message.author.tag}\n⏳ **Duration:** ${muteDuration / 60000} minutes`
-                )
-                .setTimestamp()
-            ]
-          }).catch(() => null);
-        }
+        await logger(
+          client,
+          'Automatic Mute',
+          message.author,
+          message.author,
+          `Duration: ${muteDuration / 60000} minutes`
+        );
 
-        // Reset warns após mute
+        // Reset warnings após mute
         user.warnings = 0;
         await user.save();
       } catch {
-        // silêncio intencional
+        // ignorar erros
       }
     }
   }
 };
-
