@@ -1,4 +1,3 @@
-// src/systems/gamenews.js
 const Parser = require("rss-parser");
 const { EmbedBuilder } = require("discord.js");
 const GameNews = require("../database/models/GameNews");
@@ -6,11 +5,7 @@ const logger = require("./logger");
 
 const parser = new Parser();
 
-/**
- * Normaliza URLs para evitar duplicações causadas por parâmetros extras
- * @param {string} url
- * @returns {string} URL normalizada
- */
+// Normaliza a URL para evitar duplicatas causadas por parâmetros extras
 function normalizeUrl(url) {
   try {
     const urlObj = new URL(url);
@@ -18,21 +13,15 @@ function normalizeUrl(url) {
     urlObj.search = params.toString();
     return urlObj.toString();
   } catch {
-    return url; // retorna original se não for URL válida
+    return url; // Retorna a URL original se não for possível normalizar
   }
 }
 
-/**
- * Verifica se uma notícia já foi enviada
- * @param {string} feedName
- * @param {string} link
- * @returns {Promise<boolean>} true se for nova
- */
+// Verifica se a notícia já foi enviada
 async function isNewNews(feedName, link) {
   const normalizedLink = normalizeUrl(link);
 
   let record = await GameNews.findOne({ source: feedName });
-
   if (!record) {
     await GameNews.create({ source: feedName, lastLink: normalizedLink });
     return true;
@@ -45,11 +34,6 @@ async function isNewNews(feedName, link) {
   return true;
 }
 
-/**
- * Sistema automático de notícias
- * @param {Client} client
- * @param {Object} config
- */
 module.exports = async (client, config) => {
   if (!config.gameNews?.enabled) return;
 
@@ -62,8 +46,7 @@ module.exports = async (client, config) => {
         const latestNews = parsedFeed.items?.[0];
         if (!latestNews?.link) continue;
 
-        const isNew = await isNewNews(feed.name, latestNews.link);
-        if (!isNew) continue;
+        if (!await isNewNews(feed.name, latestNews.link)) continue;
 
         const channel = await client.channels.fetch(feed.channelId).catch(() => null);
         if (!channel) {
@@ -85,13 +68,7 @@ module.exports = async (client, config) => {
 
         // Log centralizado
         if (channel.guild) {
-          await logger(
-            client,
-            "Game News",
-            channel.guild.me.user,
-            channel.guild.me.user,
-            `New news sent: **${latestNews.title}**`
-          );
+          await logger(client, "Game News", channel.guild.me.user, channel.guild.me.user, `New news sent: **${latestNews.title}**`);
         }
 
         console.log(`[GameNews] Sent news for ${feed.name}: ${latestNews.title}`);
