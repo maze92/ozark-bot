@@ -3,10 +3,13 @@ const User = require('../database/models/User');
 module.exports = (client) => {
   client.on('guildMemberAdd', async (member) => {
     try {
+      if (!member.guild) return; // segurança extra
+
       // Verifica se o usuário já existe
       const existing = await User.findOne({ userId: member.id, guildId: member.guild.id });
       if (existing) return;
 
+      // Cria entrada no DB
       await User.create({
         userId: member.id,
         guildId: member.guild.id,
@@ -16,7 +19,7 @@ module.exports = (client) => {
 
       console.log(`✅ Created user entry for ${member.user.tag} (${member.id}) in guild ${member.guild.name}`);
     } catch (err) {
-      console.error('Error creating user on guildMemberAdd:', err);
+      console.error(`[guildMemberAdd] Error creating user entry:`, err);
     }
   });
 };
