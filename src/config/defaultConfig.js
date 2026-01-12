@@ -1,5 +1,10 @@
 module.exports = {
   // ==============================
+  // Prefixo do bot
+  // ==============================
+  prefix: '!', // Prefixo configurável
+
+  // ==============================
   // Moderação
   // ==============================
   maxWarnings: 3,
@@ -29,21 +34,20 @@ module.exports = {
     interval: 30 * 60 * 1000,       // Intervalo de checagem em milissegundos (30 minutos)
     sources: [
       {
-        name: "GameSpot/Reviews",                                      // Nome do feed
-        feed: "https://www.gamespot.com/feeds/reviews",           // URL RSS
-        channelId: "1431959790174736446"                             // Substituir pelo ID do canal do Discord
+        name: "GameSpot/Reviews",
+        feed: "https://www.gamespot.com/feeds/reviews",
+        channelId: "1431959790174736446"
       },
       {
-        name: "GameSpot/News",                                      // Nome do feed
-        feed: "https://www.gamespot.com/feeds/game-news",           // URL RSS
-        channelId: "1458675935854465219"                             // Substituir pelo ID do canal do Discord
+        name: "GameSpot/News",
+        feed: "https://www.gamespot.com/feeds/game-news",
+        channelId: "1458675935854465219"
       },
       {
-        name: "GameSpot/NewGames",                                      // Nome do feed
-        feed: "https://www.gamespot.com/feeds/new-games",           // URL RSS
-        channelId: "1449609850446286911"                             // Substituir pelo ID do canal do Discord
+        name: "GameSpot/NewGames",
+        feed: "https://www.gamespot.com/feeds/new-games",
+        channelId: "1449609850446286911"
       }
-      // Podemos adicionar mais feeds aqui futuramente
     ]
   }
 };
