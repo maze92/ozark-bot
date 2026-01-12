@@ -1,24 +1,27 @@
-// src/commands/serverinfo.js
 const { EmbedBuilder } = require('discord.js');
 
 module.exports = {
   name: 'serverinfo',
-  permissions: [],
+  description: 'Shows information about the server',
+  async execute(message, client, args) {
+    if (!message.guild) return;
 
-  async execute(message) {
-    const guild = message.guild;
+    const { name, id, memberCount, ownerId, createdAt, premiumSubscriptionCount, premiumTier } = message.guild;
+
+    const owner = await message.guild.members.fetch(ownerId).catch(() => null);
 
     const embed = new EmbedBuilder()
-      .setTitle(`${guild.name} Info`)
+      .setTitle(`📊 Server Info: ${name}`)
+      .setColor('Blue')
       .addFields(
-        { name: 'Members', value: `${guild.memberCount}`, inline: true },
-        { name: 'Owner', value: `<@${guild.ownerId}>`, inline: true },
-        { name: 'Channels', value: `${guild.channels.cache.size}`, inline: true }
+        { name: 'ID', value: id, inline: true },
+        { name: 'Owner', value: owner ? owner.user.tag : 'Unknown', inline: true },
+        { name: 'Members', value: `${memberCount}`, inline: true },
+        { name: 'Boosts', value: `${premiumSubscriptionCount} (Tier ${premiumTier})`, inline: true },
+        { name: 'Created At', value: `<t:${Math.floor(createdAt / 1000)}:R>`, inline: true }
       )
-      .setThumbnail(guild.iconURL({ dynamic: true }))
-      .setTimestamp()
-      .setColor('Blue');
+      .setTimestamp();
 
-    message.channel.send({ embeds: [embed] });
+    message.channel.send({ embeds: [embed] }).catch(() => null);
   }
 };
