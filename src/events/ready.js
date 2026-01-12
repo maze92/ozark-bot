@@ -1,16 +1,19 @@
 let started = false;
 
 module.exports = (client) => {
-  client.once('clientReady', async () => {
-    console.log(`${client.user.tag} is online!`);
+  client.once('ready', async () => {
+    console.log(`✅ ${client.user.tag} is online!`);
 
     if (started) return;
     started = true;
 
+    // Iniciar sistema de notícias automáticas
     const gameNews = require('../systems/gamenews');
     const config = require('../config/defaultConfig');
 
-    // Iniciar sistema de notícias automáticas
-    gameNews(client, config);
+    if (config.gameNews.enabled) {
+      gameNews(client, config);
+      console.log('📰 Game News system started.');
+    }
   });
 };
