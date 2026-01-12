@@ -4,15 +4,20 @@ const config = require('../config/defaultConfig');
 
 const commands = new Map();
 
-// Carregar comandos do /commands
-const commandFiles = fs.readdirSync(path.join(__dirname, '../commands')).filter(f => f.endsWith('.js'));
+// Carregar comandos do /src/commands
+const commandFiles = fs
+  .readdirSync(path.join(__dirname, '../commands'))
+  .filter(file => file.endsWith('.js'));
+
 for (const file of commandFiles) {
-  const command = require(`../commands/${file}`);
+  const command = require(path.join(__dirname, '../commands', file));
   commands.set(command.name, command);
 }
 
+// Handler de execução de comandos
 module.exports = async (message, client) => {
-  if (!message.content.startsWith(config.prefix)) return;
+  // Ignorar bots e mensagens sem prefixo
+  if (!message.content.startsWith(config.prefix) || message.author.bot) return;
 
   const args = message.content.slice(config.prefix.length).trim().split(/\s+/);
   const commandName = args.shift().toLowerCase();
@@ -27,10 +32,17 @@ module.exports = async (message, client) => {
       command.allowedRoles.includes(role.id)
     );
 
-    if (!hasRole) return message.reply("❌ You don't have permission to use this command.");
+    if (!hasRole) {
+      return message.reply({
+        content: "❌ You don't have permission to use this command.",
+        allowedMentions: { repliedUser: true }
+      });
+    }
   }
 
+  // ==============================
   // Executar comando
+  // ==============================
   try {
     await command.execute(message, client, args);
   } catch (err) {
