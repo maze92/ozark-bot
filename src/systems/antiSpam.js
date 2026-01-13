@@ -1,5 +1,5 @@
 const config = require('../config/defaultConfig');
-const infractions = require('./infractions');
+const infractions = require('./infraction');
 
 const messageMap = new Map();
 
