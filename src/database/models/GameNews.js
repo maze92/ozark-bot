@@ -1,6 +1,5 @@
 const { Schema, model } = require('mongoose');
 
-// Stores last sent news per feed
 const gameNewsSchema = new Schema({
   source: {
     type: String,
@@ -9,7 +8,7 @@ const gameNewsSchema = new Schema({
   },
   lastHash: {
     type: String,
-    required: true
+    default: null
   }
 }, { timestamps: true });
 
