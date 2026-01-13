@@ -1,26 +1,23 @@
 const User = require('../database/models/User');
 const config = require('../config/defaultConfig');
-const logger = require('./logger');
+const infractions = require('./infractions');
 
 const bannedWords = [
   ...(config.bannedWords?.pt || []),
   ...(config.bannedWords?.en || [])
 ];
 
-const maxWarnings = config.maxWarnings || 3;
-const muteDuration = config.muteDuration || 10 * 60 * 1000;
-
 module.exports = async function autoModeration(message, client) {
-  if (!message?.content || message.author.bot || !message.guild) return;
+  if (!message.guild || message.author.bot) return;
 
+  // Evitar duplicações
   if (message._automodHandled) return;
   message._automodHandled = true;
 
   const cleanContent = message.content
+    .toLowerCase()
     .replace(/https?:\/\/\S+/gi, '')
-    .replace(/<:[a-zA-Z0-9_]+:[0-9]+>/g, '')
-    .replace(/[^\w\s]/gi, '')
-    .toLowerCase();
+    .replace(/[^\w\s]/gi, '');
 
   const foundWord = bannedWords.find(word =>
     cleanContent.includes(word.toLowerCase())
@@ -28,8 +25,10 @@ module.exports = async function autoModeration(message, client) {
 
   if (!foundWord) return;
 
+  // Apagar mensagem
   await message.delete().catch(() => null);
 
+  // Obter/criar utilizador
   let user = await User.findOne({
     userId: message.author.id,
     guildId: message.guild.id
@@ -47,45 +46,44 @@ module.exports = async function autoModeration(message, client) {
   user.warnings += 1;
   await user.save();
 
-  await message.channel.send(
-    `⚠️ ${message.author}, inappropriate language is not allowed.\n**Warning:** ${user.warnings}/${maxWarnings}`
-  ).catch(() => null);
-
-  // 🔴 LOG DO WARN
-  await logger(
+  // Criar infração WARN
+  await infractions.create({
     client,
-    'Automatic Warning',
-    message.author,
-    message.author,
-    `Word: **${foundWord}**\nWarnings: ${user.warnings}/${maxWarnings}`,
-    message.guild
+    guild: message.guild,
+    user: message.author,
+    moderator: message.author,
+    type: 'WARN',
+    reason: `Inappropriate language: ${foundWord}`
+  });
+
+  await message.channel.send(
+    `⚠️ ${message.author}, inappropriate language is not allowed.\nWarnings: ${user.warnings}/${config.maxWarnings}`
   );
 
-  if (user.warnings >= maxWarnings && message.member?.moderatable) {
-    try {
+  // MUTE automático
+  if (user.warnings >= config.maxWarnings) {
+    if (message.member?.moderatable) {
       await message.member.timeout(
-        muteDuration,
+        config.muteDuration,
         'Exceeded automatic warning limit'
       );
 
-      await message.channel.send(
-        `🔇 ${message.author} has been muted for ${muteDuration / 60000} minutes.`
-      );
-
-      // 🔴 LOG DO MUTE
-      await logger(
+      await infractions.create({
         client,
-        'Automatic Mute',
-        message.author,
-        message.author,
-        `Duration: ${muteDuration / 60000} minutes`,
-        message.guild
-      );
+        guild: message.guild,
+        user: message.author,
+        moderator: client.user,
+        type: 'MUTE',
+        reason: 'Exceeded warning limit',
+        duration: config.muteDuration
+      });
 
       user.warnings = 0;
       await user.save();
-    } catch (err) {
-      console.error('[AUTOMOD MUTE ERROR]', err);
+
+      await message.channel.send(
+        `🔇 ${message.author} has been muted for ${config.muteDuration / 60000} minutes.`
+      );
     }
   }
 };
