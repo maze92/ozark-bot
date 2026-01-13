@@ -1,45 +1,29 @@
 require('dotenv').config();
-require('./database/connect'); // Conexão MongoDB
+require('./database/connect');
 
 const path = require('path');
 const fs = require('fs');
 const client = require('./bot');
 
-// ==============================
-// Inicializar Commands Map
-// ==============================
+// Comandos
 client.commands = new Map();
-
-// Carregar comandos do /src/commands
-const commandFiles = fs
-  .readdirSync(path.join(__dirname, 'src', 'commands'))
-  .filter(file => file.endsWith('.js'));
-
+const commandFiles = fs.readdirSync(path.join(__dirname, 'commands')).filter(f => f.endsWith('.js'));
 for (const file of commandFiles) {
-  const command = require(path.join(__dirname, 'src', 'commands', file));
+  const command = require(path.join(__dirname, 'commands', file));
   client.commands.set(command.name, command);
   console.log(`✅ Loaded command: ${command.name}`);
 }
 
-// ==============================
 // Eventos
-// ==============================
 require('./events/ready')(client);
 require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 
-// ==============================
-// Login do bot
-// ==============================
+// Dashboard
+const dashboard = require('./dashboard');
+const PORT = process.env.PORT || 8080;
+dashboard.listen(PORT, () => console.log(`🚀 Dashboard running on port ${PORT}`));
+
+// Login Discord
 client.login(process.env.TOKEN);
-
-// ==============================
-// Dashboard (Health check)
-// ==============================
-const app = require('./dashboard');
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Dashboard running on port ${PORT}`);
-});
 
