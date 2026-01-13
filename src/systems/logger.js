@@ -1,71 +1,51 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ChannelType } = require('discord.js');
 const config = require('../config/defaultConfig');
-const { io } = require('../dashboard'); // Socket.IO do dashboard
-
-// Cache de logs em memória (últimos 200 logs)
-const logCache = [];
 
 /**
- * Logger centralizado
+ * Logger centralizado para enviar logs no canal de moderação
  * @param {Client} client - Cliente Discord
- * @param {string} title - Título do log (ex: "Clear Messages", "Automatic Warn")
- * @param {User|null} user - Usuário afetado
- * @param {User|null} executor - Quem executou a ação
- * @param {string} description - Descrição detalhada
- * @param {Guild|null} guild - Guild onde será enviado o log
+ * @param {string} title - Título do log
+ * @param {User|null} user - Usuário afetado (ex: punido, warned)
+ * @param {User|null} executor - Quem realizou a ação (pode ser o mesmo do usuário)
+ * @param {string} description - Descrição adicional do log
+ * @param {Guild} [guild] - Guilda onde o log será enviado (opcional)
  */
-async function logger(client, title, user, executor, description, guild) {
-  guild = guild || user?.guild;
-  if (!guild) return;
-
-  const logChannelName = config.logChannelName || 'log-bot';
-  const logChannel = guild.channels.cache.find(ch => ch.name === logChannelName);
-
-  if (!logChannel) return;
-
-  const embed = new EmbedBuilder()
-    .setTitle(title)
-    .setColor(getColor(title))
-    .setDescription(description)
-    .setTimestamp();
-
+module.exports = async function logger(client, title, user, executor, description, guild) {
   try {
+    // Tenta usar a guilda passada ou pega do usuário
+    guild = guild || user?.guild;
+    if (!guild) return; // Se não houver guilda, não envia log
+
+    // Nome do canal de logs configurável
+    const logChannelName = config.logChannelName || 'log-bot';
+
+    // Procura o canal de texto na guilda
+    const logChannel = guild.channels.cache.find(
+      ch => ch.name === logChannelName && ch.isTextBased()
+    );
+
+    if (!logChannel) {
+      console.warn(`[Logger] Canal de logs não encontrado: ${logChannelName}`);
+      return;
+    }
+
+    // Monta a descrição do embed
+    let desc = '';
+    if (user) desc += `👤 **Usuário:** ${user.tag}\n`;
+    if (executor) desc += `🛠️ **Executor:** ${executor.tag}\n`;
+    if (description) desc += `${description}`;
+
+    // Cria o embed
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setColor('Blue')
+      .setDescription(desc)
+      .setTimestamp();
+
+    // Envia a mensagem no canal
     await logChannel.send({ embeds: [embed] });
   } catch (err) {
-    console.error('[Logger] Failed to send log to channel:', err.message);
+    console.error('[Logger] Erro ao enviar log:', err);
   }
-
-  // Adiciona ao cache local
-  const logItem = {
-    time: Date.now(),
-    title,
-    user: user?.tag || null,
-    executor: executor?.tag || null,
-    description
-  };
-  logCache.push(logItem);
-
-  // Mantém apenas os últimos 200 logs
-  if (logCache.length > 200) logCache.shift();
-
-  // Envia via Socket.IO para o dashboard
-  if (io) io.emit('logs', logCache);
-}
-
-/**
- * Retorna cor do embed com base no tipo de log
- * @param {string} title 
- * @returns {number} Cor hexadecimal
- */
-function getColor(title) {
-  title = title.toLowerCase();
-  if (title.includes('warn')) return 0xffcc00;     // Amarelo para avisos
-  if (title.includes('mute')) return 0xff6600;     // Laranja para mutes
-  if (title.includes('clear') || title.includes('purge')) return 0x00ccff; // Azul para deletes
-  if (title.includes('game news')) return 0xe60012; // Vermelho para notícias
-  return 0x00ff00; // Verde para outros
-}
-
-module.exports = logger;
-module.exports.logCache = logCache;
+};
 
