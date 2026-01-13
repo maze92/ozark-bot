@@ -1,4 +1,3 @@
-// src/dashboard.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -8,10 +7,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Servir arquivos estáticos
+// Servir arquivos estáticos da pasta public
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Rota de teste
+// Health check
 app.get('/health', (req, res) => {
   res.send('Bot is running ✅');
 });
@@ -20,7 +19,7 @@ app.get('/health', (req, res) => {
 io.on('connection', (socket) => {
   console.log('🔌 Novo cliente conectado à dashboard');
 
-  // Exemplo de envio de mensagem de teste
+  // Exemplo: envio de mensagem de boas-vindas
   socket.emit('message', { content: 'Bem-vindo à dashboard!' });
 
   socket.on('disconnect', () => {
@@ -28,16 +27,12 @@ io.on('connection', (socket) => {
   });
 });
 
-/**
- * Envia dados do bot para todos os clientes conectados
- * @param {string} eventName - Nome do evento
- * @param {any} data - Dados a enviar
- */
+// Função para enviar eventos para todos os clientes conectados
 function sendToDashboard(eventName, data) {
   io.emit(eventName, data);
 }
 
-// Exporta app e função para uso no index.js
+// Exporta app e server
 module.exports = {
   app,
   server,
