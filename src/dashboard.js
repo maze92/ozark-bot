@@ -1,63 +1,34 @@
 const express = require('express');
-const path = require('path');
-const mongoose = require('mongoose');
-const User = require('./database/models/User');
-const GameNews = require('./database/models/GameNews');
+const http = require('http');
+const { logCache } = require('./systems/logger');
 
 const app = express();
+const server = http.createServer(app);
 
-// Configurar EJS
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+const { Server } = require('socket.io');
+const io = new Server(server);
 
-// Servir assets estáticos (CSS, JS)
-app.use(express.static(path.join(__dirname, 'public')));
+// Tornar acessível para o logger enviar logs em tempo real
+module.exports.io = io;
 
-// ==============================
-// Rota principal – Dashboard
-// ==============================
-app.get('/', async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments();
-    const totalMessages = await User.aggregate([
-      { $group: { _id: null, total: { $sum: "$messages" } } }
-    ]);
+// Servir ficheiros estáticos (HTML, CSS, JS)
+app.use(express.static('public'));
 
-    res.render('index', {
-      totalUsers,
-      totalMessages: totalMessages[0]?.total || 0,
-      uptime: process.uptime()
-    });
-  } catch (err) {
-    console.error('[Dashboard] Error / route:', err);
-    res.status(500).send('Internal Server Error');
-  }
+// Endpoint simples para verificar se o bot está online
+app.get('/status', (req, res) => {
+  res.json({ status: 'online' });
 });
 
-// ==============================
-// Infractions
-// ==============================
-app.get('/infractions', async (req, res) => {
-  try {
-    const users = await User.find().sort({ warnings: -1 }).limit(50);
-    res.render('infractions', { users });
-  } catch (err) {
-    console.error('[Dashboard] Error /infractions route:', err);
-    res.status(500).send('Internal Server Error');
-  }
+// Conexão Socket.IO
+io.on('connection', (socket) => {
+  // Enviar logs atuais ao cliente
+  socket.emit('logs', logCache);
+
+  // Solicitação de logs atualizados
+  socket.on('requestLogs', () => {
+    socket.emit('logs', logCache);
+  });
 });
 
-// ==============================
-// Game News Stats
-// ==============================
-app.get('/gamenews', async (req, res) => {
-  try {
-    const feeds = await GameNews.find().sort({ updatedAt: -1 });
-    res.render('gamenews', { feeds });
-  } catch (err) {
-    console.error('[Dashboard] Error /gamenews route:', err);
-    res.status(500).send('Internal Server Error');
-  }
-});
+module.exports = server;
 
-module.exports = app;
