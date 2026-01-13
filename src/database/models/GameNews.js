@@ -6,9 +6,9 @@ const gameNewsSchema = new Schema({
     required: true,
     unique: true
   },
-  lastHash: {
-    type: String,
-    default: null
+  hashes: {
+    type: [String],
+    default: []
   }
 }, { timestamps: true });
 
