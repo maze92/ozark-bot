@@ -74,10 +74,11 @@ module.exports = async (client, config) => {
 
         await logger(
           client,
-          'Game News',
-          channel.guild.members.me.user,
-          channel.guild.members.me.user,
-          `New article sent: **${item.title}**`
+          '📰 Game News',
+          null,
+          null,
+          `New article sent:\n**${item.title}**`,
+          channel.guild
         );
 
         console.log(`[GameNews] Sent: ${item.title}`);
