@@ -1,45 +1,60 @@
-// src/dashboard.js
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+// src/index.js
+require('dotenv').config();            // Carrega variáveis de ambiente do .env
+require('./database/connect');         // Conexão ao MongoDB
+
 const path = require('path');
+const fs = require('fs');
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const client = require('./bot');       // Instância do Discord Client
+const dashboard = require('./dashboard'); // Dashboard do bot (HTTP + Socket.io)
+const config = require('./config/defaultConfig');
 
-// Servir arquivos estáticos
-app.use(express.static(path.join(__dirname, '../public')));
+// ------------------------------
+// Carregar Comandos
+// ------------------------------
+client.commands = new Map();
 
-// Rota de teste
-app.get('/health', (req, res) => {
-  res.send('Bot is running ✅');
-});
+const commandFiles = fs
+  .readdirSync(path.join(__dirname, 'commands'))
+  .filter(file => file.endsWith('.js'));
 
-// Socket.io: comunicação em tempo real
-io.on('connection', (socket) => {
-  console.log('🔌 Novo cliente conectado à dashboard');
-
-  // Exemplo de envio de mensagem de teste
-  socket.emit('message', { content: 'Bem-vindo à dashboard!' });
-
-  socket.on('disconnect', () => {
-    console.log('❌ Cliente desconectado da dashboard');
-  });
-});
-
-/**
- * Envia dados do bot para todos os clientes conectados
- * @param {string} eventName - Nome do evento
- * @param {any} data - Dados a enviar
- */
-function sendToDashboard(eventName, data) {
-  io.emit(eventName, data);
+for (const file of commandFiles) {
+  const command = require(path.join(__dirname, 'commands', file));
+  client.commands.set(command.name, command);
+  console.log(`✅ Loaded command: ${command.name}`);
 }
 
-// Exporta app e função para uso no index.js
-module.exports = {
-  app,
-  server,
-  sendToDashboard
-};
+// ------------------------------
+// Eventos
+// ------------------------------
+require('./events/ready')(client);          // Evento ready
+require('./events/messageCreate')(client);  // Evento messageCreate
+require('./events/guildMemberAdd')(client); // Evento guildMemberAdd
+
+// ------------------------------
+// Login do Bot
+// ------------------------------
+client.login(process.env.TOKEN);
+
+// ------------------------------
+// Dashboard do bot
+// ------------------------------
+const PORT = process.env.PORT || 3000;
+dashboard.server.listen(PORT, () => {
+  console.log(`🚀 Dashboard running on port ${PORT}`);
+});
+
+// ------------------------------
+// Sistema Game News
+// ------------------------------
+const gameNews = require('./systems/gamenews');
+gameNews(client, config).catch(err => {
+  console.error('[GameNews] Erro ao iniciar o sistema:', err);
+});
+
+// ------------------------------
+// Health Check (Rota para verificar se o bot está online)
+// ------------------------------
+dashboard.app.get('/health', (req, res) => {
+  res.send('Bot is running ✅');
+});
