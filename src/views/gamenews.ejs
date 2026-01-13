@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Game News Stats</title>
+</head>
+<body>
+  <h1>Game News Feeds</h1>
+  <table border="1">
+    <tr>
+      <th>Feed</th>
+      <th>Last Link</th>
+      <th>Updated At</th>
+    </tr>
+    <% feeds.forEach(feed => { %>
+      <tr>
+        <td><%= feed.source %></td>
+        <td><a href="<%= feed.lastLink %>"><%= feed.lastLink %></a></td>
+        <td><%= feed.updatedAt.toLocaleString() %></td>
+      </tr>
+    <% }) %>
+  </table>
+  <a href="/">Back</a>
+</body>
+</html>
