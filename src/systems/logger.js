@@ -3,31 +3,37 @@ const config = require('../config/defaultConfig');
 
 /**
  * Sends a log message to the moderation channel
- * @param {Client} client - Discord client
- * @param {string} title - Log title
- * @param {User} user - Usuário afetado
- * @param {User} executor - Quem realizou a ação (pode ser o mesmo do user)
- * @param {string} description - Descrição adicional
- * @param {Guild} guild - Guild onde o log será enviado (opcional)
+ * @param {Client} client
+ * @param {string} title
+ * @param {User|null} user
+ * @param {User|null} executor
+ * @param {string} description
+ * @param {Guild} guild
  */
-module.exports = async function logger(client, title, user, executor, description, guild) {
-  guild = guild || user?.guild;
+module.exports = async function logger(
+  client,
+  title,
+  user,
+  executor,
+  description,
+  guild
+) {
   if (!guild) return;
 
   const logChannelName = config.logChannelName || 'log-bot';
-  const logChannel = guild.channels.cache.find(ch => ch.name === logChannelName);
+  const logChannel = guild.channels.cache.find(
+    ch => ch.name === logChannelName
+  );
 
   if (!logChannel) return;
 
   const embed = new EmbedBuilder()
     .setTitle(title)
     .setColor('Blue')
-    .setDescription(
-      `👤 **User:** ${user.tag}\n` +
-      `🛠️ **Executor:** ${executor?.tag || 'N/A'}\n` +
-      `${description}`
-    )
     .setTimestamp();
 
-  logChannel.send({ embeds: [embed] }).catch(() => null);
-};
+  let desc = '';
+
+  if (user) desc += `👤 **User:** ${user.tag}\n`;
+  if (executor) desc += `🛠️ **Executor:** ${executor.tag}\n`;
+  if (description) desc += `\
