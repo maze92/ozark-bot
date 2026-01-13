@@ -1,17 +1,16 @@
 const { Schema, model } = require('mongoose');
 
-// Esquema para armazenar as últimas notícias de cada feed
+// Stores last sent news per feed
 const gameNewsSchema = new Schema({
-  source: {         // Nome do feed (ex: "Polygon_PC", "IGN_PC")
+  source: {
     type: String,
     required: true,
-    unique: true,   // Garante que cada feed tenha apenas um registro
+    unique: true
   },
-  lastLink: {       // URL da última notícia enviada
+  lastHash: {
     type: String,
-    default: null   // 'null' indica que ainda não foi enviada nenhuma notícia
+    required: true
   }
-}, { timestamps: true }); // Adiciona campos automáticos 'createdAt' e 'updatedAt'
+}, { timestamps: true });
 
-// Exporta o modelo para uso em gamenews.js
 module.exports = model('GameNews', gameNewsSchema);
