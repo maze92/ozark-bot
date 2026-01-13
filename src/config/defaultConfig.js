@@ -70,7 +70,7 @@ module.exports = {
       {
         name: "GameSpot/NewGames",
         feed: "https://www.gamespot.com/feeds/new-games",
-        channelId: "1449609850446286911"
+        channelId: "1460640560778838137"
       }
     ]
   }
