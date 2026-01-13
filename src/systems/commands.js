@@ -1,7 +1,20 @@
+const fs = require('fs');
+const path = require('path');
 const config = require('../config/defaultConfig');
-const checkCooldown = require('./cooldowns');
+const rateLimit = require('./rateLimit');
 
-module.exports = async function commands(message, client) {
+const commands = new Map();
+
+const commandFiles = fs
+  .readdirSync(path.join(__dirname, '../commands'))
+  .filter(f => f.endsWith('.js'));
+
+for (const file of commandFiles) {
+  const command = require(`../commands/${file}`);
+  commands.set(command.name, command);
+}
+
+module.exports = async (message, client) => {
   if (!message.content.startsWith(config.prefix)) return;
 
   const args = message.content
@@ -10,28 +23,29 @@ module.exports = async function commands(message, client) {
     .split(/\s+/);
 
   const commandName = args.shift().toLowerCase();
-  const command = client.commands.get(commandName);
-
+  const command = commands.get(commandName);
   if (!command) return;
 
-  // Cooldown
-  const cooldown = checkCooldown(commandName, message.author.id);
-  if (cooldown) {
-    return message.reply(
-      `⏳ Please wait **${cooldown}s** before using this command again.`
-    );
+  // Rate limit (3s por comando)
+  if (rateLimit(message.author.id, command.name, 3000)) {
+    return message.reply('⏳ Please slow down.');
   }
 
-  // Permissões por cargo
-  if (command.allowedRoles?.length) {
-    const hasRole = message.member.roles.cache.some(r =>
-      command.allowedRoles.includes(r.id)
+  // Verificação de cargos
+  if (command.allowedRoles) {
+    const allowed = message.member.roles.cache.some(role =>
+      command.allowedRoles.includes(role.id)
     );
 
-    if (!hasRole) {
+    if (!allowed) {
       return message.reply('❌ You do not have permission to use this command.');
     }
   }
 
-  await command.execute(message, client, args);
+  try {
+    await command.execute(message, client, args);
+  } catch (err) {
+    console.error(`[COMMAND ERROR] ${commandName}:`, err);
+    message.reply('⚠️ Error executing command.');
+  }
 };
