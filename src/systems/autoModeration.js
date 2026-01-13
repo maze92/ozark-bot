@@ -1,34 +1,38 @@
+const { EmbedBuilder } = require('discord.js');
 const User = require('../database/models/User');
 const config = require('../config/defaultConfig');
-const infractions = require('./infractions');
+const logger = require('./logger'); // logger centralizado
 
+// Configurações
 const bannedWords = [
   ...(config.bannedWords?.pt || []),
   ...(config.bannedWords?.en || [])
 ];
+const maxWarnings = config.maxWarnings || 3;
+const muteDuration = config.muteDuration || 10 * 60 * 1000; // 10 minutos
 
 module.exports = async function autoModeration(message, client) {
-  if (!message.guild || message.author.bot) return;
+  if (!message || !message.content || message.author.bot || !message.guild) return;
 
-  // Evitar duplicações
+  // Evita processar a mesma mensagem várias vezes
   if (message._automodHandled) return;
   message._automodHandled = true;
 
+  // Limpar conteúdo da mensagem
   const cleanContent = message.content
-    .toLowerCase()
-    .replace(/https?:\/\/\S+/gi, '')
-    .replace(/[^\w\s]/gi, '');
+    .replace(/https?:\/\/\S+/gi, '')            // remove links
+    .replace(/<:[a-zA-Z0-9_]+:[0-9]+>/g, '')   // remove emojis custom
+    .replace(/[.,!?;:'"(){}[\]]/g, '')         // remove pontuação
+    .toLowerCase();
 
-  const foundWord = bannedWords.find(word =>
-    cleanContent.includes(word.toLowerCase())
-  );
-
+  // Verifica palavras proibidas
+  const foundWord = bannedWords.find(word => cleanContent.includes(word.toLowerCase()));
   if (!foundWord) return;
 
-  // Apagar mensagem
+  // Apagar mensagem ofensiva
   await message.delete().catch(() => null);
 
-  // Obter/criar utilizador
+  // DB: obter ou criar utilizador
   let user = await User.findOne({
     userId: message.author.id,
     guildId: message.guild.id
@@ -43,47 +47,53 @@ module.exports = async function autoModeration(message, client) {
     });
   }
 
+  // Incrementar warn
   user.warnings += 1;
   await user.save();
 
-  // Criar infração WARN
-  await infractions.create({
-    client,
-    guild: message.guild,
-    user: message.author,
-    moderator: message.author,
-    type: 'WARN',
-    reason: `Inappropriate language: ${foundWord}`
-  });
+  // Aviso ao usuário
+  await message.channel.send({
+    content: `⚠️ ${message.author}, inappropriate language is not allowed.\n**Warning:** ${user.warnings}/${maxWarnings}`
+  }).catch(() => null);
 
-  await message.channel.send(
-    `⚠️ ${message.author}, inappropriate language is not allowed.\nWarnings: ${user.warnings}/${config.maxWarnings}`
+  // Log centralizado via logger.js
+  await logger(
+    client,
+    'Automatic Warn',
+    message.author,
+    message.author,
+    `Word: ${foundWord}\nWarnings: ${user.warnings}/${maxWarnings}`,
+    message.guild
   );
 
-  // MUTE automático
-  if (user.warnings >= config.maxWarnings) {
+  // Aplicar mute se excedeu warns
+  if (user.warnings >= maxWarnings) {
     if (message.member?.moderatable) {
-      await message.member.timeout(
-        config.muteDuration,
-        'Exceeded automatic warning limit'
-      );
+      try {
+        await message.member.timeout(
+          muteDuration,
+          'Exceeded automatic warning limit'
+        );
 
-      await infractions.create({
-        client,
-        guild: message.guild,
-        user: message.author,
-        moderator: client.user,
-        type: 'MUTE',
-        reason: 'Exceeded warning limit',
-        duration: config.muteDuration
-      });
+        await message.channel.send(
+          `🔇 ${message.author} has been muted for ${muteDuration / 60000} minutes due to repeated infractions.`
+        );
 
-      user.warnings = 0;
-      await user.save();
+        await logger(
+          client,
+          'Automatic Mute',
+          message.author,
+          message.author,
+          `Duration: ${muteDuration / 60000} minutes`,
+          message.guild
+        );
 
-      await message.channel.send(
-        `🔇 ${message.author} has been muted for ${config.muteDuration / 60000} minutes.`
-      );
+        // Reset warnings após mute
+        user.warnings = 0;
+        await user.save();
+      } catch (err) {
+        console.error('[AutoMod] Error muting user:', err);
+      }
     }
   }
 };
