@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require('discord.js');
 const config = require('../config/defaultConfig');
+const dashboard = require('../dashboard'); // importa o dashboard para enviar logs
 
 /**
  * Logger centralizado
@@ -25,6 +26,7 @@ module.exports = async function logger(
   const logChannel = guild.channels.cache.find(ch => ch.name === logChannelName);
   if (!logChannel) return;
 
+  // Monta a descrição do embed
   let desc = '';
   if (user) desc += `👤 **User:** ${user.tag}\n`;
   if (executor) desc += `🛠️ **Executor:** ${executor.tag}\n`;
@@ -36,5 +38,9 @@ module.exports = async function logger(
     .setDescription(desc)
     .setTimestamp();
 
+  // Envia para o canal de logs no Discord
   logChannel.send({ embeds: [embed] }).catch(() => null);
+
+  // 🔹 Também envia para o dashboard em tempo real
+  dashboard.sendToDashboard(title, user, executor, description);
 };
