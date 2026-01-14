@@ -3,8 +3,7 @@ const config = require('../config/defaultConfig');
 const dashboard = require('../dashboard');
 
 /**
- * Centralized logger
- * Sends logs to Discord and Dashboard
+ * Logger centralizado
  */
 module.exports = async function logger(
   client,
@@ -23,7 +22,6 @@ module.exports = async function logger(
       ch => ch.name === logChannelName
     );
 
-    // Build embed
     let desc = '';
     if (user) desc += `👤 **User:** ${user.tag}\n`;
     if (executor) desc += `🛠️ **Executor:** ${executor.tag}\n`;
@@ -31,21 +29,31 @@ module.exports = async function logger(
 
     const embed = new EmbedBuilder()
       .setTitle(title)
-      .setColor(0x3498db)
+      .setColor('Blue')
       .setDescription(desc)
       .setTimestamp();
 
+    // Discord log
     if (logChannel) {
-      logChannel.send({ embeds: [embed] }).catch(() => null);
+      await logChannel.send({ embeds: [embed] }).catch(() => null);
     }
 
-    // Send to dashboard
+    // Dashboard log (CORRETO)
     dashboard.sendToDashboard('log', {
       title,
-      user: user?.tag || null,
-      executor: executor?.tag || null,
+      user: user ? {
+        id: user.id,
+        tag: user.tag
+      } : null,
+      executor: executor ? {
+        id: executor.id,
+        tag: executor.tag
+      } : null,
       description,
-      time: Date.now()
+      guild: {
+        id: guild.id,
+        name: guild.name
+      }
     });
 
   } catch (err) {
