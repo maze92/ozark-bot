@@ -2,17 +2,17 @@ module.exports = {
   // ==============================
   // Prefixo do bot
   // ==============================
-  prefix: '!',
-
+  prefix: '!', // Prefixo configurável
 
   // ==============================
   // Moderação automática
   // ==============================
-  maxWarnings: 3,                   // Warns antes de mute
-  muteDuration: 10 * 60 * 1000,     // 10 minutos
+  maxWarnings: 3,                   // Quantidade máxima de warns antes de mute
+  muteDuration: 10 * 60 * 1000,     // 10 minutos em milissegundos
   logChannelName: 'log-bot',        // Canal de logs
-  language: 'en',
+  language: 'en',                    // Idioma do bot
 
+  // Palavras proibidas
   bannedWords: {
     en: [
       'fuck','shit','bitch','asshole','dick','bastard','slut','whore',
@@ -27,28 +27,6 @@ module.exports = {
       'escroto','vagabundo','puta','lixo','nojento','desgraça'
     ]
   },
-
-
-  // ==============================
-  // Anti-Spam (PASSO 2)
-  // ==============================
-  antiSpam: {
-    enabled: true,
-    maxMessages: 5,            // Mensagens permitidas
-    interval: 7000,            // Em 7 segundos
-    muteDuration: 5 * 60 * 1000 // 5 minutos
-  },
-
-
-  // ==============================
-  // Cooldowns de comandos (PASSO 2)
-  // ==============================
-  cooldowns: {
-    default: 3000,   // 3 segundos para qualquer comando
-    clear: 10000,    // 10s
-    purgeuser: 15000 // 15s
-  },
-
 
   // ==============================
   // Notícias de jogos (Game News)
@@ -75,3 +53,4 @@ module.exports = {
     ]
   }
 };
+
