@@ -1,4 +1,3 @@
-// src/dashboard.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -16,12 +15,11 @@ app.get('/health', (req, res) => {
   res.send('Bot is running ✅');
 });
 
-// Socket.io: comunicação em tempo real
+// Socket.IO: comunicação em tempo real
 io.on('connection', (socket) => {
   console.log('🔌 New client connected to dashboard');
 
-  // Envia status inicial do bot
-  socket.emit('botStatus', { online: true });
+  socket.emit('message', { content: 'Welcome to Ozark Bot Dashboard!' });
 
   socket.on('disconnect', () => {
     console.log('❌ Client disconnected from dashboard');
@@ -29,7 +27,7 @@ io.on('connection', (socket) => {
 });
 
 /**
- * Envia dados do bot para todos os clientes conectados
+ * Envia eventos do bot para todos os clientes conectados
  * @param {string} eventName - Nome do evento
  * @param {any} data - Dados a enviar
  */
