@@ -4,46 +4,62 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
-// Initialize Express
+// Express app
 const app = express();
-
-// Create HTTP server from Express
 const server = http.createServer(app);
-
-// Initialize Socket.io for real-time communication
 const io = new Server(server);
 
-// Serve static files from public folder
+// Servir arquivos estáticos da pasta public
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Health check route
+// Health check
 app.get('/health', (req, res) => {
   res.send('Bot is running ✅');
 });
+
+// Logs em memória (temporário)
+let logs = [];
 
 // Socket.io connection
 io.on('connection', (socket) => {
   console.log('🔌 New client connected to the dashboard');
 
-  // Send a welcome message
-  socket.emit('message', { content: 'Welcome to the dashboard!' });
+  // Envia todos os logs ao conectar
+  socket.emit('logs', logs);
 
-  // Disconnect event
+  socket.on('requestLogs', () => {
+    socket.emit('logs', logs);
+  });
+
   socket.on('disconnect', () => {
     console.log('❌ Client disconnected from the dashboard');
   });
 });
 
-// Function to send events to all connected clients
-// @param {string} eventName - Name of the event
-// @param {any} data - Data to send
-function sendToDashboard(eventName, data) {
-  io.emit(eventName, data);
+/**
+ * Envia um log para todos os clientes e salva na memória
+ * @param {Object} log - { title, user, executor, description, time }
+ */
+function sendToDashboard(title, user, executor, description) {
+  const logEntry = {
+    title,
+    user: user?.tag || null,
+    executor: executor?.tag || null,
+    description,
+    time: Date.now()
+  };
+
+  // Adiciona à memória (últimos 100 logs)
+  logs.push(logEntry);
+  if (logs.length > 100) logs.shift();
+
+  io.emit('logs', logs);
 }
 
-// Export app, server, and send function
+// Exporta app, server e função de envio de logs
 module.exports = {
   app,
   server,
   sendToDashboard
 };
+
