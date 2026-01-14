@@ -1,10 +1,9 @@
-const User = require('../database/models/User');
 const logger = require('../systems/logger');
-const config = require('../config/defaultConfig');
+const User = require('../database/models/User');
 
 module.exports = {
   name: 'warn',
-  description: 'Warn a user manually',
+  description: 'Issue a warning to a user',
   allowedRoles: [
     '1385619241235120177',
     '1385619241235120174',
@@ -12,41 +11,17 @@ module.exports = {
   ],
 
   async execute(message, client, args) {
-    const member = message.mentions.members.first();
-    if (!member) {
-      return message.reply(`❌ Usage: ${config.prefix}warn @user [reason]`);
-    }
+    const user = message.mentions.members.first();
+    if (!user) return message.reply('❌ Please mention a user to warn.');
 
-    const reason = args.slice(1).join(' ') || 'No reason provided';
+    let dbUser = await User.findOne({ userId: user.id, guildId: message.guild.id });
+    if (!dbUser) dbUser = await User.create({ userId: user.id, guildId: message.guild.id, warnings: 0 });
 
-    let user = await User.findOne({
-      userId: member.id,
-      guildId: message.guild.id
-    });
+    dbUser.warnings += 1;
+    await dbUser.save();
 
-    if (!user) {
-      user = await User.create({
-        userId: member.id,
-        guildId: message.guild.id,
-        warnings: 0,
-        trust: 30
-      });
-    }
+    await message.channel.send(`⚠️ ${user} has been warned. Total warns: ${dbUser.warnings}`);
 
-    user.warnings += 1;
-    await user.save();
-
-    await message.channel.send(
-      `⚠️ **${member.user.tag}** has been warned.\n**Warnings:** ${user.warnings}/${config.maxWarnings}`
-    );
-
-    await logger(
-      client,
-      'Manual Warn',
-      member.user,
-      message.author,
-      `Reason: ${reason}\nWarnings: ${user.warnings}/${config.maxWarnings}`,
-      message.guild
-    );
+    await logger(client, 'Manual Warn', user, message.author, `Total warns: ${dbUser.warnings}`, message.guild);
   }
 };
