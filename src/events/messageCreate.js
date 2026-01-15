@@ -1,9 +1,9 @@
 // src/events/messageCreate.js
 // ============================================================
 // messageCreate pipeline final:
-// 1) Se for comando -> systems/commands.js
-// 2) Se não for comando -> AutoMod
-// 3) Depois -> AntiSpam (se enabled)
+// 1) comando -> systems/commands.js
+// 2) mensagem normal -> AutoMod
+// 3) depois -> AntiSpam (se enabled)
 // ============================================================
 
 const config = require('../config/defaultConfig');
@@ -26,16 +26,12 @@ module.exports = (client) => {
       const prefix = config.prefix || '!';
       const isCommand = message.content.startsWith(prefix);
 
-      // 1) comandos
       if (isCommand) {
         await commandsHandler(message, client);
         return;
       }
 
-      // 2) automod
       await autoModeration(message, client);
-
-      // 3) antispam
       await antiSpam(message, client);
 
     } catch (err) {
