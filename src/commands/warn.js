@@ -1,82 +1,66 @@
 // src/commands/warn.js
 const { PermissionsBitField } = require('discord.js');
+
 const logger = require('../systems/logger');
-const User = require('../database/models/User');
-const config = require('../config/defaultConfig');
+const warningsService = require('../systems/warningsService');
 const infractionsService = require('../systems/infractionsService');
 
-/**
- * Comando: !warn
- * - Dá um aviso manual
- * - Atualiza warnings no User (MongoDB)
- * - Regista Infraction (WARN)
- * - Faz log no Discord + Dashboard
- */
 module.exports = {
   name: 'warn',
   description: 'Issue a warning to a user',
 
-  // (Opcional) podes remover daqui se quiseres usar só config.staffRoles no handler
-  allowedRoles: config.staffRoles,
+  // Podes remover isto se quiseres usar só config.staffRoles
+  // allowedRoles: [],
 
   async execute(message, args, client) {
     try {
       if (!message.guild) return;
 
-      const executor = message.member;
-      const botMember = message.guild.members.me;
-      if (!executor || !botMember) return;
+      const guild = message.guild;
+      const botMember = guild.members.me;
 
-      // Alvo
-      const targetMember = message.mentions.members.first();
-      if (!targetMember) return message.reply('❌ Please mention a user to warn.');
+      if (!botMember) return;
 
-      // Proteções
-      if (targetMember.id === message.author.id) return message.reply('❌ You cannot warn yourself.');
-      if (targetMember.id === client.user.id) return message.reply('❌ You cannot warn the bot.');
+      // alvo
+      const target = message.mentions.members.first();
+      if (!target) return message.reply('❌ Please mention a user to warn.');
 
-      // (Opcional) Hierarquia: impede warn em cargos >= executor (anti-abuso)
-      if (
-        targetMember.roles.highest.position >= executor.roles.highest.position &&
-        !executor.permissions.has(PermissionsBitField.Flags.Administrator)
-      ) {
-        return message.reply('❌ You cannot warn a user with an equal or higher role.');
+      // proteções básicas
+      if (target.id === message.author.id) return message.reply('❌ You cannot warn yourself.');
+      if (target.id === client.user.id) return message.reply('❌ You cannot warn the bot.');
+
+      // hierarquia
+      if (target.roles.highest.position >= botMember.roles.highest.position) {
+        return message.reply('❌ I cannot warn this user due to role hierarchy.');
       }
 
-      // DB User
-      let dbUser = await User.findOne({ userId: targetMember.id, guildId: message.guild.id });
-      if (!dbUser) {
-        dbUser = await User.create({
-          userId: targetMember.id,
-          guildId: message.guild.id,
-          warnings: 0,
-          trust: 30
-        });
-      }
+      // razão opcional
+      const reason = args.slice(1).join(' ').trim() || 'No reason provided';
 
-      dbUser.warnings += 1;
-      await dbUser.save();
+      // add warning
+      const dbUser = await warningsService.addWarning(guild.id, target.id, 1);
 
-      // Registar infraction WARN
+      // infração WARN
       await infractionsService.create({
-        guild: message.guild,
-        user: targetMember.user,
+        guild,
+        user: target.user,
         moderator: message.author,
         type: 'WARN',
-        reason: args.slice(1).join(' ').trim() || 'Manual warn',
+        reason,
         duration: null
-      });
+      }).catch(() => null);
 
-      await message.channel.send(`⚠️ ${targetMember} has been warned.\n**Total warnings:** ${dbUser.warnings}`);
+      await message.channel.send(`⚠️ ${target} has been warned.\n**Total warnings:** ${dbUser.warnings}`);
 
       await logger(
         client,
         'Manual Warn',
-        targetMember.user,
+        target.user,
         message.author,
-        `Total warnings: **${dbUser.warnings}**`,
-        message.guild
+        `Reason: **${reason}**\nTotal warnings: **${dbUser.warnings}**`,
+        guild
       );
+
     } catch (err) {
       console.error('[warn] Error:', err);
       message.reply('❌ An unexpected error occurred.').catch(() => null);
