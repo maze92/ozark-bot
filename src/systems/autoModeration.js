@@ -2,11 +2,10 @@
 // ============================================================
 // AutoMod:
 // - deteta banned words
-// - apaga a mensagem (se tiver perm)
+// - apaga mensagem (se ManageMessages)
 // - adiciona warning (warningsService)
-// - cria infração WARN (infractionsService)
-// - aplica timeout se atingir maxWarnings (e cria infração MUTE)
-// - log centralizado
+// - cria infração WARN
+// - timeout se atingir maxWarnings + infração MUTE
 // ============================================================
 
 const { PermissionsBitField } = require('discord.js');
@@ -32,18 +31,11 @@ module.exports = async function autoModeration(message, client) {
     if (!botMember) return;
 
     // bypass admin
-    if (message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-      console.log('[AutoMod] Administrator bypass:', message.author.tag);
-      return;
-    }
+    if (message.member.permissions.has(PermissionsBitField.Flags.Administrator)) return;
 
-    // hierarquia: não dá para moderar quem tem role >= bot
-    if (message.member.roles.highest.position >= botMember.roles.highest.position) {
-      console.warn(`[AutoMod] Cannot moderate ${message.author.tag} (higher role)`);
-      return;
-    }
+    // hierarquia: user >= bot
+    if (message.member.roles.highest.position >= botMember.roles.highest.position) return;
 
-    // config
     const bannedWords = [
       ...(config.bannedWords?.pt || []),
       ...(config.bannedWords?.en || [])
@@ -52,14 +44,14 @@ module.exports = async function autoModeration(message, client) {
     const maxWarnings = config.maxWarnings ?? 3;
     const muteDuration = config.muteDuration ?? (10 * 60 * 1000);
 
-    // limpar msg (remove links, emojis custom, pontuação)
+    // limpar mensagem
     const cleanContent = message.content
       .replace(/https?:\/\/\S+/gi, '')
       .replace(/<:[a-zA-Z0-9_]+:[0-9]+>/g, '')
       .replace(/[^\w\s]/g, '')
       .toLowerCase();
 
-    // detetar palavra proibida com regex simples (leet)
+    // detetar banned com regex/leet
     const foundWord = bannedWords.find(word => {
       const pattern = String(word)
         .replace(/a/gi, '[a4@]')
@@ -68,26 +60,24 @@ module.exports = async function autoModeration(message, client) {
         .replace(/o/gi, '[o0]')
         .replace(/u/gi, '[uü]')
         .replace(/s/gi, '[s5$]');
-      const regex = new RegExp(`\\b${pattern}\\b`, 'i');
-      return regex.test(cleanContent);
+      return new RegExp(`\\b${pattern}\\b`, 'i').test(cleanContent);
     });
 
     if (!foundWord) return;
 
-    // tentar apagar mensagem (precisa ManageMessages)
     const perms = message.channel.permissionsFor(botMember);
     const canDelete = perms?.has(PermissionsBitField.Flags.ManageMessages);
+    const canTimeout = perms?.has(PermissionsBitField.Flags.ModerateMembers);
 
+    // apagar msg se possível
     if (canDelete) {
       await message.delete().catch(() => null);
-    } else {
-      console.warn('[AutoMod] Missing ManageMessages: cannot delete message');
     }
 
-    // add warning via service
+    // +1 warning
     const dbUser = await warningsService.addWarning(guild.id, message.author.id, 1);
 
-    // criar infração WARN
+    // infração WARN
     await infractionsService.create({
       guild,
       user: message.author,
@@ -97,7 +87,7 @@ module.exports = async function autoModeration(message, client) {
       duration: null
     }).catch(() => null);
 
-    // avisar canal
+    // aviso no canal
     await message.channel.send({
       content: `⚠️ ${message.author}, inappropriate language is not allowed.\n**Warning:** ${dbUser.warnings}/${maxWarnings}`
     }).catch(() => null);
@@ -108,21 +98,15 @@ module.exports = async function autoModeration(message, client) {
       'Automatic Warn',
       message.author,
       client.user,
-      `Word: **${foundWord}**\nWarnings: **${dbUser.warnings}/${maxWarnings}**\nDeleted: **${canDelete ? 'yes' : 'no (missing ManageMessages)'}**`,
+      `Word: **${foundWord}**\nWarnings: **${dbUser.warnings}/${maxWarnings}**\nDeleted: **${canDelete ? 'yes' : 'no'}**`,
       guild
     );
 
-    // timeout se atingir limite
+    // timeout se atingiu limite
     if (dbUser.warnings >= maxWarnings) {
-      // precisa ModerateMembers
-      const canTimeout = perms?.has(PermissionsBitField.Flags.ModerateMembers);
+      if (!canTimeout || !message.member.moderatable) return;
 
-      if (!canTimeout || !message.member.moderatable) {
-        console.warn('[AutoMod] Cannot timeout (missing permission or not moderatable)');
-        return;
-      }
-
-      await message.member.timeout(muteDuration, 'Exceeded automatic warning limit');
+      await message.member.timeout(muteDuration, 'AutoMod: exceeded warning limit');
 
       await infractionsService.create({
         guild,
@@ -146,7 +130,7 @@ module.exports = async function autoModeration(message, client) {
         guild
       );
 
-      // reset warnings após mute
+      // reset warnings
       await warningsService.resetWarnings(guild.id, message.author.id).catch(() => null);
     }
 
