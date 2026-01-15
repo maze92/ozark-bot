@@ -155,4 +155,3 @@ async function sendToDashboard(event, data) {
 }
 
 module.exports = { app, server, sendToDashboard };
-
