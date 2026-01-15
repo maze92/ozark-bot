@@ -1,14 +1,13 @@
 // src/commands/mute.js
 const { PermissionsBitField } = require('discord.js');
-const logger = require('../systems/logger');
-const config = require('../config/defaultConfig');
-const infractionsService = require('../systems/infractionsService');
 
-/**
- * Converte "10m", "1h", "2d" para milissegundos.
- */
+const logger = require('../systems/logger');
+const infractionsService = require('../systems/infractionsService');
+const config = require('../config/defaultConfig');
+
 function parseDuration(input) {
   if (!input || typeof input !== 'string') return null;
+
   const match = input.trim().toLowerCase().match(/^(\d+)(s|m|h|d)$/);
   if (!match) return null;
 
@@ -40,86 +39,88 @@ function formatDuration(ms) {
 module.exports = {
   name: 'mute',
   description: 'Timeout (mute) a user with optional duration and reason',
-  allowedRoles: config.staffRoles,
 
+  /**
+   * Uso:
+   * - !mute @user 10m reason...
+   * - !mute @user reason...
+   */
   async execute(message, args, client) {
     try {
       if (!message.guild) return;
 
-      const executor = message.member;
-      const botMember = message.guild.members.me;
-      if (!executor || !botMember) return;
+      const guild = message.guild;
+      const botMember = guild.members.me;
+      if (!botMember) return;
 
-      // Permissão do bot
-      const botPerms = message.channel.permissionsFor(botMember);
-      if (!botPerms?.has(PermissionsBitField.Flags.ModerateMembers)) {
-        return message.reply('❌ I do not have permission to timeout members (Moderate Members).');
+      // permissão do bot para timeout
+      const perms = message.channel.permissionsFor(botMember);
+      if (!perms?.has(PermissionsBitField.Flags.ModerateMembers)) {
+        return message.reply('❌ I do not have permission to timeout members (Moderate Members).').catch(() => null);
       }
 
-      // Alvo
-      const targetMember = message.mentions.members.first();
-      if (!targetMember) {
-        return message.reply(`❌ Usage: ${config.prefix}mute @user [10m/1h/2d] [reason...]`);
+      const target = message.mentions.members.first();
+      if (!target) {
+        return message.reply(`❌ Usage: ${config.prefix}mute @user [10m/1h/2d] [reason...]`).catch(() => null);
       }
 
-      if (targetMember.user.bot) return message.reply('⚠️ You cannot mute a bot.');
+      if (target.user.bot) return message.reply('⚠️ You cannot mute a bot.').catch(() => null);
 
-      // Hierarquia: bot não pode moderar cargos >= ao dele
-      if (targetMember.roles.highest.position >= botMember.roles.highest.position) {
-        return message.reply('❌ I cannot mute this user (their role is higher or equal to my highest role).');
+      // já muted?
+      if (target.isCommunicationDisabled()) {
+        return message.reply(`⚠️ **${target.user.tag}** is already muted.`).catch(() => null);
       }
 
-      // Executor anti-abuso (opcional)
-      if (
-        targetMember.roles.highest.position >= executor.roles.highest.position &&
-        !executor.permissions.has(PermissionsBitField.Flags.Administrator)
-      ) {
-        return message.reply('❌ You cannot mute this user (their role is higher or equal to yours).');
+      // hierarquia bot
+      if (target.roles.highest.position >= botMember.roles.highest.position) {
+        return message.reply('❌ I cannot mute this user (role higher/equal to mine).').catch(() => null);
       }
 
-      // Limpar args removendo mention
+      // remover mention dos args
       const cleanedArgs = args.filter(a => {
-        const isMention = a.includes(`<@${targetMember.id}>`) || a.includes(`<@!${targetMember.id}>`);
-        const isRawId = a === targetMember.id;
+        const isMention = a.includes(`<@${target.id}>`) || a.includes(`<@!${target.id}>`);
+        const isRawId = a === target.id;
         return !isMention && !isRawId;
       });
 
       const possibleDuration = cleanedArgs[0];
       const parsed = parseDuration(possibleDuration);
 
-      const durationMs = parsed ?? config.muteDuration ?? 10 * 60 * 1000;
+      const durationMs = parsed || config.muteDuration || 10 * 60 * 1000;
+
+      // limite discord: 28 dias
+      const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000;
+      if (durationMs > MAX_TIMEOUT_MS) {
+        return message.reply('❌ Timeout duration cannot exceed 28 days.').catch(() => null);
+      }
 
       const reasonStartIndex = parsed ? 1 : 0;
       const reason = cleanedArgs.slice(reasonStartIndex).join(' ').trim() || 'No reason provided';
 
-      // Limite Discord timeout: 28 dias
-      const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000;
-      if (durationMs > MAX_TIMEOUT_MS) return message.reply('❌ Timeout duration cannot exceed 28 days.');
+      await target.timeout(durationMs, `Muted by ${message.author.tag}: ${reason}`);
 
-      await targetMember.timeout(durationMs, `Muted by ${message.author.tag}: ${reason}`);
+      await message.channel.send(
+        `🔇 **${target.user.tag}** has been muted for **${formatDuration(durationMs)}**.\n📝 Reason: **${reason}**`
+      ).catch(() => null);
 
-      await message.channel
-        .send(`🔇 **${targetMember.user.tag}** has been muted for **${formatDuration(durationMs)}**.\n📝 Reason: **${reason}**`)
-        .catch(() => null);
-
-      // Registar infraction MUTE
       await infractionsService.create({
-        guild: message.guild,
-        user: targetMember.user,
+        guild,
+        user: target.user,
         moderator: message.author,
         type: 'MUTE',
         reason,
         duration: durationMs
-      });
+      }).catch(() => null);
 
       await logger(
         client,
         'Manual Mute',
-        targetMember.user,
+        target.user,
         message.author,
         `Duration: **${formatDuration(durationMs)}**\nReason: **${reason}**`,
-        message.guild
+        guild
       );
+
     } catch (err) {
       console.error('[mute] Error:', err);
       message.reply('❌ Failed to mute the user. Check my permissions and role hierarchy.').catch(() => null);
