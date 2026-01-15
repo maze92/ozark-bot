@@ -1,22 +1,32 @@
+// ecosystem.config.js
 module.exports = {
   apps: [
     {
-      name: 'OzarkBot',                // Nome do processo
-      script: 'src/index.js',          // Script principal do bot
-      watch: false,                    // Não reinicia automaticamente por mudanças de arquivo
-      instances: 1,                    // Apenas 1 instância
-      autorestart: true,               // Reinicia automaticamente se travar
-      max_restarts: 10,                // Máximo de 10 tentativas em caso de crash
-      restart_delay: 5000,             // Aguarda 5 segundos antes de reiniciar
+      name: 'OzarkBot',
+      script: 'src/index.js',
+
+      // ✅ Evita duplicados do GameNews (e problemas de interval duplicado)
+      instances: 1,
+      exec_mode: 'fork',
+
+      watch: false,
+
+      // ✅ Auto-restart está ok
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+
+      // ✅ No Railway, as env vars já vêm do painel.
+      // Mantemos só NODE_ENV e defaults seguros.
       env: {
-        NODE_ENV: 'production',        // Variável de ambiente
-        TOKEN: process.env.TOKEN,
-        PORT: process.env.PORT || 3000,
-        MONGODB_URI: process.env.MONGODB_URI
+        NODE_ENV: 'production'
       },
-      error_file: 'logs/err.log',      // Arquivo para logs de erro
-      out_file: 'logs/out.log',        // Arquivo para logs padrão
-      merge_logs: true,                // Mescla logs de várias instâncias
+
+      // (Opcional) logs — no Railway normalmente não precisas disto,
+      // mas não estraga desde que a pasta exista.
+      error_file: 'logs/err.log',
+      out_file: 'logs/out.log',
+      merge_logs: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss'
     }
   ]
