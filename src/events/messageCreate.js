@@ -3,34 +3,36 @@
 // Evento: messageCreate
 //
 // Responsável por:
-// 1) Encaminhar comandos prefixados para o handler central: /src/systems/commands.js
-// 2) Executar AutoMod (e opcionalmente AntiSpam) em mensagens normais
+// 1) Processar comandos prefixados (via systems/commands.js)
+// 2) Aplicar AntiSpam (flood / spam)
+// 3) Aplicar AutoModeration (palavras proibidas)
 //
 // Regras importantes:
-// - Se for comando, NÃO executa AutoMod (evita conflitos/falsos positivos)
+// - Se for comando, NÃO executa AntiSpam nem AutoMod (evita conflitos)
 // - Ignora bots e DMs
 // - Faz fetch de partials quando necessário
 // ============================================================
 
 const config = require('../config/defaultConfig');
-const commandsHandler = require('../systems/commands');      // ✅ comandos centralizados aqui
-const autoModeration = require('../systems/autoModeration'); // ✅ automod
-// const antiSpam = require('../systems/antiSpam');          // (opcional) ativa se quiseres AntiSpam
+
+// ✅ Sistemas
+const commandsHandler = require('../systems/commands');
+const antiSpam = require('../systems/antiSpam');
+const autoModeration = require('../systems/autoModeration');
 
 module.exports = (client) => {
   client.on('messageCreate', async (message) => {
     try {
       // ------------------------------------------------------------
-      // Validações básicas
+      // 0) Validações básicas
       // ------------------------------------------------------------
       if (!message) return;
-      if (!message.guild) return;          // Ignora DMs
+      if (!message.guild) return;            // Ignora DMs
       if (!message.content) return;
-      if (message.author?.bot) return;     // Ignora bots
+      if (message.author?.bot) return;       // Ignora bots
 
       // ------------------------------------------------------------
-      // Garantir dados completos (partials)
-      // - Em alguns casos o Discord manda mensagens incompletas
+      // 1) Garantir dados completos (partials)
       // ------------------------------------------------------------
       if (message.partial) {
         try {
@@ -43,8 +45,7 @@ module.exports = (client) => {
       const prefix = config.prefix || '!';
 
       // ------------------------------------------------------------
-      // 1) Se for comando → delega no systems/commands.js e termina
-      // - Evita duplicação de lógica e conflitos com AutoMod
+      // 2) Se for comando -> delega no commandsHandler e TERMINA
       // ------------------------------------------------------------
       if (message.content.startsWith(prefix)) {
         await commandsHandler(message, client);
@@ -52,15 +53,18 @@ module.exports = (client) => {
       }
 
       // ------------------------------------------------------------
-      // 2) Mensagens normais → AutoMod primeiro
+      // 3) AntiSpam (primeiro)
+      // - Detecta flood e aplica timeout automático
       // ------------------------------------------------------------
-      await autoModeration(message, client);
+      if (config.antiSpam?.enabled) {
+        await antiSpam(message, client);
+      }
 
       // ------------------------------------------------------------
-      // 3) (Opcional) AntiSpam depois do AutoMod
-      // - Só ativa se realmente quiseres este sistema
+      // 4) AutoModeration (depois)
+      // - Detecta palavras proibidas, dá warn e timeout ao atingir limite
       // ------------------------------------------------------------
-      // await antiSpam(message, client);
+      await autoModeration(message, client);
 
     } catch (err) {
       console.error('[messageCreate] Critical error:', err);
