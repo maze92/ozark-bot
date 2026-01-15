@@ -2,7 +2,7 @@
 // ============================================================
 // Logger centralizado
 // Faz:
-// - Envia logs para o canal "log-bot" (ou o nome definido no config)
+// - Envia logs para o canal "log-bot" (ou nome definido no config)
 // - Envia logs em tempo real para o Dashboard via Socket.IO
 //
 // Notas importantes:
@@ -16,7 +16,7 @@ const config = require('../config/defaultConfig');
 const dashboard = require('../dashboard');
 
 /**
- * Normaliza "user" para algo seguro (id/tag) independentemente do tipo:
+ * Normaliza "actor" para um formato seguro:
  * - User -> { id, tag }
  * - GuildMember -> { id, tag }
  * - null -> null
@@ -27,7 +27,6 @@ function normalizeActor(actor) {
   // Se for GuildMember, o "user" está em actor.user
   const u = actor.user ?? actor;
 
-  // Se não tiver id/tag, devolve null (evita crashes)
   if (!u?.id) return null;
 
   return {
@@ -38,7 +37,7 @@ function normalizeActor(actor) {
 
 /**
  * Resolve a guild com segurança:
- * - Usa guild passada por argumento
+ * - Usa a guild passada por argumento
  * - Se não existir, tenta obter de "user" ou "executor" se forem GuildMember
  */
 function resolveGuild(guild, user, executor) {
@@ -49,7 +48,7 @@ function resolveGuild(guild, user, executor) {
  * Logger centralizado
  * @param {Client} client - Instância do Discord Client
  * @param {string} title - Título do log (ex: "Automatic Warn", "Game News")
- * @param {User|GuildMember|null} user - Usuário afetado (User ou Member)
+ * @param {User|GuildMember|null} user - Utilizador afetado (User ou Member)
  * @param {User|GuildMember|null} executor - Quem executou (User ou Member)
  * @param {string} description - Texto adicional
  * @param {Guild|null} guild - Guild onde enviar o log (recomendado passar SEMPRE)
@@ -67,10 +66,9 @@ module.exports = async function logger(client, title, user, executor, descriptio
     // ------------------------------------------------------------
     const logChannelName = config.logChannelName || 'log-bot';
 
-    // Procura no cache. (Requer que o bot tenha intents/perm para ver canais)
-    const logChannel = resolvedGuild.channels?.cache?.find(
-      (ch) => ch?.name === logChannelName
-    ) || null;
+    // Procura no cache
+    const logChannel =
+      resolvedGuild.channels?.cache?.find((ch) => ch?.name === logChannelName) || null;
 
     // ------------------------------------------------------------
     // 3) Normalizar dados para evitar crashes
@@ -88,7 +86,7 @@ module.exports = async function logger(client, title, user, executor, descriptio
 
     const embed = new EmbedBuilder()
       .setTitle(title || 'Log')
-      .setColor('Blue')
+      .setColor(0x3498db) // azul (hex) - estável
       .setDescription(desc || 'No description provided.')
       .setTimestamp(new Date());
 
@@ -102,6 +100,7 @@ module.exports = async function logger(client, title, user, executor, descriptio
     // ------------------------------------------------------------
     // 6) Enviar para o Dashboard (tempo real)
     // - O dashboard espera sendToDashboard('log', data)
+    // - Mantemos "time" em ISO para o teu HTML fazer new Date(log.time)
     // ------------------------------------------------------------
     try {
       if (dashboard?.sendToDashboard) {
