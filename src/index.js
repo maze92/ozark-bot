@@ -3,7 +3,7 @@
 // Entrypoint principal do bot
 // - Carrega config e DB
 // - Carrega comandos e eventos
-// - Inicia dashboard
+// - Inicia dashboard (porta aberta para Railway manter "Running")
 // - Inicia GameNews (apenas após o bot estar pronto)
 // - Inclui handlers de estabilidade (anti-crash)
 // ============================================================
@@ -13,12 +13,15 @@ require('./database/connect');           // Liga ao MongoDB
 
 const path = require('path');
 const fs = require('fs');
-const client = require('./bot');         // Discord Client
-const dashboard = require('./dashboard');// Express + Socket.IO
+
+const client = require('./bot');          // Discord Client
+const dashboard = require('./dashboard'); // Express + Socket.IO
 const config = require('./config/defaultConfig');
 
 // ============================================================
 // 1) Carregar comandos (uma vez)
+// - Os comandos ficam em src/commands/*.js
+// - Cada comando deve exportar: { name, execute(...) }
 // ============================================================
 client.commands = new Map();
 
@@ -31,6 +34,7 @@ for (const file of commandFiles) {
   const filePath = path.join(commandsDir, file);
   const command = require(filePath);
 
+  // Validação básica para evitar crash por ficheiro mal exportado
   if (!command?.name || typeof command.execute !== 'function') {
     console.warn(`⚠️ Skipped invalid command file: ${file}`);
     continue;
@@ -42,7 +46,8 @@ for (const file of commandFiles) {
 
 // ============================================================
 // 2) Carregar eventos (uma vez)
-// - AutoMod NÃO é registado aqui (já está no events/messageCreate.js)
+// - O AutoMod e comandos são tratados no events/messageCreate.js
+// - Não registar messageCreate noutro sítio para não duplicar handlers
 // ============================================================
 require('./events/ready')(client);
 require('./events/messageCreate')(client);
@@ -60,7 +65,22 @@ process.on('uncaughtException', (err) => {
 });
 
 // ============================================================
-// 4) Login do bot
+// 4) Dashboard (server HTTP)
+// - Railway precisa de uma porta aberta para manter serviço "Running"
+// - A rota /health serve para "health check"
+// ============================================================
+dashboard.app.get('/health', (req, res) => {
+  res.status(200).send('Bot is running ✅');
+});
+
+const PORT = process.env.PORT || 3000;
+
+dashboard.server.listen(PORT, () => {
+  console.log(`🚀 Dashboard running on port ${PORT}`);
+});
+
+// ============================================================
+// 5) Login do bot
 // ============================================================
 if (!process.env.TOKEN) {
   console.error('❌ Missing TOKEN in .env');
@@ -72,30 +92,24 @@ client.login(process.env.TOKEN).catch(err => {
 });
 
 // ============================================================
-// 5) Dashboard (server HTTP)
-// - Railway precisa de uma porta aberta para manter serviço "Running"
-// ============================================================
-const PORT = process.env.PORT || 3000;
-
-dashboard.server.listen(PORT, () => {
-  console.log(`🚀 Dashboard running on port ${PORT}`);
-});
-
-// Health check (rota simples)
-dashboard.app.get('/health', (req, res) => {
-  res.status(200).send('Bot is running ✅');
-});
-
-// ============================================================
 // 6) GameNews
 // - Inicia apenas quando o client estiver pronto (clientReady)
-// - Evita iniciar antes do login e evita duplicar timers
+// - Evita iniciar duas vezes (proteção extra)
 // ============================================================
+let gameNewsStarted = false;
+
 client.once('clientReady', async () => {
   try {
+    if (gameNewsStarted) return;
+    gameNewsStarted = true;
+
     if (config.gameNews?.enabled) {
       const gameNews = require('./systems/gamenews');
-      await gameNews(client, config);
+
+      // Nota: gamenews usa setInterval internamente,
+      // portanto não precisamos "await" para bloquear nada.
+      gameNews(client, config);
+
       console.log('📰 Game News system started.');
     } else {
       console.log('📰 Game News disabled in config.');
@@ -106,9 +120,9 @@ client.once('clientReady', async () => {
 });
 
 // ============================================================
-// 7) Auto-recovery simples (opcional)
-// - NÃO fazemos client.login() em loop
-// - Em Railway/PM2, o correto é deixar o process manager reiniciar
+// 7) Health check interno (opcional)
+// - Aqui NÃO tentamos relogar em loop
+// - Em Railway/PM2 o correto é deixar o process manager reiniciar
 // ============================================================
 setInterval(() => {
   if (!client.isReady()) {
