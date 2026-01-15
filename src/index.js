@@ -9,6 +9,7 @@
 // ============================================================
 
 require('dotenv').config();              // Carrega variáveis do .env
+require('./systems/errorGuard')();
 require('./database/connect');           // Liga ao MongoDB
 
 const path = require('path');
