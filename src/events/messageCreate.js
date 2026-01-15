@@ -1,15 +1,19 @@
+// src/events/messageCreate.js
+
 /**
  * Evento: messageCreate
- * 
+ *
  * Responsável por:
- * - Processar comandos prefixados (ex: !mute, !warn, !clear)
+ * - Processar comandos prefixados (ex: !mute, !warn, !clear, !unmute)
  * - Executar o sistema de auto-moderação em mensagens normais
- * 
- * Regras importantes:
- * - Se for comando, NÃO executa AutoMod (evita falsos positivos / conflitos)
+ *
+ * Regras:
+ * - Se for comando, NÃO executa AutoMod (evita conflitos)
  * - Ignora bots e DMs
+ * - Faz validações de permissões/cargos para comandos (allowedRoles)
  */
 
+const { PermissionsBitField } = require('discord.js');
 const autoModeration = require('../systems/autoModeration');
 const config = require('../config/defaultConfig');
 
@@ -20,42 +24,41 @@ module.exports = (client) => {
       // Validações básicas
       // ------------------------------
       if (!message) return;
-      if (!message.guild) return;           // Ignora DMs
+      if (!message.guild) return;          // Ignora DMs
       if (!message.content) return;
-      if (message.author?.bot) return;      // Ignora bots
+      if (message.author?.bot) return;     // Ignora bots
 
       // ------------------------------
       // Garantir dados completos (partials)
-      // - Em alguns casos o Discord envia mensagens incompletas
-      // - Isto evita falhas em message.member / content / etc.
       // ------------------------------
       if (message.partial) {
         try {
           await message.fetch();
         } catch {
-          return; // se não conseguir buscar, ignora
+          return;
         }
       }
 
-      // Garantir member (necessário para permissões/hierarquia no AutoMod)
+      // Garantir member (necessário para permissões/hierarquia)
       if (!message.member) {
         try {
           await message.guild.members.fetch(message.author.id);
         } catch {
-          // Se falhar, não bloqueamos comandos, mas AutoMod pode falhar
+          // Se falhar, comandos ainda podem funcionar,
+          // mas checks de cargos/hierarquia podem não ter info completa
         }
       }
 
       const prefix = config.prefix || '!';
 
       // ------------------------------
-      // Processamento de comandos prefixados
+      // 1) Processamento de comandos prefixados
       // ------------------------------
       if (message.content.startsWith(prefix)) {
         // Ex: "!" sozinho não faz nada
         if (message.content.trim() === prefix) return;
 
-        // Extrai args (tudo após o prefix)
+        // Separar args
         const args = message.content
           .slice(prefix.length)
           .trim()
@@ -64,28 +67,46 @@ module.exports = (client) => {
         const commandName = (args.shift() || '').toLowerCase();
         if (!commandName) return;
 
-        // Obtém comando carregado no index.js
+        // Buscar comando no Map carregado no index.js
         const command = client.commands.get(commandName);
         if (!command) return;
 
-        // Executa o comando
+        // ------------------------------
+        // Segurança: só permitir estes comandos
+        // (evita que sobras antigas sejam executadas)
+        // ------------------------------
+        const allowedCommands = new Set(['clear', 'warn', 'mute', 'unmute']);
+        if (!allowedCommands.has(commandName)) return;
+
+        // ------------------------------
+        // Check de permissões por cargos (allowedRoles)
+        // - Admin bypass
+        // ------------------------------
+        const member = message.member;
+        const isAdmin = member?.permissions?.has(PermissionsBitField.Flags.Administrator);
+
+        if (!isAdmin && Array.isArray(command.allowedRoles) && command.allowedRoles.length > 0) {
+          const hasRole = member?.roles?.cache?.some(role => command.allowedRoles.includes(role.id));
+          if (!hasRole) {
+            await message.reply("❌ You don't have permission to use this command.").catch(() => null);
+            return;
+          }
+        }
+
+        // Executar comando
         try {
           await command.execute(message, args, client);
         } catch (err) {
           console.error(`[Command Error] ${commandName}:`, err);
-
-          // Feedback opcional ao utilizador
-          await message.reply('❌ There was an error executing this command.')
-            .catch(() => null);
+          await message.reply('❌ There was an error executing this command.').catch(() => null);
         }
 
-        // IMPORTANTE:
-        // Comando não passa pelo AutoMod
+        // Importante: comandos não passam pelo AutoMod
         return;
       }
 
       // ------------------------------
-      // AutoModeração (mensagens normais)
+      // 2) AutoModeração (mensagens normais)
       // ------------------------------
       try {
         await autoModeration(message, client);
