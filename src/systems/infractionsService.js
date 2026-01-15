@@ -1,10 +1,9 @@
 // src/systems/infractionsService.js
 // ============================================================
-// Service para registar infrações no MongoDB
-// - Centraliza criação (WARN/MUTE/KICK/BAN)
+// Service para criar infrações no MongoDB
 // ============================================================
 
-const Infraction = require('../database/models/Infraction');
+const Infraction = require('../database/models/Infraction'); // ✅ I maiúsculo
 
 async function create({ guild, user, moderator, type, reason, duration = null }) {
   if (!guild?.id) return null;
@@ -12,7 +11,7 @@ async function create({ guild, user, moderator, type, reason, duration = null })
   if (!moderator?.id) return null;
   if (!type) return null;
 
-  const doc = await Infraction.create({
+  return Infraction.create({
     guildId: guild.id,
     userId: user.id,
     moderatorId: moderator.id,
@@ -20,8 +19,6 @@ async function create({ guild, user, moderator, type, reason, duration = null })
     reason: reason || 'No reason provided',
     duration: duration ?? null
   });
-
-  return doc;
 }
 
 module.exports = { create };
