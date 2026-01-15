@@ -1,27 +1,42 @@
 /**
  * Configuração principal do bot
- * Este ficheiro centraliza todas as opções configuráveis
- * (prefixo, moderação, logs, feeds RSS, etc.)
+ * Este ficheiro centraliza todas as opções configuráveis:
+ * - prefixo
+ * - moderação (AutoMod)
+ * - logs
+ * - cooldowns
+ * - anti-spam / anti-raid
+ * - RSS GameNews
+ * - dashboard
  */
 
 module.exports = {
-
   // ==============================
   // Prefixo do bot
   // ==============================
-  prefix: '!', // Prefixo usado nos comandos (ex: !help)
+  prefix: '!', // Prefixo usado nos comandos (ex: !warn)
 
   // ==============================
   // Configurações gerais
   // ==============================
-  language: 'en',           // Idioma principal do bot (futuro uso)
-  logChannelName: 'log-bot',// Canal onde os logs são enviados
+  language: 'en',            // Idioma principal (futuro uso)
+  logChannelName: 'log-bot', // Canal onde os logs são enviados
+
+  /**
+   * Cargos autorizados (staff)
+   * ✅ Recomendado: usar isto em TODOS os comandos em vez de repetir IDs em cada ficheiro
+   */
+  staffRoles: [
+    '1385619241235120177',
+    '1385619241235120174',
+    '1385619241235120173'
+  ],
 
   // ==============================
   // Moderação automática (AutoMod)
   // ==============================
-  maxWarnings: 3,           // Quantidade máxima de warns antes do mute
-  muteDuration: 10 * 60 * 1000, // Duração do mute (10 minutos)
+  maxWarnings: 3,                 // Warns máximos antes do timeout
+  muteDuration: 10 * 60 * 1000,   // Duração do timeout automático (10 minutos)
 
   /**
    * Palavras proibidas
@@ -45,28 +60,89 @@ module.exports = {
   },
 
   // ==============================
-  // Cooldowns de comandos (anti-spam)
+  // Cooldowns de comandos (anti-spam de comandos)
   // ==============================
   cooldowns: {
-    default: 3000,     // 3s para qualquer comando que não esteja listado
-    warn: 5000,        // 5s
-    mute: 5000,        // 5s
-    unmute: 5000,      // 5s
-    clear: 8000        // 8s (bulk delete é pesado)
+    default: 3000,  // 3s para qualquer comando não listado
+    warn: 5000,     // 5s
+    mute: 5000,     // 5s
+    unmute: 5000,   // 5s
+    clear: 8000     // 8s (bulk delete é pesado)
+  },
+
+  // ==============================
+  // Anti-Spam (mensagens normais)
+  // ==============================
+  antiSpam: {
+    enabled: true,
+
+    /**
+     * Intervalo de janela (ms)
+     * Ex: 6000ms → conta as mensagens nos últimos 6 segundos
+     */
+    interval: 6000,
+
+    /**
+     * Quantidade máxima de mensagens dentro da janela
+     * Ex: 6 mensagens em 6 segundos → timeout
+     */
+    maxMessages: 6,
+
+    /**
+     * Duração do timeout ao detetar spam
+     */
+    muteDuration: 2 * 60 * 1000, // 2 minutos
+  },
+
+  // ==============================
+  // Anti-Raid (entradas em massa)
+  // ==============================
+  antiRaid: {
+    enabled: true,
+
+    /**
+     * Janela de tempo para contar joins (ms)
+     */
+    interval: 60 * 1000, // 60s
+
+    /**
+     * Joins máximos na janela antes de ativar a proteção
+     */
+    maxJoins: 5,
+
+    /**
+     * Timeout aplicado a contas de confiança baixa quando há raid
+     */
+    muteDuration: 60 * 60 * 1000, // 1 hora
+
+    /**
+     * Confiança mínima para não ser afetado durante raid
+     */
+    minTrustToBypass: 40
+  },
+
+  // ==============================
+  // Dashboard
+  // ==============================
+  dashboard: {
+    /**
+     * Quantos logs manter em memória para mostrar no dashboard
+     */
+    maxLogs: 200
   },
 
   // ==============================
   // Sistema de Game News (RSS)
   // ==============================
   gameNews: {
-    enabled: true,               // Ativa/desativa o sistema
-    interval: 30 * 60 * 1000,    // Intervalo de checagem (30 minutos)
+    enabled: true,
+    interval: 30 * 60 * 1000, // 30 minutos
 
     /**
      * Lista de feeds RSS
-     * - name: nome interno (usado no log)
+     * - name: nome interno (aparece nos logs)
      * - feed: URL do RSS
-     * - channelId: canal onde as notícias serão enviadas
+     * - channelId: canal onde as notícias vão ser enviadas
      */
     sources: [
       {
