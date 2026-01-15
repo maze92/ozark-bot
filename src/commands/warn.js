@@ -1,18 +1,25 @@
+// src/commands/warn.js
+
 /**
  * Comando: !warn
  * - Dá um aviso manual a um utilizador
- * - Respeita hierarquia de cargos
- * - Protegido contra abuso
- * - Regista no Discord + Dashboard
+ * - Respeita hierarquia de cargos (executor e bot)
+ * - Guarda contador de warnings no MongoDB (User)
+ * - Regista a ação no canal log-bot + dashboard (via logger centralizado)
+ *
+ * Uso:
+ * - !warn @user
+ * - !warn @user reason...
  */
 
 const { PermissionsBitField } = require('discord.js');
 const logger = require('../systems/logger');
 const User = require('../database/models/User');
+const config = require('../config/defaultConfig');
 
 module.exports = {
   name: 'warn',
-  description: 'Issue a warning to a user',
+  description: 'Issue a manual warning to a user',
 
   // IDs dos cargos autorizados (staff)
   allowedRoles: [
@@ -21,9 +28,6 @@ module.exports = {
     '1385619241235120173'
   ],
 
-  /**
-   * Execução do comando
-   */
   async execute(message, args, client) {
     try {
       // ------------------------------
@@ -31,30 +35,36 @@ module.exports = {
       // ------------------------------
       if (!message.guild) return;
 
-      const executor = message.member;
+      const executorMember = message.member;
       const botMember = message.guild.members.me;
 
-      if (!botMember) return;
+      if (!executorMember || !botMember) {
+        return message.reply('❌ Could not resolve members (executor/bot).');
+      }
+
+      const prefix = config.prefix || '!';
 
       // ------------------------------
-      // Permissão do bot
+      // Permissões do BOT
+      // - Para warn não precisamos de ManageMessages.
+      // - O bot só precisa conseguir enviar mensagens e fazer logs.
       // ------------------------------
-      if (
-        !botMember.permissions.has(PermissionsBitField.Flags.ManageMessages)
-      ) {
-        return message.reply('❌ I do not have permission to manage messages.');
+      const botPerms = message.channel.permissionsFor(botMember);
+      if (!botPerms?.has(PermissionsBitField.Flags.SendMessages)) {
+        return; // nem dá para responder
       }
 
       // ------------------------------
-      // Permissão do executor
+      // Permissão do executor (roles/admin)
+      // - redundante se já verificas no messageCreate, mas seguro
       // ------------------------------
-      const hasAllowedRole = executor.roles.cache.some(role =>
+      const hasAllowedRole = executorMember.roles.cache.some(role =>
         this.allowedRoles.includes(role.id)
       );
 
       if (
         !hasAllowedRole &&
-        !executor.permissions.has(PermissionsBitField.Flags.Administrator)
+        !executorMember.permissions.has(PermissionsBitField.Flags.Administrator)
       ) {
         return message.reply('❌ You do not have permission to use this command.');
       }
@@ -64,11 +74,11 @@ module.exports = {
       // ------------------------------
       const targetMember = message.mentions.members.first();
       if (!targetMember) {
-        return message.reply('❌ Please mention a user to warn.');
+        return message.reply(`❌ Usage: ${prefix}warn @user [reason...]`);
       }
 
       // ------------------------------
-      // Proteções de hierarquia
+      // Proteções anti-abuso
       // ------------------------------
       if (targetMember.id === message.author.id) {
         return message.reply('❌ You cannot warn yourself.');
@@ -78,26 +88,44 @@ module.exports = {
         return message.reply('❌ You cannot warn the bot.');
       }
 
-      if (
-        targetMember.roles.highest.position >=
-        executor.roles.highest.position
-      ) {
-        return message.reply(
-          '❌ You cannot warn a user with an equal or higher role.'
-        );
-      }
-
-      if (
-        targetMember.roles.highest.position >=
-        botMember.roles.highest.position
-      ) {
-        return message.reply(
-          '❌ I cannot warn this user due to role hierarchy.'
-        );
+      if (targetMember.user.bot) {
+        return message.reply('⚠️ You cannot warn a bot.');
       }
 
       // ------------------------------
-      // Base de dados
+      // Hierarquia (Discord)
+      // - Executor não pode warnar alguém com cargo >= ao dele
+      // - Bot não pode atuar em alguém com cargo >= ao dele (para consistência)
+      // ------------------------------
+      if (targetMember.roles.highest.position >= executorMember.roles.highest.position) {
+        return message.reply('❌ You cannot warn a user with an equal or higher role than yours.');
+      }
+
+      if (targetMember.roles.highest.position >= botMember.roles.highest.position) {
+        return message.reply('❌ I cannot warn this user due to role hierarchy (my role is too low).');
+      }
+
+      // Opcional: bloquear warning a Administrators (evita confusões)
+      if (targetMember.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        return message.reply('❌ You cannot warn an Administrator.');
+      }
+
+      // ------------------------------
+      // Motivo (opcional)
+      // - Remover o mention dos args, tal como no mute
+      // ------------------------------
+      const cleanedArgs = args.filter(a => {
+        const isMention = a.includes(`<@${targetMember.id}>`) || a.includes(`<@!${targetMember.id}>`);
+        const isRawId = a === targetMember.id;
+        return !isMention && !isRawId;
+      });
+
+      const reason = cleanedArgs.join(' ').trim() || 'No reason provided';
+
+      // ------------------------------
+      // Base de dados (User)
+      // - Cria se não existir
+      // - Incrementa warnings
       // ------------------------------
       let dbUser = await User.findOne({
         userId: targetMember.id,
@@ -120,24 +148,24 @@ module.exports = {
       // Mensagem no canal
       // ------------------------------
       await message.channel.send(
-        `⚠️ ${targetMember} has been warned.\n**Total warnings:** ${dbUser.warnings}`
-      );
+        `⚠️ **${targetMember.user.tag}** has been warned.\n📊 **Total warnings:** ${dbUser.warnings}\n📝 **Reason:** ${reason}`
+      ).catch(() => null);
 
       // ------------------------------
-      // Log (Discord + Dashboard)
+      // Log (Discord + Dashboard via logger centralizado)
       // ------------------------------
       await logger(
         client,
         'Manual Warn',
         targetMember.user,
         message.author,
-        `Total warnings: ${dbUser.warnings}`,
+        `Total warnings: **${dbUser.warnings}**\nReason: **${reason}**`,
         message.guild
       );
 
     } catch (err) {
-      console.error('[WARN COMMAND ERROR]', err);
-      message.reply('❌ An unexpected error occurred.');
+      console.error('[warn] Error:', err);
+      message.reply('❌ An unexpected error occurred.').catch(() => null);
     }
   }
 };
