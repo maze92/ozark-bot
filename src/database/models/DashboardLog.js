@@ -2,8 +2,8 @@
 const { Schema, model } = require('mongoose');
 
 /**
- * Logs persistentes do dashboard
- * - Guardamos os últimos eventos para não perder ao reiniciar
+ * Logs persistidos do dashboard
+ * - para não perder logs ao reiniciar
  */
 const dashboardLogSchema = new Schema({
   title: { type: String, required: true },
@@ -30,3 +30,4 @@ const dashboardLogSchema = new Schema({
 dashboardLogSchema.index({ 'guild.id': 1, time: -1 });
 
 module.exports = model('DashboardLog', dashboardLogSchema);
+
