@@ -2,14 +2,13 @@
  * src/config/defaultConfig.js
  * ============================================================
  * Configuração principal do bot
- * Centraliza:
- * - prefix
- * - staff roles
- * - automod
- * - cooldowns
- * - antiSpam
- * - dashboard
- * - gameNews (RSS)
+ * - prefixo
+ * - roles de staff
+ * - AutoMod
+ * - AntiSpam
+ * - Cooldowns
+ * - Dashboard
+ * - GameNews
  * ============================================================
  */
 
@@ -27,7 +26,7 @@ module.exports = {
 
   /**
    * Roles de staff (IDs)
-   * ✅ Usado pelo sistema de comandos como fallback
+   * ✅ usado pelo systems/commands.js para controlar comandos staff-only
    */
   staffRoles: [
     '1385619241235120177',
@@ -39,7 +38,7 @@ module.exports = {
   // AutoMod
   // ==============================
   maxWarnings: 3,
-  muteDuration: 10 * 60 * 1000,
+  muteDuration: 10 * 60 * 1000, // 10 min
 
   bannedWords: {
     en: [
@@ -68,7 +67,7 @@ module.exports = {
   },
 
   // ==============================
-  // AntiSpam / Flood protection
+  // Anti-Spam / Flood protection
   // ==============================
   antiSpam: {
     enabled: true,
@@ -87,25 +86,15 @@ module.exports = {
   dashboard: {
     enabled: true,
     maxLogs: 200,
-
-    /**
-     * Auth via token:
-     * - Define o token no Railway: DASHBOARD_TOKEN
-     * - Acede: /?token=TOKEN
-     */
     requireAuth: true
   },
 
   // ==============================
-  // Game News (RSS)
+  // GameNews (RSS)
   // ==============================
   gameNews: {
     enabled: true,
     interval: 30 * 60 * 1000,
-
-    /**
-     * Quantos hashes guardamos por feed (dedupe melhor)
-     */
     hashHistorySize: 10,
 
     sources: [
