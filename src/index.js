@@ -1,35 +1,47 @@
 // src/index.js
 // ============================================================
 // Entrypoint principal do bot
-// - Carrega config e DB
-// - Carrega comandos e eventos
-// - Inicia dashboard (porta aberta para Railway manter "Running")
-// - Inicia GameNews (apenas após o bot estar pronto)
-// - Inclui handlers de estabilidade (anti-crash)
+// Faz:
+// - Carrega variáveis .env
+// - Inicializa ErrorGuard (handlers globais anti-crash)
+// - Liga ao MongoDB
+// - Carrega comandos (src/commands/*.js)
+// - Regista eventos (ready, messageCreate, guildMemberAdd)
+// - Inicia dashboard (porta HTTP para Railway manter "Running")
+// - Faz login no Discord
+// - Inicia GameNews apenas quando o bot estiver pronto (clientReady)
 // ============================================================
 
-require('dotenv').config();              // Carrega variáveis do .env
+require('dotenv').config();               // Carrega variáveis do .env
+
+// ✅ ErrorGuard regista process.on(...) uma única vez
 require('./systems/errorGuard')();
-require('./database/connect');           // Liga ao MongoDB
+
+// ✅ Liga ao MongoDB (conforme o teu ficheiro connect.js)
+require('./database/connect');
 
 const path = require('path');
 const fs = require('fs');
 
-const client = require('./bot');          // Discord Client
-const dashboard = require('./dashboard'); // Express + Socket.IO
+const client = require('./bot');           // Discord Client
+const dashboard = require('./dashboard');  // Express + Socket.IO
 const config = require('./config/defaultConfig');
 
 // ============================================================
 // 1) Carregar comandos (uma vez)
 // - Os comandos ficam em src/commands/*.js
-// - Cada comando deve exportar: { name, execute(...) }
+// - Cada comando deve exportar: { name, execute(message, args, client) }
 // ============================================================
 client.commands = new Map();
 
 const commandsDir = path.join(__dirname, 'commands');
-const commandFiles = fs
-  .readdirSync(commandsDir)
-  .filter(file => file.endsWith('.js'));
+
+let commandFiles = [];
+try {
+  commandFiles = fs.readdirSync(commandsDir).filter((f) => f.endsWith('.js'));
+} catch (err) {
+  console.error('[Index] Failed to read commands directory:', err);
+}
 
 for (const file of commandFiles) {
   const filePath = path.join(commandsDir, file);
@@ -37,36 +49,25 @@ for (const file of commandFiles) {
 
   // Validação básica para evitar crash por ficheiro mal exportado
   if (!command?.name || typeof command.execute !== 'function') {
-    console.warn(`⚠️ Skipped invalid command file: ${file}`);
+    console.warn(`[Index] Skipped invalid command file: ${file}`);
     continue;
   }
 
-  client.commands.set(command.name, command);
+  client.commands.set(command.name.toLowerCase(), command);
   console.log(`✅ Loaded command: ${command.name}`);
 }
 
 // ============================================================
-// 2) Carregar eventos (uma vez)
-// - O AutoMod e comandos são tratados no events/messageCreate.js
-// - Não registar messageCreate noutro sítio para não duplicar handlers
+// 2) Registar eventos (uma vez)
+// - Commands + AutoMod + AntiSpam são tratados no events/messageCreate.js
+// - NÃO registar messageCreate noutro sítio para não duplicar handlers
 // ============================================================
 require('./events/ready')(client);
 require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 
 // ============================================================
-// 3) Handlers de estabilidade (evitar crash silencioso)
-// ============================================================
-process.on('unhandledRejection', (reason) => {
-  console.error('[UNHANDLED REJECTION]', reason);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('[UNCAUGHT EXCEPTION]', err);
-});
-
-// ============================================================
-// 4) Dashboard (server HTTP)
+// 3) Dashboard (server HTTP)
 // - Railway precisa de uma porta aberta para manter serviço "Running"
 // - A rota /health serve para "health check"
 // ============================================================
@@ -81,19 +82,19 @@ dashboard.server.listen(PORT, () => {
 });
 
 // ============================================================
-// 5) Login do bot
+// 4) Login do bot
 // ============================================================
 if (!process.env.TOKEN) {
   console.error('❌ Missing TOKEN in .env');
   process.exit(1);
 }
 
-client.login(process.env.TOKEN).catch(err => {
+client.login(process.env.TOKEN).catch((err) => {
   console.error('❌ Discord login failed:', err);
 });
 
 // ============================================================
-// 6) GameNews
+// 5) GameNews
 // - Inicia apenas quando o client estiver pronto (clientReady)
 // - Evita iniciar duas vezes (proteção extra)
 // ============================================================
@@ -107,8 +108,7 @@ client.once('clientReady', async () => {
     if (config.gameNews?.enabled) {
       const gameNews = require('./systems/gamenews');
 
-      // Nota: gamenews usa setInterval internamente,
-      // portanto não precisamos "await" para bloquear nada.
+      // gamenews tem setInterval interno, por isso basta chamar uma vez
       gameNews(client, config);
 
       console.log('📰 Game News system started.');
@@ -121,7 +121,7 @@ client.once('clientReady', async () => {
 });
 
 // ============================================================
-// 7) Health check interno (opcional)
+// 6) Health check interno (opcional)
 // - Aqui NÃO tentamos relogar em loop
 // - Em Railway/PM2 o correto é deixar o process manager reiniciar
 // ============================================================
@@ -130,4 +130,3 @@ setInterval(() => {
     console.warn('[HealthCheck] Client not ready (disconnected or reconnecting).');
   }
 }, 60 * 1000);
-
