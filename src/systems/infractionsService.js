@@ -6,7 +6,7 @@
 // - Resolve o problema de case-sensitive no Railway/Linux
 // ============================================================
 
-const Infraction = require('../database/models/Infraction');
+const Infraction = require('../database/models/infraction');
 
 /**
  * Cria uma infração no MongoDB.
