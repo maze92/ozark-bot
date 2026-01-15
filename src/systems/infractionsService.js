@@ -12,7 +12,7 @@
 //   da mesma forma, num único sítio.
 // ============================================================
 
-const Infraction = require('../database/models/infraction');
+const Infraction = require('../database/models/Infraction');
 
 // Tipos válidos (mantém alinhado com o enum do model)
 const VALID_TYPES = new Set(['WARN', 'MUTE', 'KICK', 'BAN']);
