@@ -1,86 +1,118 @@
 // src/index.js
+// ============================================================
+// Entrypoint principal do bot
+// - Carrega config e DB
+// - Carrega comandos e eventos
+// - Inicia dashboard
+// - Inicia GameNews (apenas após o bot estar pronto)
+// - Inclui handlers de estabilidade (anti-crash)
+// ============================================================
 
-// ------------------------------
-// Configurações iniciais
-// ------------------------------
-require('dotenv').config();            // Carrega variáveis de ambiente do .env
-require('./database/connect');         // Conecta ao MongoDB
+require('dotenv').config();              // Carrega variáveis do .env
+require('./database/connect');           // Liga ao MongoDB
 
 const path = require('path');
 const fs = require('fs');
-const client = require('./bot');       // Instância do Discord Client
-const dashboard = require('./dashboard'); // Dashboard (HTTP + Socket.IO)
+const client = require('./bot');         // Discord Client
+const dashboard = require('./dashboard');// Express + Socket.IO
 const config = require('./config/defaultConfig');
 
-// ------------------------------
-// Carregar Comandos
-// ------------------------------
+// ============================================================
+// 1) Carregar comandos (uma vez)
+// ============================================================
 client.commands = new Map();
 
+const commandsDir = path.join(__dirname, 'commands');
 const commandFiles = fs
-  .readdirSync(path.join(__dirname, 'commands'))
+  .readdirSync(commandsDir)
   .filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const command = require(path.join(__dirname, 'commands', file));
+  const filePath = path.join(commandsDir, file);
+  const command = require(filePath);
+
+  if (!command?.name || typeof command.execute !== 'function') {
+    console.warn(`⚠️ Skipped invalid command file: ${file}`);
+    continue;
+  }
+
   client.commands.set(command.name, command);
   console.log(`✅ Loaded command: ${command.name}`);
 }
 
-// ------------------------------
-// Carregar Eventos
-// ------------------------------
+// ============================================================
+// 2) Carregar eventos (uma vez)
+// - AutoMod NÃO é registado aqui (já está no events/messageCreate.js)
+// ============================================================
 require('./events/ready')(client);
 require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 
-// ------------------------------
-// Sistema de AutoModeração
-// ------------------------------
-// Intercepta mensagens para moderar palavras proibidas e aplicar warns/mutes
-client.on('messageCreate', async message => {
-  const autoMod = require('./systems/autoModeration');
-  autoMod(message, client).catch(err => {
-    console.error('[AutoMod] Error:', err);
-  });
+// ============================================================
+// 3) Handlers de estabilidade (evitar crash silencioso)
+// ============================================================
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason);
 });
 
-// ------------------------------
-// Login do Bot
-// ------------------------------
-client.login(process.env.TOKEN);
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err);
+});
 
-// ------------------------------
-// Dashboard do Bot
-// ------------------------------
+// ============================================================
+// 4) Login do bot
+// ============================================================
+if (!process.env.TOKEN) {
+  console.error('❌ Missing TOKEN in .env');
+  process.exit(1);
+}
+
+client.login(process.env.TOKEN).catch(err => {
+  console.error('❌ Discord login failed:', err);
+});
+
+// ============================================================
+// 5) Dashboard (server HTTP)
+// - Railway precisa de uma porta aberta para manter serviço "Running"
+// ============================================================
 const PORT = process.env.PORT || 3000;
+
 dashboard.server.listen(PORT, () => {
   console.log(`🚀 Dashboard running on port ${PORT}`);
 });
 
-// Health check
+// Health check (rota simples)
 dashboard.app.get('/health', (req, res) => {
-  res.send('Bot is running ✅');
+  res.status(200).send('Bot is running ✅');
 });
 
-// ------------------------------
-// Sistema Game News
-// ------------------------------
-const gameNews = require('./systems/gamenews');
-gameNews(client, config).catch(err => {
-  console.error('[GameNews] Error starting system:', err);
+// ============================================================
+// 6) GameNews
+// - Inicia apenas quando o client estiver pronto (clientReady)
+// - Evita iniciar antes do login e evita duplicar timers
+// ============================================================
+client.once('clientReady', async () => {
+  try {
+    if (config.gameNews?.enabled) {
+      const gameNews = require('./systems/gamenews');
+      await gameNews(client, config);
+      console.log('📰 Game News system started.');
+    } else {
+      console.log('📰 Game News disabled in config.');
+    }
+  } catch (err) {
+    console.error('[GameNews] Failed to start:', err);
+  }
 });
 
-// ------------------------------
-// Auto-recovery / Health check periódico
-// ------------------------------
-// Aqui poderias implementar checagens periódicas, reconexão e reinício do bot
-// Exemplo: verificar se client está conectado a cada X segundos
+// ============================================================
+// 7) Auto-recovery simples (opcional)
+// - NÃO fazemos client.login() em loop
+// - Em Railway/PM2, o correto é deixar o process manager reiniciar
+// ============================================================
 setInterval(() => {
   if (!client.isReady()) {
-    console.warn('[HealthCheck] Bot disconnected, attempting login...');
-    client.login(process.env.TOKEN).catch(err => {
-      console.error('[HealthCheck] Re-login failed:', err);
-    });
+    console.warn('[HealthCheck] Client not ready (disconnected or reconnecting).');
   }
-}, 60 * 1000); // a cada 60 segundos
+}, 60 * 1000);
+
