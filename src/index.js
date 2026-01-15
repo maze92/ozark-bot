@@ -1,12 +1,13 @@
 // src/index.js
 // ============================================================
 // Entrypoint principal
+// - carrega env
 // - errorGuard
-// - DB
-// - client
-// - dashboard (porta aberta -> Railway fica Running)
-// - eventos
-// - gamenews no clientReady
+// - liga DB
+// - inicia dashboard
+// - carrega eventos
+// - login discord
+// - inicia gamenews no clientReady
 // ============================================================
 
 require('dotenv').config();
@@ -17,12 +18,12 @@ const client = require('./bot');
 const dashboard = require('./dashboard');
 const config = require('./config/defaultConfig');
 
-// Eventos (1x)
+// Eventos (1 vez)
 require('./events/ready')(client);
 require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 
-// Dashboard server
+// Dashboard server (Railway precisa de porta aberta)
 const PORT = process.env.PORT || 3000;
 dashboard.server.listen(PORT, () => {
   console.log(`🚀 Dashboard running on port ${PORT}`);
@@ -34,11 +35,11 @@ if (!process.env.TOKEN) {
   process.exit(1);
 }
 
-client.login(process.env.TOKEN).catch(err => {
+client.login(process.env.TOKEN).catch((err) => {
   console.error('❌ Discord login failed:', err);
 });
 
-// GameNews após clientReady
+// GameNews após bot pronto
 let gameNewsStarted = false;
 client.once('clientReady', async () => {
   try {
