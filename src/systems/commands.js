@@ -1,99 +1,81 @@
 // src/systems/commands.js
 // ============================================================
-// Handler centralizado de comandos prefixados
-//
-// Faz:
-// - Detecta comandos com prefixo (ex: !clear, !mute)
-// - Usa APENAS os comandos já carregados no client.commands (index.js)
-// - Aplica cooldown por comando e por utilizador (cooldowns.js)
-// - Aplica permissões por cargos (allowedRoles) com bypass Admin
-// - Faz whitelist: apenas clear/warn/mute/unmute (evita comandos “antigos”)
-// - Executa com assinatura padrão: execute(message, args, client)
-//
-// NOTA IMPORTANTE:
-// - Este ficheiro NÃO deve carregar comandos do disco.
-// - O carregamento deve acontecer apenas no src/index.js
+// Handler central de comandos prefixados
+// - Carrega comandos de /src/commands (uma vez)
+// - Aplica cooldown
+// - Aplica permissões por staffRoles (config) para comandos sensíveis
+// - Assinatura padrão: execute(message, args, client)
 // ============================================================
 
+const fs = require('fs');
+const path = require('path');
 const { PermissionsBitField } = require('discord.js');
+
 const config = require('../config/defaultConfig');
 const checkCooldown = require('./cooldowns');
 
-// Apenas estes comandos ficam ativos (como combinámos)
-const ALLOWED_COMMANDS = new Set(['clear', 'warn', 'mute', 'unmute']);
+const commands = new Map();
+const commandsDir = path.join(__dirname, '../commands');
 
-/**
- * Verifica se o membro pode executar um comando com base em roles/permissões
- * @param {GuildMember} member
- * @param {string[]} allowedRoles
- * @returns {boolean}
- */
-function canUseCommand(member, allowedRoles) {
-  if (!member) return false;
+let commandFiles = [];
+try {
+  commandFiles = fs.readdirSync(commandsDir).filter(f => f.endsWith('.js'));
+} catch (err) {
+  console.error('[commands] Failed to read commands directory:', err);
+}
 
-  // Admin bypass
-  if (member.permissions?.has(PermissionsBitField.Flags.Administrator)) {
-    return true;
+for (const file of commandFiles) {
+  const filePath = path.join(commandsDir, file);
+  const cmd = require(filePath);
+
+  if (!cmd?.name || typeof cmd.execute !== 'function') {
+    console.warn(`[commands] Skipped invalid command file: ${file}`);
+    continue;
   }
 
-  if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) {
-    // Se não existir allowedRoles no comando, então não bloqueia por roles
-    return true;
-  }
-
-  // Caso exista allowedRoles, tem de ter pelo menos um desses cargos
-  return member.roles.cache.some((role) => allowedRoles.includes(role.id));
+  commands.set(cmd.name.toLowerCase(), cmd);
 }
 
 /**
- * Handler principal de comandos
- * @param {Message} message
- * @param {Client} client
+ * Comandos que exigem staffRoles (ou admin)
+ * ✅ aqui controlas tudo num sítio
  */
+const STAFF_ONLY = new Set(['clear', 'warn', 'mute', 'unmute']);
+
+/**
+ * Verifica se membro é staff (staffRoles) ou admin
+ */
+function isStaff(member) {
+  if (!member) return false;
+
+  const isAdmin = member.permissions.has(PermissionsBitField.Flags.Administrator);
+  if (isAdmin) return true;
+
+  const staffRoles = Array.isArray(config.staffRoles) ? config.staffRoles : [];
+  if (staffRoles.length === 0) return false;
+
+  return member.roles.cache.some(role => staffRoles.includes(role.id));
+}
+
 module.exports = async function commandsHandler(message, client) {
   try {
-    // ------------------------------------------------------------
-    // Validações básicas
-    // ------------------------------------------------------------
     if (!message?.content) return;
-    if (!message.guild) return;          // Ignora DMs
-    if (message.author?.bot) return;     // Ignora bots
+    if (!message.guild) return;
+    if (message.author?.bot) return;
 
-    // ------------------------------------------------------------
-    // Partials: às vezes a mensagem chega incompleta
-    // ------------------------------------------------------------
     if (message.partial) {
-      try {
-        await message.fetch();
-      } catch {
-        return;
-      }
+      try { await message.fetch(); } catch { return; }
     }
 
     const prefix = config.prefix || '!';
     if (!message.content.startsWith(prefix)) return;
 
-    // Evita executar com apenas "!"
-    if (message.content.trim() === prefix) return;
-
-    // ------------------------------------------------------------
-    // Garantir member para checks de roles/perms
-    // ------------------------------------------------------------
     if (!message.member) {
-      try {
-        await message.guild.members.fetch(message.author.id);
-      } catch {
-        await message
-          .reply('❌ I could not verify your roles. Please try again.')
-          .catch(() => null);
-        return;
+      try { await message.guild.members.fetch(message.author.id); } catch {
+        return message.reply('❌ Could not verify your roles.').catch(() => null);
       }
     }
 
-    // ------------------------------------------------------------
-    // Parse do comando e argumentos
-    // Ex: "!mute @user 10m reason..." -> commandName="mute", args=[...]
-    // ------------------------------------------------------------
     const args = message.content
       .slice(prefix.length)
       .trim()
@@ -102,46 +84,26 @@ module.exports = async function commandsHandler(message, client) {
     const commandName = (args.shift() || '').toLowerCase();
     if (!commandName) return;
 
-    // ------------------------------------------------------------
-    // Whitelist: só estes comandos podem executar
-    // ------------------------------------------------------------
-    if (!ALLOWED_COMMANDS.has(commandName)) {
-      return; // silencioso por segurança
-    }
-
-    // ------------------------------------------------------------
-    // Buscar comando do Map carregado no index.js
-    // ------------------------------------------------------------
-    const command = client.commands?.get(commandName);
+    const command = commands.get(commandName);
     if (!command) return;
 
-    // ------------------------------------------------------------
-    // Cooldown por comando (config.cooldowns)
-    // ------------------------------------------------------------
+    // cooldown
     const remaining = checkCooldown(commandName, message.author.id);
     if (remaining) {
-      await message
-        .reply(`⏳ Please slow down. Try again in **${remaining}s**.`)
-        .catch(() => null);
-      return;
+      return message.reply(`⏳ Please slow down. Try again in **${remaining}s**.`).catch(() => null);
     }
 
-    // ------------------------------------------------------------
-    // Permissões por roles (allowedRoles) + Admin bypass
-    // ------------------------------------------------------------
-    if (!canUseCommand(message.member, command.allowedRoles)) {
-      await message
-        .reply("❌ You don't have permission to use this command.")
-        .catch(() => null);
-      return;
+    // staff-only
+    if (STAFF_ONLY.has(commandName)) {
+      if (!isStaff(message.member)) {
+        return message.reply("❌ You don't have permission to use this command.").catch(() => null);
+      }
     }
 
-    // ------------------------------------------------------------
-    // Executar comando (assinatura padrão)
-    // ------------------------------------------------------------
     await command.execute(message, args, client);
+
   } catch (err) {
     console.error('[commands] Critical error:', err);
-    await message.reply('⚠️ Error executing command.').catch(() => null);
+    message.reply('⚠️ Error executing command.').catch(() => null);
   }
 };
