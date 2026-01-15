@@ -45,6 +45,17 @@ module.exports = {
   },
 
   // ==============================
+  // Cooldowns de comandos (anti-spam)
+  // ==============================
+  cooldowns: {
+    default: 3000,     // 3s para qualquer comando que não esteja listado
+    warn: 5000,        // 5s
+    mute: 5000,        // 5s
+    unmute: 5000,      // 5s
+    clear: 8000        // 8s (bulk delete é pesado)
+  },
+
+  // ==============================
   // Sistema de Game News (RSS)
   // ==============================
   gameNews: {
