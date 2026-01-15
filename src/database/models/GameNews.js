@@ -1,17 +1,30 @@
+// src/database/models/GameNews.js
+// ============================================================
+// Model: GameNews
+// Guarda o estado por feed RSS para evitar reposts.
+//
+// O que guarda:
+// - source: nome do feed (único)
+// - lastLink: link da última notícia enviada com sucesso
+// ============================================================
+
 const { Schema, model } = require('mongoose');
 
-// Esquema para armazenar a última notícia enviada de cada feed
-const gameNewsSchema = new Schema({
-  source: {        // Nome do feed (ex: "Polygon_PC", "IGN_PC")
-    type: String,
-    required: true,
-    unique: true    // Garante que cada feed tenha apenas um registro
-  },
-  lastHash: {      // Hash da última notícia enviada
-    type: String,
-    default: null  // 'null' indica que ainda não foi enviada nenhuma notícia
-  }
-}, { timestamps: true }); // Adiciona createdAt e updatedAt automaticamente
+const gameNewsSchema = new Schema(
+  {
+    source: {
+      type: String,
+      required: true,
+      unique: true
+    },
 
-// Exporta o modelo para uso em gamenews.js
+    // Guarda o link do último item enviado
+    lastLink: {
+      type: String,
+      default: null
+    }
+  },
+  { timestamps: true }
+);
+
 module.exports = model('GameNews', gameNewsSchema);
