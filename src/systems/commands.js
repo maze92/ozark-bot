@@ -13,7 +13,7 @@ const commandsDir = path.join(__dirname, '../commands');
 
 let commandFiles = [];
 try {
-  commandFiles = fs.readdirSync(commandsDir).filter(f => f.endsWith('.js'));
+  commandFiles = fs.readdirSync(commandsDir).filter((f) => f.endsWith('.js'));
 } catch (err) {
   console.error('[commands] Failed to read commands directory:', err);
 }
@@ -29,7 +29,7 @@ for (const file of commandFiles) {
       continue;
     }
 
-    const key = cmd.name.toLowerCase();
+    const key = String(cmd.name).toLowerCase();
     commands.set(key, cmd);
     console.log(`[commands] Loaded command: ${key} (${file})`);
   } catch (err) {
@@ -48,28 +48,25 @@ function isStaff(member) {
   const staffRoles = Array.isArray(config.staffRoles) ? config.staffRoles : [];
   if (staffRoles.length === 0) return false;
 
-  return member.roles.cache.some(role => staffRoles.includes(role.id));
+  return member.roles.cache.some((role) => staffRoles.includes(role.id));
 }
 
 module.exports = async function commandsHandler(message, client) {
   try {
-    if (!message?.content) return;
-    if (!message.guild) return;
-    if (message.author?.bot) return;
-    if (message.partial) {
-      try {
-        await message.fetch();
-      } catch {
-        return;
-      }
-    }
+    if (!message?.guild) return;
+    if (!message.author || message.author.bot) return;
+
+    const content = message.content;
+    if (!content || typeof content !== 'string') return;
 
     const prefix = config.prefix || '!';
-    if (!message.content.startsWith(prefix)) return;
+    if (!content.startsWith(prefix)) return;
 
-    if (!message.member) {
+    let member = message.member;
+
+    if (!member) {
       try {
-        await message.guild.members.fetch(message.author.id);
+        member = await message.guild.members.fetch(message.author.id);
       } catch {
         return message
           .reply('❌ Could not verify your roles.')
@@ -77,34 +74,35 @@ module.exports = async function commandsHandler(message, client) {
       }
     }
 
-    const args = message.content
-      .slice(prefix.length)
-      .trim()
-      .split(/\s+/);
-
+    const args = content.slice(prefix.length).trim().split(/\s+/);
     const commandName = (args.shift() || '').toLowerCase();
     if (!commandName) return;
 
     const command = commands.get(commandName);
-
     if (!command) {
       console.log(`[commands] Unknown command: "${commandName}" from ${message.author.tag}`);
       return;
     }
 
-    console.log(`[commands] Command received: "${commandName}" from ${message.author.tag} (${message.author.id})`);
+    console.log(
+      `[commands] Command received: "${commandName}" from ${message.author.tag} (${message.author.id})`
+    );
 
     const remaining = checkCooldown(commandName, message.author.id);
     if (remaining) {
-      console.log(`[commands] Cooldown hit for "${commandName}" by ${message.author.tag}: ${remaining}s left`);
+      console.log(
+        `[commands] Cooldown hit for "${commandName}" by ${message.author.tag}: ${remaining}s left`
+      );
       return message
         .reply(`⏳ Please slow down. Try again in **${remaining}s**.`)
         .catch(() => null);
     }
 
     if (STAFF_ONLY.has(commandName)) {
-      if (!isStaff(message.member)) {
-        console.log(`[commands] Denied (no staff) for "${commandName}" by ${message.author.tag}`);
+      if (!isStaff(member)) {
+        console.log(
+          `[commands] Denied (no staff) for "${commandName}" by ${message.author.tag}`
+        );
         return message
           .reply("❌ You don't have permission to use this command.")
           .catch(() => null);
@@ -112,11 +110,8 @@ module.exports = async function commandsHandler(message, client) {
     }
 
     await command.execute(message, args, client);
-
   } catch (err) {
     console.error('[commands] Critical error:', err);
-    message
-      .reply('⚠️ Error executing command.')
-      .catch(() => null);
+    message.reply('⚠️ Error executing command.').catch(() => null);
   }
 };
