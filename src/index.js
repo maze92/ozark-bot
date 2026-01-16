@@ -27,7 +27,7 @@ require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 
 // ✅ Marca discordReady quando o cliente do Discord emite "ready"
-client.once('ready', () => {
+client.once('clientReady', async () => {
   status.setDiscordReady(true);
 });
 
