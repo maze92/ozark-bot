@@ -2,34 +2,29 @@
 // ============================================================
 // Comando: !userinfo
 // ------------------------------------------------------------
-// Mostra informação sobre um utilizador na guild, incluindo:
+// Mostra info básica do utilizador na guild, incluindo:
 // - Tag + ID
-// - Datas (criação da conta / entrada no servidor)
-// - Nº de warnings (User model)
-// - Contagem total de infrações (se o modelo Infraction existir)
-// - Trust Score + nível de risco (Trust visível só para staff)
-//
+// - Data de criação da conta
+// - Data de entrada no servidor
+// - Número de warnings (User model)
+// - Trust Score + nível de risco (APENAS para staff)
+// - Registo em logs / dashboard via logger
+// ------------------------------------------------------------
 // Uso:
-//  - !userinfo              → mostra info do autor
-//  - !userinfo @user        → mostra info do mencionado
-//  - !userinfo 1234567890   → tenta buscar por ID
+// - !userinfo              → mostra info do autor da mensagem
+// - !userinfo @user        → mostra info do user mencionado
+// - !userinfo 1234567890   → tenta buscar pelo ID
 // ============================================================
 
 const { EmbedBuilder, PermissionsBitField } = require('discord.js');
 
 const config = require('../config/defaultConfig');
 const warningsService = require('../systems/warningsService');
-
-let Infraction = null;
-// Tenta carregar o modelo Infraction, mas não crasha se não existir
-try {
-  Infraction = require('../database/models/Infraction');
-} catch (e) {
-  console.warn('[userinfo] Infraction model not found. Infraction stats disabled.');
-}
+const Infraction = require('../database/models/Infraction');
+const logger = require('../systems/logger'); // ✅ agora também loga
 
 // ------------------------------------------------------------
-// Helpers de Trust (mesma lógica base que no AutoMod / warningsService)
+// Helpers de Trust (mesma filosofia que no AutoMod / warningsService)
 // ------------------------------------------------------------
 function getTrustConfig() {
   const cfg = config.trust || {};
@@ -45,7 +40,7 @@ function getTrustConfig() {
 }
 
 /**
- * Converte o valor de trust num “nível de risco” legível.
+ * Converte valor de trust para um "nível de risco" legível.
  */
 function getTrustLabel(trust, trustCfg) {
   if (!trustCfg.enabled) return 'N/A';
@@ -58,13 +53,12 @@ function getTrustLabel(trust, trustCfg) {
 }
 
 /**
- * Verifica se o membro é staff:
- * - Administrator OU
- * - tem algum role em config.staffRoles
+ * Verifica se o membro é staff (Admin ou role em config.staffRoles)
  */
 function isStaff(member) {
   if (!member) return false;
 
+  // Admin bypass
   if (member.permissions?.has(PermissionsBitField.Flags.Administrator)) {
     return true;
   }
@@ -76,17 +70,17 @@ function isStaff(member) {
 }
 
 /**
- * Resolve o alvo do comando:
- * - 1) @menção
- * - 2) ID via args[0]
- * - 3) fallback: o próprio autor
+ * Tenta resolver o target:
+ * - @mention
+ * - ID
+ * - fallback: autor
  */
 async function resolveTarget(message, args) {
   const guild = message.guild;
 
-  // 1) menção
-  const mentioned = message.mentions.members.first();
-  if (mentioned) return mentioned;
+  // 1) mention
+  const byMention = message.mentions.members.first();
+  if (byMention) return byMention;
 
   // 2) ID
   const raw = args[0];
@@ -95,18 +89,17 @@ async function resolveTarget(message, args) {
       const byId = await guild.members.fetch(raw).catch(() => null);
       if (byId) return byId;
     } catch {
-      // ignorar erro
+      // ignorar
     }
   }
 
-  // 3) fallback → o autor
+  // 3) fallback → próprio autor
   return message.member;
 }
 
 module.exports = {
   name: 'userinfo',
-  description:
-    'Shows information about a user, including warnings and trust score (trust is visible to staff only)',
+  description: 'Shows information about a user, including warnings and trust score (trust visible to staff only)',
 
   /**
    * Execução do comando
@@ -123,45 +116,39 @@ module.exports = {
       const requesterIsStaff = isStaff(message.member);
 
       // --------------------------------------------------------
-      // Resolver o membro alvo
+      // Resolver alvo (user)
       // --------------------------------------------------------
       const member = await resolveTarget(message, args);
       if (!member) {
-        return message
-          .reply('❌ I could not resolve that user.')
-          .catch(() => null);
+        return message.reply('❌ I could not resolve that user.').catch(() => null);
       }
 
       const user = member.user;
 
       // --------------------------------------------------------
-      // Carregar User doc (warnings + trust)
+      // Carregar dados do User model (warnings + trust)
       // --------------------------------------------------------
       const dbUser = await warningsService.getOrCreateUser(guild.id, user.id);
 
       const warnings = dbUser.warnings ?? 0;
-      const trustValue = Number.isFinite(dbUser.trust)
-        ? dbUser.trust
-        : trustCfg.base;
+      const trustValue = Number.isFinite(dbUser.trust) ? dbUser.trust : trustCfg.base;
       const trustLabel = getTrustLabel(trustValue, trustCfg);
 
       // --------------------------------------------------------
-      // Estatísticas de infrações (se o modelo existir)
+      // (Opcional) Estatísticas rápidas de infrações
       // --------------------------------------------------------
       let infractionsCount = 0;
-      if (Infraction) {
-        try {
-          infractionsCount = await Infraction.countDocuments({
-            guildId: guild.id,
-            userId: user.id
-          });
-        } catch (e) {
-          console.error('[userinfo] Failed counting infractions:', e);
-        }
+      try {
+        infractionsCount = await Infraction.countDocuments({
+          guildId: guild.id,
+          userId: user.id
+        });
+      } catch {
+        // se falhar, não é crítico
       }
 
       // --------------------------------------------------------
-      // Datas formatadas (Discord timestamps)
+      // Datas / formato
       // --------------------------------------------------------
       const createdAt = user.createdAt
         ? `<t:${Math.floor(user.createdAt.getTime() / 1000)}:F>`
@@ -172,17 +159,17 @@ module.exports = {
         : 'Unknown';
 
       // --------------------------------------------------------
-      // Campo de Trust Score:
-      // - Staff → vê valor + nível de risco
-      // - Utilizador normal → texto genérico (sem expor o número)
-// --------------------------------------------------------
+      // Campo de Trust: staff vê tudo, resto vê texto neutro
+      // --------------------------------------------------------
       let trustFieldValue = 'Trust system is currently **disabled**.';
       if (trustCfg.enabled) {
         if (requesterIsStaff) {
+          // Staff → vê trust real + label
           trustFieldValue =
             `Trust: **${trustValue}/${trustCfg.max}**\n` +
             `Risk level: **${trustLabel}**`;
         } else {
+          // Utilizador normal → não expomos trust numérico
           trustFieldValue =
             'Trust Score is **internal** and only visible to staff.\n' +
             'Moderation decisions may be stricter for repeat offenders.';
@@ -190,7 +177,7 @@ module.exports = {
       }
 
       // --------------------------------------------------------
-      // Construir o embed
+      // Montar embed
       // --------------------------------------------------------
       const embed = new EmbedBuilder()
         .setTitle(`User Info - ${user.tag}`)
@@ -204,18 +191,14 @@ module.exports = {
           },
           {
             name: '📅 Account',
-            value:
-              `Created at: ${createdAt}\n` +
-              `Joined this server: ${joinedAt}`,
+            value: `Created at: ${createdAt}\nJoined this server: ${joinedAt}`,
             inline: false
           },
           {
-            name: '⚠️ Warnings & Infractions',
+            name: '⚠️ Warnings',
             value:
-              `Warnings (User doc): **${warnings}** / **${config.maxWarnings ?? 3}**\n` +
-              (Infraction
-                ? `Infractions registered: **${infractionsCount}**`
-                : 'Infractions: *model not configured*'),
+              `**${warnings}** / **${config.maxWarnings ?? 3}** (AutoMod base)\n` +
+              `Infractions registered: **${infractionsCount}**`,
             inline: false
           },
           {
@@ -227,15 +210,37 @@ module.exports = {
         .setFooter({ text: `Requested by ${message.author.tag}` })
         .setTimestamp(new Date());
 
-      await message.channel
-        .send({ embeds: [embed] })
-        .catch(() => null);
+      await message.channel.send({ embeds: [embed] }).catch(() => null);
+
+      // --------------------------------------------------------
+      // Logger: regista o uso de !userinfo
+      // --------------------------------------------------------
+      const descLines = [
+        `Requested info for: **${user.tag}** (\`${user.id}\`)`,
+        `Warnings: **${warnings}/${config.maxWarnings ?? 3}**`,
+        `Infractions registered: **${infractionsCount}**`
+      ];
+
+      if (trustCfg.enabled) {
+        descLines.push(
+          `Trust: **${trustValue}/${trustCfg.max}**`,
+          `Risk level: **${trustLabel}**`
+        );
+      }
+
+      await logger(
+        client,
+        'User Info',
+        user,                 // user alvo
+        message.author,       // quem executou o comando
+        descLines.join('\n'),
+        guild
+      );
+
     } catch (err) {
       console.error('[userinfo] Error:', err);
       await message
-        .reply(
-          '❌ An unexpected error occurred while fetching user info.'
-        )
+        .reply('❌ An unexpected error occurred while fetching user info.')
         .catch(() => null);
     }
   }
