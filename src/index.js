@@ -26,6 +26,11 @@ require('./events/ready')(client);
 require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 
+// ✅ Marca discordReady quando o cliente do Discord emite "ready"
+client.once('ready', () => {
+  status.setDiscordReady(true);
+});
+
 // Dashboard server (Railway precisa de porta aberta)
 const PORT = process.env.PORT || 3000;
 dashboard.server.listen(PORT, () => {
