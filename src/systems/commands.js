@@ -1,10 +1,12 @@
 // src/systems/commands.js
 // ============================================================
 // Handler central de comandos prefixados
-// - Carrega comandos de /src/commands (uma vez)
-// - Aplica cooldown
+// ------------------------------------------------------------
+// Faz:
+// - Carrega comandos de /src/commands (uma vez ao iniciar o bot)
+// - Aplica cooldown (anti-spam de comandos)
 // - Aplica permissões por staffRoles (config) para comandos sensíveis
-// - Assinatura padrão: execute(message, args, client)
+// - Assinatura padrão dos comandos: execute(message, args, client)
 // ============================================================
 
 const fs = require('fs');
@@ -14,7 +16,10 @@ const { PermissionsBitField } = require('discord.js');
 const config = require('../config/defaultConfig');
 const checkCooldown = require('./cooldowns');
 
+// Mapa interno de comandos: name -> objeto comando
 const commands = new Map();
+
+// Caminho da pasta de comandos
 const commandsDir = path.join(__dirname, '../commands');
 
 let commandFiles = [];
@@ -26,14 +31,21 @@ try {
 
 for (const file of commandFiles) {
   const filePath = path.join(commandsDir, file);
-  const cmd = require(filePath);
 
-  if (!cmd?.name || typeof cmd.execute !== 'function') {
-    console.warn(`[commands] Skipped invalid command file: ${file}`);
-    continue;
+  try {
+    const cmd = require(filePath);
+
+    if (!cmd?.name || typeof cmd.execute !== 'function') {
+      console.warn(`[commands] Skipped invalid command file: ${file}`);
+      continue;
+    }
+
+    const key = cmd.name.toLowerCase();
+    commands.set(key, cmd);
+    console.log(`[commands] Loaded command: ${key} (${file})`);
+  } catch (err) {
+    console.error(`[commands] Error loading command file ${file}:`, err);
   }
-
-  commands.set(cmd.name.toLowerCase(), cmd);
 }
 
 /**
@@ -48,7 +60,7 @@ const STAFF_ONLY = new Set(['clear', 'warn', 'mute', 'unmute']);
 function isStaff(member) {
   if (!member) return false;
 
-  const isAdmin = member.permissions.has(PermissionsBitField.Flags.Administrator);
+  const isAdmin = member.permissions?.has(PermissionsBitField.Flags.Administrator);
   if (isAdmin) return true;
 
   const staffRoles = Array.isArray(config.staffRoles) ? config.staffRoles : [];
@@ -57,25 +69,41 @@ function isStaff(member) {
   return member.roles.cache.some(role => staffRoles.includes(role.id));
 }
 
+/**
+ * Handler principal de comandos
+ * @param {Message} message
+ * @param {Client} client
+ */
 module.exports = async function commandsHandler(message, client) {
   try {
     if (!message?.content) return;
     if (!message.guild) return;
     if (message.author?.bot) return;
 
+    // Partials
     if (message.partial) {
-      try { await message.fetch(); } catch { return; }
+      try {
+        await message.fetch();
+      } catch {
+        return;
+      }
     }
 
     const prefix = config.prefix || '!';
     if (!message.content.startsWith(prefix)) return;
 
+    // Garante member
     if (!message.member) {
-      try { await message.guild.members.fetch(message.author.id); } catch {
-        return message.reply('❌ Could not verify your roles.').catch(() => null);
+      try {
+        await message.guild.members.fetch(message.author.id);
+      } catch {
+        return message
+          .reply('❌ Could not verify your roles.')
+          .catch(() => null);
       }
     }
 
+    // Parse comando + args
     const args = message.content
       .slice(prefix.length)
       .trim()
@@ -85,25 +113,41 @@ module.exports = async function commandsHandler(message, client) {
     if (!commandName) return;
 
     const command = commands.get(commandName);
-    if (!command) return;
 
-    // cooldown
-    const remaining = checkCooldown(commandName, message.author.id);
-    if (remaining) {
-      return message.reply(`⏳ Please slow down. Try again in **${remaining}s**.`).catch(() => null);
+    if (!command) {
+      // Log de comando desconhecido (para debug)
+      console.log(`[commands] Unknown command: "${commandName}" from ${message.author.tag}`);
+      return;
     }
 
-    // staff-only
+    console.log(`[commands] Command received: "${commandName}" from ${message.author.tag} (${message.author.id})`);
+
+    // Cooldown
+    const remaining = checkCooldown(commandName, message.author.id);
+    if (remaining) {
+      console.log(`[commands] Cooldown hit for "${commandName}" by ${message.author.tag}: ${remaining}s left`);
+      return message
+        .reply(`⏳ Please slow down. Try again in **${remaining}s**.`)
+        .catch(() => null);
+    }
+
+    // Staff-only
     if (STAFF_ONLY.has(commandName)) {
       if (!isStaff(message.member)) {
-        return message.reply("❌ You don't have permission to use this command.").catch(() => null);
+        console.log(`[commands] Denied (no staff) for "${commandName}" by ${message.author.tag}`);
+        return message
+          .reply("❌ You don't have permission to use this command.")
+          .catch(() => null);
       }
     }
 
+    // Executar comando
     await command.execute(message, args, client);
 
   } catch (err) {
     console.error('[commands] Critical error:', err);
-    message.reply('⚠️ Error executing command.').catch(() => null);
+    message
+      .reply('⚠️ Error executing command.')
+      .catch(() => null);
   }
 };
