@@ -1,36 +1,23 @@
 // src/systems/logger.js
-// ============================================================
-// Logger centralizado
-// Faz:
-// - Envia logs para o canal "log-bot" (ou o nome definido no config)
-// - Envia logs em tempo real para o Dashboard via Socket.IO
-// - (Agora) o dashboard persiste no MongoDB
-//
-// UX Upgrade (Ponto 4):
-// ✅ Padroniza títulos com emojis, sem mudar lógica do bot
-//    Exemplos:
-//    - "Manual Warn"     -> "⚠️ Manual Warn"
-//    - "Automatic Warn"  -> "🤖⚠️ Automatic Warn"
-//    - "Manual Mute"     -> "🔇 Manual Mute"
-//    - "Automatic Mute"  -> "🤖🔇 Automatic Mute"
-//
-// Notas:
-// - "User" (discord.js) NÃO tem .guild
-// - "GuildMember" TEM .guild
-// - Por isso normalizamos tudo aqui
-// ============================================================
+
+/**
+ * v.1.0.0.1
+ * ------------------------------------------------------------
+ * Resumo:
+ * - Sistema centralizado de logging do bot
+ * - Envia logs para canal Discord e Dashboard
+ * - Persiste logs via dashboard.js
+ *
+ * Notas:
+ * - Normaliza User/GuildMember
+ * - Não bloqueia execução em falhas de log
+ * ------------------------------------------------------------
+ */
 
 const { EmbedBuilder } = require('discord.js');
 const config = require('../config/defaultConfig');
 const dashboard = require('../dashboard');
 
-/**
- * Normaliza "actor" para {id, tag}
- * Aceita:
- * - User
- * - GuildMember
- * - null
- */
 function normalizeActor(actor) {
   if (!actor) return null;
 
@@ -43,32 +30,27 @@ function normalizeActor(actor) {
   };
 }
 
-/**
- * Resolve guild com segurança
- */
+// * resolve guild com segurança
 function resolveGuild(guild, user, executor) {
   return guild || user?.guild || executor?.guild || null;
 }
 
-/**
- * Aplica um "prefixo" visual ao título, baseado no tipo.
- * - Não muda o conteúdo do log, só melhora leitura.
- */
+// * aplica um "prefixo" visual ao título baseado no tipo
 function decorateTitle(title) {
   const t = String(title || '').trim();
   const low = t.toLowerCase();
 
-  // ⚠️ Warn
+  // warn
   if (low.includes('warn')) {
-    // Automatic -> 🤖⚠️
+    // automatic
     if (low.includes('automatic') || low.includes('automod') || low.includes('auto')) {
       return `🤖⚠️ ${t}`;
     }
-    // Manual -> ⚠️
+    // manual
     return `⚠️ ${t}`;
   }
 
-  // 🔇 Mute
+  // mute
   if (low.includes('mute') || low.includes('timeout')) {
     if (low.includes('automatic') || low.includes('automod') || low.includes('auto')) {
       return `🤖🔇 ${t}`;
@@ -76,7 +58,7 @@ function decorateTitle(title) {
     return `🔇 ${t}`;
   }
 
-  // Outros: não mexe
+  // outros: não mexe
   return t || 'Log';
 }
 
@@ -94,7 +76,7 @@ module.exports = async function logger(client, title, user, executor, descriptio
     const resolvedGuild = resolveGuild(guild, user, executor);
     if (!resolvedGuild) return;
 
-    // Canal de logs
+    // canal de logs
     const logChannelName = config.logChannelName || 'log-bot';
     const logChannel =
       resolvedGuild.channels?.cache?.find((ch) => ch?.name === logChannelName) || null;
@@ -102,12 +84,10 @@ module.exports = async function logger(client, title, user, executor, descriptio
     const nUser = normalizeActor(user);
     const nExec = normalizeActor(executor);
 
-    // --------------------------------------------------------
-    // UX: título com emoji (Ponto 4)
-    // --------------------------------------------------------
+    // título com emoji
     const finalTitle = decorateTitle(title);
 
-    // Embed description
+    // embed description
     let desc = '';
     if (nUser?.tag) desc += `👤 **User:** ${nUser.tag}\n`;
     if (nExec?.tag) desc += `🛠️ **Executor:** ${nExec.tag}\n`;
@@ -119,13 +99,12 @@ module.exports = async function logger(client, title, user, executor, descriptio
       .setDescription(desc || 'No description provided.')
       .setTimestamp(new Date());
 
-    // 1) Discord log-bot
+    // discord log-bot
     if (logChannel) {
       await logChannel.send({ embeds: [embed] }).catch(() => null);
     }
 
-    // 2) Dashboard (tempo real + persistência via dashboard.js)
-    // Nota: no dashboard guardamos o "title" já decorado, para bater certo com UI.
+    // dashboard (tempo real + persistência via dashboard.js)
     if (dashboard?.sendToDashboard) {
       dashboard.sendToDashboard('log', {
         title: finalTitle || 'Log',
