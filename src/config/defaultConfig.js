@@ -19,6 +19,29 @@ module.exports = {
   maxWarnings: 3,
   muteDuration: 10 * 60 * 1000, // 10 min
 
+  trust: {
+    enabled: true,
+
+    base: 30,
+    min: 0,
+    max: 100,
+
+    warnPenalty: 5,
+    mutePenalty: 15,
+
+    regenPerDay: 1,
+    regenMaxDays: 30,
+
+    lowThreshold: 10,
+    highThreshold: 60,
+
+    lowTrustWarningsPenalty: 1,
+    lowTrustMessagesPenalty: 1,
+
+    lowTrustMuteMultiplier: 1.5,
+    highTrustMuteMultiplier: 0.8
+  },
+
   bannedWords: {
     en: [
       'fuck','shit','bitch','asshole','dick','bastard','slut','whore',
@@ -80,9 +103,9 @@ module.exports = {
     jitterMs: 20000,
     perFeedJitterMs: 1500,
     retry: {
-      attempts: 2,       
-      baseDelayMs: 1200, 
-      jitterMs: 800     
+      attempts: 2,
+      baseDelayMs: 1200,
+      jitterMs: 800
     },
     backoff: {
       maxFails: 3,
