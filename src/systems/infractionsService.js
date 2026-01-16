@@ -1,9 +1,6 @@
 // src/systems/infractionsService.js
-// ============================================================
-// Service para criar infrações no MongoDB
-// ============================================================
 
-const Infraction = require('../database/models/Infraction'); // ✅ I maiúsculo
+const Infraction = require('../database/models/Infraction');
 
 async function create({ guild, user, moderator, type, reason, duration = null }) {
   if (!guild?.id) return null;
