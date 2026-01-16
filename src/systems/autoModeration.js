@@ -272,7 +272,7 @@ module.exports = async function autoModeration(message, client) {
     // --------------------------------------------------------
     if (config.notifications?.dmOnWarn) {
       const dmText =
-        `⚠️ You received an **automatic WARN** on the server. **${guild.name}**.\n` +
+        `⚠️ You received an **automatic WARN** on the server **${guild.name}**.\n` +
         `📝 Reason: **Inappropriate language** (detected word: "${foundWord}")\n` +
         `📌 Warnings: **${dbUser.warnings}/${effectiveMaxWarnings}**` +
         (trustCfg.enabled ? `\n🔐 Trust: **${currentTrust}/${trustCfg.max}**` : '');
@@ -349,10 +349,10 @@ module.exports = async function autoModeration(message, client) {
       const mins = minutesFromMs(effectiveMute);
 
       const dmText =
-        `🔇 You were **automatically mutated** on the server **${guild.name}**.\n` +
+        `🔇 You were **automatically muted** on the server **${guild.name}**.\n` +
         `⏱️ Duration: **${mins} minutes**\n` +
-        `📝 Reason: **Excedeste o limite de warnings**\n` +
-        (trustCfg.enabled ? `🔐 Trust: **${trustAfterMute}/${trustCfg.max}**` : '');
+        `📝 Reason: **Exceeded the warning limit**` +
+        (trustCfg.enabled ? `\n🔐 Trust: **${trustAfterMute}/${trustCfg.max}**` : '');
 
       await trySendDM(message.author, dmText);
     }
