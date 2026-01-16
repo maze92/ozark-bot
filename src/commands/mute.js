@@ -76,7 +76,6 @@ module.exports = {
 
   async execute(message, args, client) {
     try {
-      // validações básicas
       if (!message?.guild) return;
       if (!message.member) return;
 
@@ -189,7 +188,7 @@ module.exports = {
         const trustText = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
 
         const dmText =
-          `🔇 You have been temporarily **muted** on the server. **${guild.name}**.\n` +
+          `🔇 You have been temporarily **muted** on the server **${guild.name}**.\n` +
           `⏰ Duration: **${formatDuration(durationMs)}**\n` +
           `📝 Reason: **${reason}**` +
           trustText;
@@ -208,22 +207,25 @@ module.exports = {
         })
         .catch(() => null);
 
+      const trustTextInline = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
+
       await message.channel
         .send(
           `🔇 **${target.user.tag}** has been muted for **${formatDuration(
             durationMs
-          )}**.\n📝 Reason: **${reason}**`
+          )}**.\n📝 Reason: **${reason}**` +
+          trustTextInline
         )
         .catch(() => null);
 
-      const trustText = dbUser?.trust != null ? `\nTrust: **${dbUser.trust}**` : '';
+      const trustTextLog = dbUser?.trust != null ? `\nTrust: **${dbUser.trust}**` : '';
 
       await logger(
         client,
         'Manual Mute',
         target.user,
         message.author,
-        `Duration: **${formatDuration(durationMs)}**\nReason: **${reason}**${trustText}`,
+        `Duration: **${formatDuration(durationMs)}**\nReason: **${reason}**${trustTextLog}`,
         guild
       );
     } catch (err) {
