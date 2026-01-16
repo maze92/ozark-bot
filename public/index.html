@@ -24,9 +24,6 @@
     small { display:block; margin-top:6px; color:#aaa; }
     .hint { color:#aaa; font-size: 12px; margin-top: 4px; }
 
-    /* ==============================
-       GameNews Status UI
-       ============================== */
     .panel {
       background:#232323;
       border:1px solid #333;
@@ -93,10 +90,44 @@
       margin: 14px 0;
       border-radius: 999px;
     }
+
+    /* Health panel */
+    .health-status-row {
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content: space-between;
+    }
+    .health-flags {
+      font-size: 12px;
+      color:#ccc;
+      margin-top: 6px;
+    }
+    .health-flag-ok { color:#7bd88f; }
+    .health-flag-bad { color:#ff6b6b; }
   </style>
 </head>
 <body>
   <h1>Ozark Bot Dashboard</h1>
+
+  <!-- Painel de saúde do sistema (/health) -->
+  <div class="panel" id="healthPanel">
+    <div class="health-status-row">
+      <div>
+        <h2 style="margin:0;">System Health</h2>
+        <div class="hint" style="margin-top:6px;">
+          Estado geral do bot, uptime e ligações principais.
+        </div>
+      </div>
+      <div>
+        <span class="badge" id="healthBadge">...</span>
+      </div>
+    </div>
+    <div class="health-flags" id="healthFlags">
+      A verificar estado...
+    </div>
+  </div>
 
   <div class="row">
     <input type="text" id="searchUser" placeholder="Pesquisar por user/executor..." />
@@ -163,9 +194,11 @@
     const btnReloadGameNews = document.getElementById('btnReloadGameNews');
     const filterPausedOnly = document.getElementById('filterPausedOnly');
 
-    let allLogs = [];
+    // Health DOM
+    const healthBadge = document.getElementById('healthBadge');
+    const healthFlags = document.getElementById('healthFlags');
 
-    // GameNews status (array de feeds)
+    let allLogs = [];
     let allFeedsStatus = [];
 
     function getColor(title) {
@@ -310,14 +343,12 @@
 
       const filtered = pausedOnly ? normalized.filter(x => x.paused) : normalized;
 
-      // Ordenação: pausados primeiro, depois failCount desc, depois nome
       filtered.sort((a, b) => {
         if (a.paused !== b.paused) return a.paused ? -1 : 1;
         if (a.failCount !== b.failCount) return b.failCount - a.failCount;
         return (a.feedName || '').localeCompare(b.feedName || '');
       });
 
-      // Summary
       const total = normalized.length;
       const pausedCount = normalized.filter(x => x.paused).length;
       const lastUpdate = normalized
@@ -333,7 +364,6 @@
         ${lastUpdate ? `| Última atualização: <b>${lastUpdate.toLocaleString()}</b>` : ''}
       `;
 
-      // Render cards
       gameNewsContainer.innerHTML = '';
 
       if (filtered.length === 0) {
@@ -426,15 +456,68 @@
     btnReloadGameNews.addEventListener('click', loadGameNewsStatusFromAPI);
     filterPausedOnly.addEventListener('change', filterGameNews);
 
+    // ==============================
+    // Health (/health) helpers
+    // ==============================
+    function formatUptime(seconds) {
+      const s = Number(seconds || 0);
+      if (!Number.isFinite(s) || s < 0) return 'N/A';
+
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+
+      if (d > 0) return `${d}d ${h}h ${m}m`;
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m`;
+      return `${s}s`;
+    }
+
+    async function refreshHealth() {
+      try {
+        const res = await fetch('/health');
+        if (!res.ok) throw new Error('Health not ok');
+
+        const data = await res.json();
+
+        const ok = !!data.ok;
+        healthBadge.textContent = ok ? 'OK' : 'ISSUES';
+        healthBadge.classList.remove('ok', 'fail');
+        healthBadge.classList.add(ok ? 'ok' : 'fail');
+
+        const discordReady = data.discordReady ? 'health-flag-ok' : 'health-flag-bad';
+        const mongoConnected = data.mongoConnected ? 'health-flag-ok' : 'health-flag-bad';
+        const gameNewsRunning = data.gameNewsRunning ? 'health-flag-ok' : 'health-flag-bad';
+
+        healthFlags.innerHTML = `
+          <span class="${discordReady}">Discord: ${data.discordReady ? 'ready' : 'not ready'}</span> |
+          <span class="${mongoConnected}">MongoDB: ${data.mongoConnected ? 'connected' : 'disconnected'}</span> |
+          <span class="${gameNewsRunning}">GameNews: ${data.gameNewsRunning ? 'running' : 'stopped'}</span>
+          <br/>
+          Uptime: <b>${formatUptime(data.uptimeSeconds)}</b>
+        `;
+      } catch (err) {
+        healthBadge.textContent = 'ERROR';
+        healthBadge.classList.remove('ok');
+        healthBadge.classList.add('fail');
+        healthFlags.textContent = 'Falha ao obter /health.';
+        console.warn('Health error:', err);
+      }
+    }
+
     // 1) Carregar histórico do Mongo ao abrir
     loadLogsFromDB().catch(err => {
       console.error('DB load error:', err);
     });
 
-    // (Opcional) tentar buscar status uma vez ao abrir (API)
+    // 2) Tentar buscar status GameNews uma vez ao abrir (API)
     loadGameNewsStatusFromAPI().catch(err => {
       console.warn('GameNews status API load error:', err);
     });
+
+    // 3) Health inicial + intervalo
+    refreshHealth().catch(() => {});
+    setInterval(refreshHealth, 5000);
 
     // 2) Socket.IO (tempo real)
     const token = getToken();
@@ -444,26 +527,21 @@
 
     socket.on('connect_error', (err) => {
       console.error('Socket connect error:', err.message);
-      // Se token for obrigatório, isto pode dar "Unauthorized"
     });
 
     socket.on('logs', (logs) => {
-      // cache em memória (live)
       allLogs = Array.isArray(logs) ? logs : [];
       filterLogs();
     });
 
-    // ✅ GameNews Status (live)
     socket.on('gamenews_status', (feeds) => {
       allFeedsStatus = Array.isArray(feeds) ? feeds : [];
       filterGameNews();
     });
 
-    // Filtragem em tempo real
     searchInput.addEventListener('input', filterLogs);
     filterSelect.addEventListener('change', filterLogs);
 
-    // Atualização “pull” opcional
     setInterval(() => {
       socket.emit('requestLogs');
       socket.emit('requestGameNewsStatus');
