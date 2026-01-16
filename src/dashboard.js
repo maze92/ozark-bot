@@ -4,6 +4,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
+const status = require('./systems/status');
+
 const config = require('./config/defaultConfig');
 let DashboardLog = null;
 let GameNewsModel = null;
