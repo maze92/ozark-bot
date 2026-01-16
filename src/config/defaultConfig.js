@@ -63,7 +63,7 @@ module.exports = {
       //   muteDuration: 30 * 1000
       // }
     }
-  }
+  },
 
   dashboard: {
     enabled: true,
