@@ -102,7 +102,7 @@ async function registerFeedFailure(record, config) {
 
   if (record.failCount >= maxFails) {
     record.pausedUntil = new Date(Date.now() + pauseMs);
-    record.failCount = 0; // reseta ao pausar
+    record.failCount = 0;
   }
 
   await record.save();
@@ -136,7 +136,7 @@ function getNewItemsByHashes(items, lastHashes) {
 
 function pushHashAndTrim(record, hash, keepN) {
   if (!Array.isArray(record.lastHashes)) record.lastHashes = [];
-  
+
   record.lastHashes = record.lastHashes.filter((h) => h !== hash);
 
   record.lastHashes.push(hash);
@@ -292,7 +292,7 @@ module.exports = async function gameNewsSystem(client, config) {
     const safeBaseInterval =
       Number.isFinite(baseIntervalMs) && baseIntervalMs >= 10_000 ? baseIntervalMs : 30 * 60 * 1000;
 
-    const globalJitterMs = Number(config.gameNews.jitterMs ?? 20_000); // default 20s
+    const globalJitterMs = Number(config.gameNews.jitterMs ?? 20_000);
     const safeGlobalJitter = Number.isFinite(globalJitterMs) && globalJitterMs >= 0 ? globalJitterMs : 20_000;
 
     const keepHashes = Number(config.gameNews.keepHashes ?? 10);
@@ -341,8 +341,26 @@ module.exports = async function gameNewsSystem(client, config) {
 
           try {
             const parsed = await parseWithRetry(feed.feed, retryCfg);
-            const items = parsed?.items || [];
-            if (items.length === 0) {
+            let items = parsed?.items || [];
+            if (!Array.isArray(items) || items.length === 0) {
+              await registerFeedSuccess(record).catch(() => null);
+              continue;
+            }
+
+            items = items
+              .map((it) => ({ it, date: getItemDate(it) }))
+              .sort((a, b) => a.date - b.date)
+              .map((x) => x.it);
+
+            const lastSentAt = record.lastSentAt ? new Date(record.lastSentAt) : null;
+            const freshItems = lastSentAt
+              ? items.filter((it) => {
+                  const d = getItemDate(it);
+                  return d && !Number.isNaN(d.getTime()) && d.getTime() > lastSentAt.getTime();
+                })
+              : items;
+
+            if (freshItems.length === 0) {
               await registerFeedSuccess(record).catch(() => null);
               continue;
             }
@@ -354,7 +372,7 @@ module.exports = async function gameNewsSystem(client, config) {
               continue;
             }
 
-            const newItems = getNewItemsByHashes(items, record.lastHashes);
+            const newItems = getNewItemsByHashes(freshItems, record.lastHashes);
             if (newItems.length === 0) {
               await registerFeedSuccess(record).catch(() => null);
               continue;
@@ -402,7 +420,6 @@ module.exports = async function gameNewsSystem(client, config) {
         }
       } finally {
         isRunning = false;
-
         emitStatusToDashboard(config).catch(() => null);
       }
     };
