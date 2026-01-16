@@ -10,16 +10,89 @@
   <style>
     body { font-family: sans-serif; background: #1e1e1e; color: #eee; padding: 20px; }
     h1 { color: #e60012; margin-bottom: 10px; }
+    h2 { margin-top: 18px; margin-bottom: 10px; }
+
     .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 10px; }
     input, select, button {
       padding: 8px; background: #333; color: #eee; border: none; border-radius: 6px;
     }
     button { cursor: pointer; }
+
     .log { border-bottom: 1px solid #333; padding: 10px; margin-bottom: 8px; border-radius: 8px; background:#232323; }
     .title { font-weight: bold; }
     .desc { margin-left: 10px; display: block; margin-top: 4px; white-space: pre-wrap; }
     small { display:block; margin-top:6px; color:#aaa; }
     .hint { color:#aaa; font-size: 12px; margin-top: 4px; }
+
+    /* ==============================
+       GameNews Status UI
+       ============================== */
+    .panel {
+      background:#232323;
+      border:1px solid #333;
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .statusGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .statusCard {
+      background:#1f1f1f;
+      border:1px solid #333;
+      border-radius: 10px;
+      padding: 10px;
+      position: relative;
+    }
+
+    .badge {
+      display:inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      margin-left: 8px;
+      background: #333;
+      color: #eee;
+      border: 1px solid #444;
+    }
+
+    .badge.ok { border-color:#1f6f3a; }
+    .badge.paused { border-color:#a46a00; }
+    .badge.fail { border-color:#8b2a2a; }
+
+    .statusTitle {
+      font-weight: 700;
+      margin-bottom: 6px;
+      display:flex;
+      align-items:center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .metaLine {
+      color:#bbb;
+      font-size: 12px;
+      margin-top: 4px;
+      word-break: break-word;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: #ccc;
+    }
+
+    .divider {
+      height: 1px;
+      background: #333;
+      margin: 14px 0;
+      border-radius: 999px;
+    }
   </style>
 </head>
 <body>
@@ -45,6 +118,36 @@
     O token fica guardado no teu browser (localStorage).
   </div>
 
+  <!-- ==============================
+       GameNews Status Panel
+       ============================== -->
+  <div class="panel" id="gameNewsPanel">
+    <div class="row" style="justify-content: space-between;">
+      <div>
+        <h2 style="margin:0;">GameNews Status</h2>
+        <div class="hint" style="margin-top:6px;">
+          Mostra estado por feed: <b>lastSentAt</b>, <b>pausedUntil</b>, <b>failCount</b>, <b>lastHashesCount</b>.
+        </div>
+      </div>
+      <div class="row" style="margin:0;">
+        <select id="filterPausedOnly">
+          <option value="0">Todos os feeds</option>
+          <option value="1">Só pausados</option>
+        </select>
+        <button id="btnReloadGameNews">Refresh GameNews Status</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="hint" id="gameNewsSummary">A carregar...</div>
+    </div>
+
+    <div class="statusGrid" id="gameNewsStatus"></div>
+  </div>
+
+  <h2>Logs</h2>
   <div id="logs"></div>
 
   <script>
@@ -54,7 +157,16 @@
     const btnReload = document.getElementById('btnReload');
     const btnToken = document.getElementById('btnToken');
 
+    // GameNews DOM
+    const gameNewsContainer = document.getElementById('gameNewsStatus');
+    const gameNewsSummary = document.getElementById('gameNewsSummary');
+    const btnReloadGameNews = document.getElementById('btnReloadGameNews');
+    const filterPausedOnly = document.getElementById('filterPausedOnly');
+
     let allLogs = [];
+
+    // GameNews status (array de feeds)
+    let allFeedsStatus = [];
 
     function getColor(title) {
       title = (title || '').toLowerCase();
@@ -161,9 +273,167 @@
 
     btnReload.addEventListener('click', loadLogsFromDB);
 
+    // ==============================
+    // GameNews Status UI helpers
+    // ==============================
+    function safeDateLabel(iso) {
+      if (!iso) return 'N/A';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return 'N/A';
+      return d.toLocaleString();
+    }
+
+    function computePaused(status) {
+      if (status.paused === true) return true;
+      if (!status.pausedUntil) return false;
+      const d = new Date(status.pausedUntil);
+      if (Number.isNaN(d.getTime())) return false;
+      return d.getTime() > Date.now();
+    }
+
+    function renderGameNewsStatus(feeds) {
+      const pausedOnly = filterPausedOnly.value === '1';
+
+      const list = Array.isArray(feeds) ? feeds.slice() : [];
+      const normalized = list.map(f => ({
+        source: f.source || f.feedName || 'UnknownFeed',
+        feedName: f.feedName || f.source || 'UnknownFeed',
+        feedUrl: f.feedUrl || null,
+        channelId: f.channelId || null,
+        failCount: Number(f.failCount ?? 0),
+        pausedUntil: f.pausedUntil || null,
+        lastSentAt: f.lastSentAt || null,
+        lastHashesCount: Number(f.lastHashesCount ?? 0),
+        paused: computePaused(f),
+        updatedAt: f.updatedAt || null
+      }));
+
+      const filtered = pausedOnly ? normalized.filter(x => x.paused) : normalized;
+
+      // Ordenação: pausados primeiro, depois failCount desc, depois nome
+      filtered.sort((a, b) => {
+        if (a.paused !== b.paused) return a.paused ? -1 : 1;
+        if (a.failCount !== b.failCount) return b.failCount - a.failCount;
+        return (a.feedName || '').localeCompare(b.feedName || '');
+      });
+
+      // Summary
+      const total = normalized.length;
+      const pausedCount = normalized.filter(x => x.paused).length;
+      const lastUpdate = normalized
+        .map(x => x.updatedAt)
+        .filter(Boolean)
+        .map(x => new Date(x))
+        .filter(d => !Number.isNaN(d.getTime()))
+        .sort((a, b) => b.getTime() - a.getTime())[0];
+
+      gameNewsSummary.innerHTML = `
+        Feeds: <b>${total}</b>
+        | Pausados: <b>${pausedCount}</b>
+        ${lastUpdate ? `| Última atualização: <b>${lastUpdate.toLocaleString()}</b>` : ''}
+      `;
+
+      // Render cards
+      gameNewsContainer.innerHTML = '';
+
+      if (filtered.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'hint';
+        empty.textContent = pausedOnly
+          ? 'Nenhum feed está pausado neste momento.'
+          : 'Sem dados de status ainda. (O bot precisa enviar gamenews_status pelo socket)';
+        gameNewsContainer.appendChild(empty);
+        return;
+      }
+
+      for (const f of filtered) {
+        const card = document.createElement('div');
+        card.className = 'statusCard';
+
+        const badgeClass = f.paused ? 'paused' : (f.failCount > 0 ? 'fail' : 'ok');
+        const badgeText = f.paused ? 'PAUSED' : (f.failCount > 0 ? 'WARN' : 'OK');
+
+        const pausedUntilLabel = f.pausedUntil ? safeDateLabel(f.pausedUntil) : 'N/A';
+        const lastSentLabel = f.lastSentAt ? safeDateLabel(f.lastSentAt) : 'N/A';
+
+        card.innerHTML = `
+          <div class="statusTitle">
+            ${f.feedName}
+            <span class="badge ${badgeClass}">${badgeText}</span>
+          </div>
+
+          <div class="metaLine">
+            <span class="mono">source:</span> <span class="mono">${f.source}</span>
+          </div>
+
+          ${f.feedUrl ? `
+            <div class="metaLine">
+              <span class="mono">feedUrl:</span> <span class="mono">${f.feedUrl}</span>
+            </div>
+          ` : ''}
+
+          ${f.channelId ? `
+            <div class="metaLine">
+              <span class="mono">channelId:</span> <span class="mono">${f.channelId}</span>
+            </div>
+          ` : ''}
+
+          <div class="metaLine">
+            <span class="mono">failCount:</span> <b>${f.failCount}</b>
+            &nbsp;|&nbsp;
+            <span class="mono">lastHashes:</span> <b>${f.lastHashesCount}</b>
+          </div>
+
+          <div class="metaLine">
+            <span class="mono">lastSentAt:</span> <b>${lastSentLabel}</b>
+          </div>
+
+          <div class="metaLine">
+            <span class="mono">pausedUntil:</span> <b>${pausedUntilLabel}</b>
+          </div>
+        `;
+
+        gameNewsContainer.appendChild(card);
+      }
+    }
+
+    function filterGameNews() {
+      renderGameNewsStatus(allFeedsStatus);
+    }
+
+    async function loadGameNewsStatusFromAPI() {
+      const token = getToken();
+      const headers = {};
+      if (token) headers['x-dashboard-token'] = token;
+
+      const res = await fetch('/api/gamenews-status', { headers });
+
+      if (res.status === 401) {
+        alert('Unauthorized. Set DASHBOARD_TOKEN.');
+        return;
+      }
+
+      const json = await res.json();
+      if (!json.ok) {
+        alert('Failed to load GameNews status.');
+        return;
+      }
+
+      allFeedsStatus = Array.isArray(json.items) ? json.items : [];
+      filterGameNews();
+    }
+
+    btnReloadGameNews.addEventListener('click', loadGameNewsStatusFromAPI);
+    filterPausedOnly.addEventListener('change', filterGameNews);
+
     // 1) Carregar histórico do Mongo ao abrir
     loadLogsFromDB().catch(err => {
       console.error('DB load error:', err);
+    });
+
+    // (Opcional) tentar buscar status uma vez ao abrir (API)
+    loadGameNewsStatusFromAPI().catch(err => {
+      console.warn('GameNews status API load error:', err);
     });
 
     // 2) Socket.IO (tempo real)
@@ -178,11 +448,15 @@
     });
 
     socket.on('logs', (logs) => {
-      // Isto é cache em memória (live)
-      // Junta com o que já tens, mas sem duplicar muito:
-      // por simplicidade: substitui allLogs pelo live cache
+      // cache em memória (live)
       allLogs = Array.isArray(logs) ? logs : [];
       filterLogs();
+    });
+
+    // ✅ GameNews Status (live)
+    socket.on('gamenews_status', (feeds) => {
+      allFeedsStatus = Array.isArray(feeds) ? feeds : [];
+      filterGameNews();
     });
 
     // Filtragem em tempo real
@@ -192,6 +466,7 @@
     // Atualização “pull” opcional
     setInterval(() => {
       socket.emit('requestLogs');
+      socket.emit('requestGameNewsStatus');
     }, 5000);
   </script>
 </body>
