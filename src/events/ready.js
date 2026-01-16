@@ -3,11 +3,8 @@
 let started = false;
 
 module.exports = (client) => {
-  client.once('clientReady', async () => {
-    if (started) return;
-    started = true;
-
-    console.log(`✅ ${client.user.tag} is online!`);
+  const setPresenceSafe = async () => {
+    if (!client.user) return;
 
     try {
       await client.user.setPresence({
@@ -17,5 +14,17 @@ module.exports = (client) => {
     } catch (err) {
       console.error('[ready] presence error:', err);
     }
+  };
+
+  client.once('clientReady', async () => {
+    if (started) return;
+    started = true;
+
+    console.log(`✅ ${client.user.tag} is online!`);
+    await setPresenceSafe();
+  });
+
+  client.on('shardResume', async () => {
+    await setPresenceSafe();
   });
 };
