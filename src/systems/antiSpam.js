@@ -63,13 +63,52 @@ function getEffectiveMuteDuration(baseMs, trustCfg, trustValue) {
   return duration;
 }
 
+// ------------------------
+// Helpers conteúdo / similaridade
+// ------------------------
+function normalizeContent(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .replace(/https?:\/\/\S+/gi, '')                 // remove links
+    .replace(/<:[a-zA-Z0-9_]+:[0-9]+>/g, '')         // emojis custom
+    .replace(/[^\w\s]/g, '')                         // pontuação
+    .replace(/\s+/g, ' ')                            // espaços múltiplos
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Similaridade muito simples (posição a posição).
+ * 1 = igual, 0 = nada a ver.
+ */
+function similarity(a, b) {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+
+  const len = Math.max(a.length, b.length);
+  const minLen = Math.min(a.length, b.length);
+  let same = 0;
+
+  for (let i = 0; i < minLen; i++) {
+    if (a[i] === b[i]) same++;
+  }
+
+  return same / len;
+}
+
+// ------------------------
+// Estrutura em memória
+// messageMap key: guildId:userId
+// value: { entries: [{ts, content}], lastActionAt }
+// ------------------------
 const messageMap = new Map();
 
 const CLEANUP_EVERY_MS = 60_000;
 setInterval(() => {
   const now = Date.now();
   for (const [key, data] of messageMap.entries()) {
-    const lastTs = data?.timestamps?.[data.timestamps.length - 1];
+    const last = data?.entries?.[data.entries.length - 1];
+    const lastTs = last?.ts;
     if (!lastTs || now - lastTs > 5 * 60_000) {
       messageMap.delete(key);
     }
@@ -90,10 +129,17 @@ module.exports = async function antiSpam(message, client) {
     const now = Date.now();
     const key = `${guild.id}:${message.author.id}`;
 
-    const intervalMs = Number(config.antiSpam.interval ?? 7000);
-    const maxMessages = Number(config.antiSpam.maxMessages ?? 6);
-    const muteDurationMs = Number(config.antiSpam.muteDuration ?? 60_000);
-    const actionCooldownMs = Number(config.antiSpam.actionCooldown ?? 60_000);
+    const baseCfg = config.antiSpam || {};
+    const channelOverride = baseCfg.channels?.[message.channel.id] || null;
+
+    const intervalMs = Number(channelOverride?.interval ?? baseCfg.interval ?? 7000);
+    const maxMessages = Number(channelOverride?.maxMessages ?? baseCfg.maxMessages ?? 6);
+    const muteDurationMs = Number(channelOverride?.muteDuration ?? baseCfg.muteDuration ?? 60_000);
+    const actionCooldownMs = Number(channelOverride?.actionCooldown ?? baseCfg.actionCooldown ?? 60_000);
+
+    const minLength = Number(baseCfg.minLength ?? 6);
+    const ignoreAttachments = baseCfg.ignoreAttachments ?? true;
+    const similarityThreshold = Number(baseCfg.similarityThreshold ?? 0.8);
 
     const safeInterval = Number.isFinite(intervalMs) && intervalMs >= 500 ? intervalMs : 7000;
     const safeMaxBase = Number.isFinite(maxMessages) && maxMessages >= 3 ? maxMessages : 6;
@@ -101,6 +147,10 @@ module.exports = async function antiSpam(message, client) {
     const safeActionCooldown = Number.isFinite(actionCooldownMs) && actionCooldownMs >= 5_000
       ? actionCooldownMs
       : 60_000;
+    const safeMinLen = Number.isFinite(minLength) && minLength >= 1 ? minLength : 6;
+    const safeSim = Number.isFinite(similarityThreshold) && similarityThreshold > 0 && similarityThreshold <= 1
+      ? similarityThreshold
+      : 0.8;
 
     const trustCfg = getTrustConfig();
     let trustValue = trustCfg.base;
@@ -121,14 +171,14 @@ module.exports = async function antiSpam(message, client) {
       trustValue
     );
 
-    const bypassAdmins = config.antiSpam.bypassAdmins ?? true;
+    const bypassAdmins = baseCfg.bypassAdmins ?? true;
     if (bypassAdmins && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
       return;
     }
 
-    if (Array.isArray(config.antiSpam.bypassRoles) && config.antiSpam.bypassRoles.length > 0) {
+    if (Array.isArray(baseCfg.bypassRoles) && baseCfg.bypassRoles.length > 0) {
       const hasBypassRole = message.member.roles.cache.some(r =>
-        config.antiSpam.bypassRoles.includes(r.id)
+        baseCfg.bypassRoles.includes(r.id)
       );
       if (hasBypassRole) return;
     }
@@ -138,20 +188,38 @@ module.exports = async function antiSpam(message, client) {
     const perms = message.channel.permissionsFor(botMember);
     if (!perms?.has(PermissionsBitField.Flags.ModerateMembers)) return;
 
+    // Ignorar mensagens com anexos/imagens se configurado
+    if (ignoreAttachments && message.attachments && message.attachments.size > 0) {
+      return;
+    }
+
+    const normalized = normalizeContent(message.content);
+    if (!normalized || normalized.length < safeMinLen) {
+      return;
+    }
+
     const prev = messageMap.get(key);
     if (prev?.lastActionAt && now - prev.lastActionAt < safeActionCooldown) return;
 
-    const data = prev || { timestamps: [], lastActionAt: 0 };
+    const data = prev || { entries: [], lastActionAt: 0 };
+    data.entries = Array.isArray(data.entries) ? data.entries : [];
 
-    data.timestamps = data.timestamps.filter(ts => now - ts < safeInterval);
-    data.timestamps.push(now);
+    data.entries = data.entries.filter(e => now - e.ts < safeInterval);
+    data.entries.push({ ts: now, content: normalized });
 
     messageMap.set(key, data);
 
-    if (data.timestamps.length < effectiveMaxMessages) return;
+    let similarCount = 0;
+    for (const entry of data.entries) {
+      if (similarity(normalized, entry.content) >= safeSim) {
+        similarCount++;
+      }
+    }
+
+    if (similarCount < effectiveMaxMessages) return;
 
     data.lastActionAt = now;
-    data.timestamps = [];
+    data.entries = [];
     messageMap.set(key, data);
 
     if (!message.member.moderatable) return;
@@ -167,7 +235,7 @@ module.exports = async function antiSpam(message, client) {
       'Spam detected (AntiSpam)'
     );
 
-    if (config.antiSpam.sendMessage !== false) {
+    if (baseCfg.sendMessage !== false) {
       await message.channel
         .send(`🔇 ${message.author} has been muted for spam.`)
         .catch(() => null);
@@ -202,7 +270,8 @@ module.exports = async function antiSpam(message, client) {
       client.user,
       `User muted for spam.\n` +
       `Duration: **${Math.round(effectiveMute / 1000)}s**\n` +
-      `Threshold: **${effectiveMaxMessages} msgs / ${safeInterval}ms**\n` +
+      `Threshold: **${effectiveMaxMessages} similar msgs / ${safeInterval}ms**\n` +
+      `Similarity ≥ **${Math.round(safeSim * 100)}%**\n` +
       (trustCfg.enabled
         ? `Trust after mute: **${trustAfter}/${trustCfg.max}**`
         : ''),
