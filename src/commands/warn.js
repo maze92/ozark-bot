@@ -8,6 +8,10 @@
 // - Regista infração no MongoDB (Infraction)
 // - Regista log (Discord log-bot + Dashboard)
 //
+// UX Upgrade (Ponto 3.1):
+// ✅ DM ao utilizador em Warn (se possível), com toggle:
+//    config.notifications.dmOnWarn = true
+//
 // Regras importantes:
 // - Staff-only (config.staffRoles) OU Administrator
 // - Respeita hierarquia:
@@ -59,6 +63,19 @@ function isStaff(member) {
   if (!staffRoles.length) return false;
 
   return member.roles?.cache?.some((r) => staffRoles.includes(r.id));
+}
+
+/**
+ * Tenta enviar DM ao user (sem crashar se DMs estiverem fechadas).
+ */
+async function trySendDM(user, content) {
+  try {
+    if (!user) return;
+    if (!content) return;
+    await user.send({ content }).catch(() => null);
+  } catch {
+    // nunca deixar o comando falhar por causa de DM
+  }
 }
 
 module.exports = {
@@ -173,6 +190,22 @@ module.exports = {
           `📝 Reason: **${reason}**`
         )
         .catch(() => null);
+
+      // ------------------------------
+      // ✅ DM ao utilizador (Ponto 3.1)
+      // - se dmOnWarn estiver ativo no config
+      // ------------------------------
+      if (config.notifications?.dmOnWarn) {
+        const trustText = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
+
+        const dmText =
+          `⚠️ You received a **WARN** on the server. **${guild.name}**.\n` +
+          `📝 Reason: **${reason}**\n` +
+          `📌 Total warnings: **${dbUser.warnings}**` +
+          trustText;
+
+        await trySendDM(target.user, dmText);
+      }
 
       // ------------------------------
       // Log (Discord + Dashboard)
