@@ -1,10 +1,4 @@
 // src/events/messageCreate.js
-// ============================================================
-// messageCreate pipeline final:
-// 1) comando -> systems/commands.js
-// 2) mensagem normal -> AutoMod
-// 3) depois -> AntiSpam (se enabled)
-// ============================================================
 
 const config = require('../config/defaultConfig');
 const commandsHandler = require('../systems/commands');
