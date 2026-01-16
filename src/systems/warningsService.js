@@ -1,35 +1,10 @@
 // src/systems/warningsService.js
-// ============================================================
-// Service de utilizadores (User model)
-// ------------------------------------------------------------
-// Responsabilidades:
-// - getOrCreateUser
-// - addWarning / resetWarnings
-// - gestão centralizada de TRUST SCORE
-//
-// O trust NÃO deve ser alterado diretamente noutros sítios.
-// AutoMod, comandos (!warn, !mute, etc) devem chamar este service.
-//
-// Trust logic:
-// - WARN  → trust -= X
-// - MUTE  → trust -= Y
-// - sem infrações durante X dias → trust regenera (+1/dia)
-//
-// Isto garante:
-// - regras consistentes
-// - código limpo
-// - fácil evolução futura
-// ============================================================
 
 const User = require('../database/models/User');
 const config = require('../config/defaultConfig');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/**
- * Lê config.trust com defaults seguros
- * (se não existir no config, funciona na mesma)
- */
 function getTrustConfig() {
   const cfg = config.trust || {};
 
@@ -48,16 +23,10 @@ function getTrustConfig() {
   };
 }
 
-/**
- * Garante que o trust fica dentro dos limites
- */
 function clampTrust(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-/**
- * Cria ou devolve utilizador
- */
 async function getOrCreateUser(guildId, userId) {
   let u = await User.findOne({ guildId, userId });
 
@@ -74,7 +43,6 @@ async function getOrCreateUser(guildId, userId) {
     });
   }
 
-  // garante defaults (compatibilidade com docs antigos)
   const trustCfg = getTrustConfig();
 
   if (!Number.isFinite(u.trust)) u.trust = trustCfg.base;
@@ -83,10 +51,6 @@ async function getOrCreateUser(guildId, userId) {
   return u;
 }
 
-/**
- * Regenera trust com base no tempo sem infrações
- * (lazy update → só quando voltamos a tocar no user)
- */
 function applyTrustRegen(u, trustCfg, now) {
   if (!trustCfg.enabled) return;
 
@@ -116,10 +80,6 @@ function applyTrustRegen(u, trustCfg, now) {
   u.lastTrustUpdateAt = now;
 }
 
-/**
- * Aplica penalização de trust
- * type: 'WARN' | 'MUTE'
- */
 function applyTrustPenalty(u, trustCfg, type, now) {
   if (!trustCfg.enabled) return;
 
@@ -139,44 +99,28 @@ function applyTrustPenalty(u, trustCfg, type, now) {
   u.lastTrustUpdateAt = now;
 }
 
-/**
- * Adiciona warning ao utilizador
- * + atualiza trust (penalização WARN)
- */
 async function addWarning(guildId, userId, amount = 1) {
   const trustCfg = getTrustConfig();
   const now = new Date();
 
   const u = await getOrCreateUser(guildId, userId);
 
-  // 1) regenerar trust antes de penalizar
   applyTrustRegen(u, trustCfg, now);
 
-  // 2) warnings
   u.warnings = (u.warnings || 0) + amount;
 
-  // 3) penalização por WARN
   applyTrustPenalty(u, trustCfg, 'WARN', now);
 
   await u.save();
   return u;
 }
 
-/**
- * Aplica penalização de trust por MUTE
- * (não mexe em warnings)
- *
- * Deve ser chamado quando:
- * - AutoMod aplica timeout
- * - !mute manual é usado
- */
 async function applyMutePenalty(guildId, userId) {
   const trustCfg = getTrustConfig();
   const now = new Date();
 
   const u = await getOrCreateUser(guildId, userId);
 
-  // regeneração antes de penalizar
   applyTrustRegen(u, trustCfg, now);
 
   applyTrustPenalty(u, trustCfg, 'MUTE', now);
@@ -185,10 +129,6 @@ async function applyMutePenalty(guildId, userId) {
   return u;
 }
 
-/**
- * Reset de warnings (ex: após mute)
- * NÃO altera trust
- */
 async function resetWarnings(guildId, userId) {
   const u = await getOrCreateUser(guildId, userId);
   u.warnings = 0;
