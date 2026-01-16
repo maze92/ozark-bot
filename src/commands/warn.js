@@ -114,7 +114,7 @@ module.exports = {
       await message.channel
         .send(
           `⚠️ ${target} has been warned.\n` +
-          `**Total warnings:** ${dbUser.warnings}\n` +
+          `📌 Total warnings: **${dbUser.warnings}**\n` +
           `📝 Reason: **${reason}**` +
           trustTextInline
         )
@@ -124,7 +124,7 @@ module.exports = {
         const trustText = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
 
         const dmText =
-          `⚠️ You received a **WARN** on the server **${guild.name}**.\n` +
+          `⚠️ You received a **WARN** in **${guild.name}**.\n` +
           `📝 Reason: **${reason}**\n` +
           `📌 Total warnings: **${dbUser.warnings}**` +
           trustText;
