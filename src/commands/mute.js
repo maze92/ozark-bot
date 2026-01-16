@@ -21,9 +21,7 @@ const logger = require('../systems/logger');
 const infractionsService = require('../systems/infractionsService');
 const warningsService = require('../systems/warningsService');
 
-// ------------------------------------------------------------
-// Helpers de duração
-// ------------------------------------------------------------
+// helpers de duração
 function parseDuration(input) {
   if (!input || typeof input !== 'string') return null;
 
@@ -55,15 +53,7 @@ function formatDuration(ms) {
   return `${sec}s`;
 }
 
-// ------------------------------------------------------------
-// Helpers de staff / roles / args
-// ------------------------------------------------------------
-
-/**
- * Verifica se o membro é staff:
- * - Admin bypass OU
- * - tem algum role em config.staffRoles
- */
+// * verifica se o membro é staff:
 function isStaff(member) {
   if (!member) return false;
 
@@ -76,9 +66,7 @@ function isStaff(member) {
   return member.roles?.cache?.some((r) => staffRoles.includes(r.id));
 }
 
-/**
- * Remove mention/id do alvo dos args, para o motivo ficar limpo.
- */
+// * remove mention/id do alvo dos args para o motivo ficar limpo
 function stripTargetFromArgs(args, targetId) {
   if (!Array.isArray(args) || !targetId) return [];
 
@@ -91,9 +79,7 @@ function stripTargetFromArgs(args, targetId) {
   });
 }
 
-/**
- * Tenta enviar DM ao utilizador (não deixa o comando falhar se der erro).
- */
+// tenta enviar DM ao utilizador (não deixa o comando falhar se der erro)
 async function trySendDM(user, content) {
   try {
     if (!user || !content) return;
@@ -114,9 +100,7 @@ module.exports = {
    */
   async execute(message, args, client) {
     try {
-      // ------------------------------
-      // Validações básicas
-      // ------------------------------
+      // validações básicas
       if (!message?.guild) return;
       if (!message.member) return;
 
@@ -125,18 +109,14 @@ module.exports = {
       const botMember = guild.members.me;
       if (!botMember) return;
 
-      // ------------------------------
-      // Staff / Admin check
-      // ------------------------------
+      // staff / admin check
       if (!isStaff(executor)) {
         return message
           .reply("❌ You don't have permission to use this command.")
           .catch(() => null);
       }
 
-      // ------------------------------
-      // Permissões do BOT (timeout = ModerateMembers)
-      // ------------------------------
+      // permissões do BOT (timeout = ModerateMembers)
       const perms = message.channel.permissionsFor(botMember);
       if (!perms?.has(PermissionsBitField.Flags.ModerateMembers)) {
         return message
@@ -144,9 +124,7 @@ module.exports = {
           .catch(() => null);
       }
 
-      // ------------------------------
-      // Alvo
-      // ------------------------------
+      // alvo
       const target = message.mentions.members.first();
       if (!target) {
         return message
@@ -154,7 +132,7 @@ module.exports = {
           .catch(() => null);
       }
 
-      // Proteções básicas
+      // proteções básicas
       if (target.id === message.author.id) {
         return message.reply('❌ You cannot mute yourself.').catch(() => null);
       }
@@ -167,47 +145,41 @@ module.exports = {
         return message.reply('⚠️ You cannot mute a bot.').catch(() => null);
       }
 
-      // Já está muted?
+      // já está muted?
       if (typeof target.isCommunicationDisabled === 'function' && target.isCommunicationDisabled()) {
         return message
           .reply(`⚠️ **${target.user.tag}** is already muted.`)
           .catch(() => null);
       }
 
-      // ------------------------------
-      // Hierarquia
-      // ------------------------------
+      // hierarquia
       const executorIsAdmin = executor.permissions.has(PermissionsBitField.Flags.Administrator);
 
-      // Bot não pode moderar cargos >= ao dele
+      // bot não pode moderar cargos >= ao dele
       if (target.roles.highest.position >= botMember.roles.highest.position) {
         return message
           .reply('❌ I cannot mute this user (their role is higher or equal to my highest role).')
           .catch(() => null);
       }
 
-      // Executor não deve mutar cargos >= ao dele (exceto admin)
+      // executor não deve mutar cargos >= ao dele (exceto admin)
       if (!executorIsAdmin && target.roles.highest.position >= executor.roles.highest.position) {
         return message
           .reply('❌ You cannot mute a user with an equal or higher role than yours.')
           .catch(() => null);
       }
 
-      // (Opcional) não mutar administradores, exceto se executor for admin
+      // (opcional) não mutar administradores, exceto se executor for admin
       if (!executorIsAdmin && target.permissions.has(PermissionsBitField.Flags.Administrator)) {
         return message
           .reply('❌ You cannot mute an Administrator.')
           .catch(() => null);
       }
 
-      // ------------------------------
-      // Normalizar args (remover mention/id do alvo)
-      // ------------------------------
+      // normalizar args (remover mention/id do alvo)
       const cleanedArgs = stripTargetFromArgs(args, target.id);
 
-      // ------------------------------
-      // Duração + motivo
-      // ------------------------------
+      // duração + motivo
       const possibleDuration = cleanedArgs[0];
       const parsed = parseDuration(possibleDuration);
 
@@ -216,7 +188,7 @@ module.exports = {
         config.muteDuration ||
         10 * 60 * 1000; // fallback 10m
 
-      // Limite Discord: 28 dias
+      // limite Discord: 28 dias
       const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000;
       if (durationMs > MAX_TIMEOUT_MS) {
         return message
@@ -229,19 +201,13 @@ module.exports = {
         cleanedArgs.slice(reasonStartIndex).join(' ').trim() ||
         'No reason provided';
 
-      // ------------------------------
-      // Aplicar timeout (mute)
-      // ------------------------------
+      // aplicar timeout (mute)
       await target.timeout(
         durationMs,
         `Muted by ${message.author.tag}: ${reason}`
       );
 
-      // ------------------------------
-      // Atualizar TRUST / estado no Mongo
-      // ------------------------------
-      // Nota: applyMutePenalty faz parte do novo warningsService.
-      // Se por algum motivo não existir, não crasha (optional chaining).
+      // atualizar TRUST / estado no Mongo
       let dbUser = null;
       try {
         if (typeof warningsService.applyMutePenalty === 'function') {
@@ -258,9 +224,7 @@ module.exports = {
         console.error('[mute] warningsService error:', e);
       }
 
-      // ------------------------------
-      // ✅ DM ao utilizador (Ponto 3.1)
-      // ------------------------------
+      // DM ao utilizador
       if (config.notifications?.dmOnMute) {
         const trustText = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
 
@@ -273,9 +237,7 @@ module.exports = {
         await trySendDM(target.user, dmText);
       }
 
-      // ------------------------------
-      // Registar infração MUTE no Mongo
-      // ------------------------------
+      // registar infração MUTE no Mongo
       await infractionsService
         .create({
           guild,
@@ -287,9 +249,7 @@ module.exports = {
         })
         .catch(() => null);
 
-      // ------------------------------
-      // Feedback no canal
-      // ------------------------------
+      // feedback no canal
       await message.channel
         .send(
           `🔇 **${target.user.tag}** has been muted for **${formatDuration(
@@ -298,9 +258,7 @@ module.exports = {
         )
         .catch(() => null);
 
-      // ------------------------------
-      // Log (Discord + Dashboard)
-      // ------------------------------
+      // log (Discord + Dashboard)
       const trustText = dbUser?.trust != null ? `\nTrust: **${dbUser.trust}**` : '';
 
       await logger(
