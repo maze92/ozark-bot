@@ -48,13 +48,11 @@ module.exports = {
 
   async execute(message, args, client) {
     try {
-
       if (!message?.guild) return;
       if (!message.member) return;
 
       const guild = message.guild;
       const botMember = guild.members.me;
-
       if (!botMember) return;
 
       if (!isStaff(message.member)) {
@@ -111,11 +109,14 @@ module.exports = {
         duration: null
       }).catch(() => null);
 
+      const trustTextInline = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
+
       await message.channel
         .send(
           `⚠️ ${target} has been warned.\n` +
           `**Total warnings:** ${dbUser.warnings}\n` +
-          `📝 Reason: **${reason}**`
+          `📝 Reason: **${reason}**` +
+          trustTextInline
         )
         .catch(() => null);
 
@@ -123,7 +124,7 @@ module.exports = {
         const trustText = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
 
         const dmText =
-          `⚠️ You received a **WARN** on the server. **${guild.name}**.\n` +
+          `⚠️ You received a **WARN** on the server **${guild.name}**.\n` +
           `📝 Reason: **${reason}**\n` +
           `📌 Total warnings: **${dbUser.warnings}**` +
           trustText;
@@ -139,7 +140,6 @@ module.exports = {
         `Reason: **${reason}**\nTotal warnings: **${dbUser.warnings}**\nTrust: **${dbUser.trust ?? 'N/A'}**`,
         guild
       );
-
     } catch (err) {
       console.error('[warn] Error:', err);
       await message.reply('❌ An unexpected error occurred.').catch(() => null);
