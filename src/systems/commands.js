@@ -1,13 +1,4 @@
 // src/systems/commands.js
-// ============================================================
-// Handler central de comandos prefixados
-// ------------------------------------------------------------
-// Faz:
-// - Carrega comandos de /src/commands (uma vez ao iniciar o bot)
-// - Aplica cooldown (anti-spam de comandos)
-// - Aplica permissões por staffRoles (config) para comandos sensíveis
-// - Assinatura padrão dos comandos: execute(message, args, client)
-// ============================================================
 
 const fs = require('fs');
 const path = require('path');
@@ -16,10 +7,8 @@ const { PermissionsBitField } = require('discord.js');
 const config = require('../config/defaultConfig');
 const checkCooldown = require('./cooldowns');
 
-// Mapa interno de comandos: name -> objeto comando
 const commands = new Map();
 
-// Caminho da pasta de comandos
 const commandsDir = path.join(__dirname, '../commands');
 
 let commandFiles = [];
@@ -48,15 +37,8 @@ for (const file of commandFiles) {
   }
 }
 
-/**
- * Comandos que exigem staffRoles (ou admin)
- * ✅ aqui controlas tudo num sítio
- */
 const STAFF_ONLY = new Set(['clear', 'warn', 'mute', 'unmute']);
 
-/**
- * Verifica se membro é staff (staffRoles) ou admin
- */
 function isStaff(member) {
   if (!member) return false;
 
@@ -69,18 +51,11 @@ function isStaff(member) {
   return member.roles.cache.some(role => staffRoles.includes(role.id));
 }
 
-/**
- * Handler principal de comandos
- * @param {Message} message
- * @param {Client} client
- */
 module.exports = async function commandsHandler(message, client) {
   try {
     if (!message?.content) return;
     if (!message.guild) return;
     if (message.author?.bot) return;
-
-    // Partials
     if (message.partial) {
       try {
         await message.fetch();
@@ -92,7 +67,6 @@ module.exports = async function commandsHandler(message, client) {
     const prefix = config.prefix || '!';
     if (!message.content.startsWith(prefix)) return;
 
-    // Garante member
     if (!message.member) {
       try {
         await message.guild.members.fetch(message.author.id);
@@ -103,7 +77,6 @@ module.exports = async function commandsHandler(message, client) {
       }
     }
 
-    // Parse comando + args
     const args = message.content
       .slice(prefix.length)
       .trim()
@@ -115,14 +88,12 @@ module.exports = async function commandsHandler(message, client) {
     const command = commands.get(commandName);
 
     if (!command) {
-      // Log de comando desconhecido (para debug)
       console.log(`[commands] Unknown command: "${commandName}" from ${message.author.tag}`);
       return;
     }
 
     console.log(`[commands] Command received: "${commandName}" from ${message.author.tag} (${message.author.id})`);
 
-    // Cooldown
     const remaining = checkCooldown(commandName, message.author.id);
     if (remaining) {
       console.log(`[commands] Cooldown hit for "${commandName}" by ${message.author.tag}: ${remaining}s left`);
@@ -131,7 +102,6 @@ module.exports = async function commandsHandler(message, client) {
         .catch(() => null);
     }
 
-    // Staff-only
     if (STAFF_ONLY.has(commandName)) {
       if (!isStaff(message.member)) {
         console.log(`[commands] Denied (no staff) for "${commandName}" by ${message.author.tag}`);
@@ -141,7 +111,6 @@ module.exports = async function commandsHandler(message, client) {
       }
     }
 
-    // Executar comando
     await command.execute(message, args, client);
 
   } catch (err) {
