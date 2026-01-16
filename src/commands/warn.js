@@ -1,24 +1,19 @@
 // src/commands/warn.js
-// ============================================================
-// Comando: !warn
-//
-// Faz:
-// - Aplica 1 warning manual a um utilizador
-// - Atualiza TRUST (via warningsService)
-// - Regista infração no MongoDB (Infraction)
-// - Regista log (Discord log-bot + Dashboard)
-//
-// UX Upgrade (Ponto 3.1):
-// ✅ DM ao utilizador em Warn (se possível), com toggle:
-//    config.notifications.dmOnWarn = true
-//
-// Regras importantes:
-// - Staff-only (config.staffRoles) OU Administrator
-// - Respeita hierarquia:
-//    - bot não pode agir em cargos >= ao dele
-//    - executor não pode avisar cargos >= ao dele (anti-abuso)
-// - Reason: extraído corretamente mesmo com mentions
-// ============================================================
+
+/**
+ * v.1.0.0.1
+ * ------------------------------------------------------------
+ * Resumo:
+ * - Implementação do comando manual !warn
+ * - Aplica warnings e penalização de trust
+ * - Regista infrações e logs (Discord + Dashboard)
+ *
+ * Notas:
+ * - Apenas staff ou administradores
+ * - Respeita hierarquia de cargos do Discord
+ * ------------------------------------------------------------
+ */
+
 
 const { PermissionsBitField } = require('discord.js');
 const config = require('../config/defaultConfig');
@@ -27,13 +22,6 @@ const logger = require('../systems/logger');
 const warningsService = require('../systems/warningsService');
 const infractionsService = require('../systems/infractionsService');
 
-/**
- * Remove do args o mention e/ou id do target, para o reason ficar limpo.
- * args pode vir com:
- * - ["<@123>", "spamming", "links"]
- * - ["<@!123>", "spamming"]
- * - ["123", "spamming"]
- */
 function stripTargetFromArgs(args, targetId) {
   if (!Array.isArray(args) || !targetId) return [];
 
@@ -48,11 +36,7 @@ function stripTargetFromArgs(args, targetId) {
   });
 }
 
-/**
- * Verifica se o executor é staff:
- * - Admin bypass OU
- * - tem um role em config.staffRoles
- */
+// * verifica se o executor é staff:
 function isStaff(member) {
   if (!member) return false;
 
@@ -65,9 +49,7 @@ function isStaff(member) {
   return member.roles?.cache?.some((r) => staffRoles.includes(r.id));
 }
 
-/**
- * Tenta enviar DM ao user (sem crashar se DMs estiverem fechadas).
- */
+// tenta enviar DM ao user (sem crashar se DMs estiverem fechadas)
 async function trySendDM(user, content) {
   try {
     if (!user) return;
@@ -85,12 +67,10 @@ module.exports = {
   /**
    * Uso:
    * - !warn @user [reason...]
-   */
+  */
   async execute(message, args, client) {
     try {
-      // ------------------------------
-      // Validações básicas
-      // ------------------------------
+      // validações básicas
       if (!message?.guild) return;
       if (!message.member) return;
 
@@ -99,18 +79,14 @@ module.exports = {
 
       if (!botMember) return;
 
-      // ------------------------------
-      // Permissão do executor (staff/admin)
-      // ------------------------------
+      // permissão do executor (staff/admin)
       if (!isStaff(message.member)) {
         return message
           .reply("❌ You don't have permission to use this command.")
           .catch(() => null);
       }
 
-      // ------------------------------
-      // Alvo
-      // ------------------------------
+      // alvo
       const target = message.mentions.members.first();
       if (!target) {
         return message
@@ -118,7 +94,7 @@ module.exports = {
           .catch(() => null);
       }
 
-      // Proteções básicas
+      // proteções básicas
       if (target.id === message.author.id) {
         return message.reply('❌ You cannot warn yourself.').catch(() => null);
       }
@@ -127,18 +103,14 @@ module.exports = {
         return message.reply('❌ You cannot warn the bot.').catch(() => null);
       }
 
-      // ------------------------------
-      // Hierarquia do Discord
-      // ------------------------------
-      // Bot não consegue moderar cargos >= ao dele
+      // bot não consegue moderar cargos >= ao dele
       if (target.roles.highest.position >= botMember.roles.highest.position) {
         return message
           .reply('❌ I cannot warn this user due to role hierarchy (my role is not high enough).')
           .catch(() => null);
       }
 
-      // Executor não deve avisar cargos >= ao dele (anti-abuso)
-      // (Admins podem ignorar)
+      // executor não deve avisar cargos >= ao dele (anti-abuso)
       const executorIsAdmin = message.member.permissions.has(PermissionsBitField.Flags.Administrator);
       if (!executorIsAdmin && target.roles.highest.position >= message.member.roles.highest.position) {
         return message
@@ -146,31 +118,20 @@ module.exports = {
           .catch(() => null);
       }
 
-      // (Opcional) evitar avisar administradores (podes remover se quiseres)
+      // (opcional) evitar avisar administradores (podes remover se quiseres)
       if (!executorIsAdmin && target.permissions.has(PermissionsBitField.Flags.Administrator)) {
         return message
           .reply('❌ You cannot warn an Administrator.')
           .catch(() => null);
       }
 
-      // ------------------------------
-      // Reason (limpo, sem mention)
-      // ------------------------------
+      // reason (limpo, sem mention)
       const cleanedArgs = stripTargetFromArgs(args, target.id);
       const reason = cleanedArgs.join(' ').trim() || 'No reason provided';
 
-      // ------------------------------
-      // DB: warnings + trust
-      // - addWarning já faz:
-      //   - regen lazy do trust
-      //   - warnings++
-      //   - trust -= warnPenalty
-      // ------------------------------
       const dbUser = await warningsService.addWarning(guild.id, target.id, 1);
 
-      // ------------------------------
-      // Registar infração (Mongo)
-      // ------------------------------
+      // registar infração (Mongo)
       await infractionsService.create({
         guild,
         user: target.user,
@@ -180,9 +141,7 @@ module.exports = {
         duration: null
       }).catch(() => null);
 
-      // ------------------------------
-      // Feedback no canal
-      // ------------------------------
+      // feedback no canal
       await message.channel
         .send(
           `⚠️ ${target} has been warned.\n` +
@@ -191,10 +150,7 @@ module.exports = {
         )
         .catch(() => null);
 
-      // ------------------------------
-      // ✅ DM ao utilizador (Ponto 3.1)
-      // - se dmOnWarn estiver ativo no config
-      // ------------------------------
+      // DM ao utilizador
       if (config.notifications?.dmOnWarn) {
         const trustText = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
 
@@ -207,9 +163,7 @@ module.exports = {
         await trySendDM(target.user, dmText);
       }
 
-      // ------------------------------
-      // Log (Discord + Dashboard)
-      // ------------------------------
+      // log (Discord + Dashboard)
       await logger(
         client,
         'Manual Warn',
