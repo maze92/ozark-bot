@@ -8,7 +8,16 @@ const status = {
 };
 
 function getStatus() {
-  return { ...status };
+  const now = Date.now();
+
+  return {
+    ok: status.discordReady && status.mongoConnected,
+    discordReady: status.discordReady,
+    mongoConnected: status.mongoConnected,
+    gameNewsRunning: status.gameNewsRunning,
+    uptimeSeconds: Math.floor((now - status.startedAt) / 1000),
+    startedAt: new Date(status.startedAt).toISOString()
+  };
 }
 
 function setDiscordReady(value = true) {
