@@ -2,235 +2,177 @@
 // ============================================================
 // Comando: !userinfo
 // ------------------------------------------------------------
-// O que faz:
-// - Mostra informação de moderação de um utilizador na guild:
-//   • Warnings atuais
-//   • Trust score (0-100) + label (Low/Medium/High risk)
-//   • Última infração (se houver dados)
-//   • Estado de mute (timeout ativo ou não)
-// - Mostra também info básica do Discord:
-//   • ID, tag, data de criação, data de entrada na guild
-//
-// Permissões:
-// - Restrito a staff (config.staffRoles via allowedRoles)
-// - O systems/commands.js trata da verificação de allowedRoles
+// Mostra info básica do utilizador na guild, incluindo:
+// - Tag + ID
+// - Data de criação da conta
+// - Data de entrada no servidor
+// - Número de warnings (User model)
+// - Trust Score + nível de risco (baseado em config.trust)
+// ------------------------------------------------------------
+// Uso:
+// - !userinfo              → mostra info do autor da mensagem
+// - !userinfo @user        → mostra info do user mencionado
+// - !userinfo 1234567890   → tenta buscar pelo ID
 // ============================================================
 
 const { EmbedBuilder } = require('discord.js');
-const config = require('../config/defaultConfig');
 
+const config = require('../config/defaultConfig');
 const warningsService = require('../systems/warningsService');
-const logger = require('../systems/logger');
+const Infraction = require('../database/models/Infraction'); // opcional: estatísticas
 
 // ------------------------------------------------------------
-// Helper para ler config.trust com defaults seguros
-// (apenas leitura – quem altera trust é o warningsService)
+// Helpers de Trust (mesma filosofia que no AutoMod / AntiSpam)
 // ------------------------------------------------------------
 function getTrustConfig() {
   const cfg = config.trust || {};
 
   return {
-    enabled: cfg.enabled !== false,   // por defeito: ligado
-
+    enabled: cfg.enabled !== false,
     base: cfg.base ?? 30,
     min: cfg.min ?? 0,
     max: cfg.max ?? 100,
-
-    lowThreshold: cfg.lowThreshold ?? 10,       // <= isto → risco alto
-    highThreshold: cfg.highThreshold ?? 60      // >= isto → risco baixo
+    lowThreshold: cfg.lowThreshold ?? 10,
+    highThreshold: cfg.highThreshold ?? 60
   };
 }
 
 /**
- * Devolve um label amigável para o trust:
- * - ex: 🔴 Low (High risk)
+ * Converte valor de trust para um "nível de risco" legível.
  */
-function getTrustLabel(trustValue, trustCfg) {
-  if (!trustCfg.enabled) {
-    return {
-      text: 'Trust system disabled',
-      emoji: '⚪',
-      color: 0x808080
-    };
+function getTrustLabel(trust, trustCfg) {
+  if (!trustCfg.enabled) return 'N/A';
+
+  const t = Number.isFinite(trust) ? trust : trustCfg.base;
+
+  if (t <= trustCfg.lowThreshold) return 'High risk';
+  if (t >= trustCfg.highThreshold) return 'Low risk';
+  return 'Medium risk';
+}
+
+/**
+ * Tenta resolver o target:
+ * - @mention
+ * - ID
+ * - fallback: autor
+ */
+async function resolveTarget(message, args) {
+  const guild = message.guild;
+
+  // 1) mention
+  const byMention = message.mentions.members.first();
+  if (byMention) return byMention;
+
+  // 2) ID
+  const raw = args[0];
+  if (raw) {
+    try {
+      const byId = await guild.members.fetch(raw).catch(() => null);
+      if (byId) return byId;
+    } catch {
+      // ignorar
+    }
   }
 
-  const t = Number.isFinite(trustValue) ? trustValue : trustCfg.base;
-
-  if (t <= trustCfg.lowThreshold) {
-    return {
-      text: 'Low (High risk)',
-      emoji: '🔴',
-      color: 0xff5555
-    };
-  }
-
-  if (t >= trustCfg.highThreshold) {
-    return {
-      text: 'High (Low risk)',
-      emoji: '🟢',
-      color: 0x55ff55
-    };
-  }
-
-  return {
-    text: 'Medium (Moderate risk)',
-    emoji: '🟡',
-    color: 0xffd966
-  };
+  // 3) fallback → próprio autor
+  return message.member;
 }
 
 module.exports = {
   name: 'userinfo',
-  description: 'Show moderation info about a user',
-
-  // Restrito a staff (config.staffRoles)
-  allowedRoles: config.staffRoles || [],
+  description: 'Shows information about a user, including warnings and trust score',
 
   /**
-   * Uso:
-   * - !userinfo
-   *   → mostra info do próprio autor
-   * - !userinfo @user
-   *   → mostra info do utilizador mencionado
+   * Execução do comando
+   * @param {Message} message
+   * @param {string[]} args
+   * @param {Client} client
    */
   async execute(message, args, client) {
     try {
       if (!message.guild) return;
 
       const guild = message.guild;
+      const trustCfg = getTrustConfig();
 
       // --------------------------------------------------------
-      // Escolher alvo:
-      // - se houver mention → esse member
-      // - senão → o próprio autor
+      // Resolver alvo (user)
       // --------------------------------------------------------
-      const targetMember =
-        message.mentions.members.first() ||
-        message.member;
-
-      if (!targetMember) {
-        return message
-          .reply('❌ Could not resolve the target member.')
-          .catch(() => null);
+      const member = await resolveTarget(message, args);
+      if (!member) {
+        return message.reply('❌ I could not resolve that user.').catch(() => null);
       }
 
-      const user = targetMember.user;
+      const user = member.user;
 
       // --------------------------------------------------------
-      // Buscar dados de moderação (warnings + trust) via service
+      // Carregar dados do User model (warnings + trust)
       // --------------------------------------------------------
-      const dbUser = await warningsService.getOrCreateUser(
-        guild.id,
-        user.id
-      );
+      const dbUser = await warningsService.getOrCreateUser(guild.id, user.id);
 
-      const trustCfg = getTrustConfig();
-      const trustValue = Number.isFinite(dbUser.trust)
-        ? dbUser.trust
-        : trustCfg.base;
-
-      const trustMeta = getTrustLabel(trustValue, trustCfg);
-
-      // Warning count
-      const warningsCount = dbUser.warnings || 0;
-
-      // Última infração / atualização de trust (se existirem no schema)
-      const lastInfractionAt = dbUser.lastInfractionAt || null;
-      const lastTrustUpdateAt = dbUser.lastTrustUpdateAt || null;
-
-      const lastInfractionText = lastInfractionAt
-        ? new Date(lastInfractionAt).toLocaleString()
-        : 'No infractions registered (or data not available)';
-
-      const lastTrustUpdateText = lastTrustUpdateAt
-        ? new Date(lastTrustUpdateAt).toLocaleString()
-        : 'N/A';
+      const warnings = dbUser.warnings ?? 0;
+      const trustValue = Number.isFinite(dbUser.trust) ? dbUser.trust : trustCfg.base;
+      const trustLabel = getTrustLabel(trustValue, trustCfg);
 
       // --------------------------------------------------------
-      // Info de Discord (conta / guild)
-// --------------------------------------------------------
-      const createdAt = user.createdAt
-        ? user.createdAt.toLocaleString()
-        : 'Unknown';
-
-      const joinedAt = targetMember.joinedAt
-        ? targetMember.joinedAt.toLocaleString()
-        : 'Unknown';
-
-      const isMuted = targetMember.isCommunicationDisabled
-        ? targetMember.isCommunicationDisabled()
-        : false;
-
-      // Roles (lista simples, max 10 para não ficar gigante)
-      const roles = targetMember.roles.cache
-        .filter(r => r.id !== guild.id)
-        .sort((a, b) => b.position - a.position)
-        .map(r => `<@&${r.id}>`);
-
-      const rolesDisplay = roles.length
-        ? roles.slice(0, 10).join(', ') + (roles.length > 10 ? ' …' : '')
-        : 'No roles';
+      // (Opcional) Estatísticas rápidas de infrações
+      // --------------------------------------------------------
+      let infractionsCount = 0;
+      try {
+        infractionsCount = await Infraction.countDocuments({
+          guildId: guild.id,
+          userId: user.id
+        });
+      } catch {
+        // se falhar, não é crítico
+      }
 
       // --------------------------------------------------------
-      // Construir embed
+      // Datas / formato
+      // --------------------------------------------------------
+      const createdAt = user.createdAt ? `<t:${Math.floor(user.createdAt.getTime() / 1000)}:F>` : 'Unknown';
+      const joinedAt = member.joinedAt ? `<t:${Math.floor(member.joinedAt.getTime() / 1000)}:F>` : 'Unknown';
+
+      // --------------------------------------------------------
+      // Montar embed
       // --------------------------------------------------------
       const embed = new EmbedBuilder()
         .setTitle(`User Info - ${user.tag}`)
-        .setThumbnail(user.displayAvatarURL({ size: 128 }))
-        .setColor(trustMeta.color)
+        .setColor('Blue')
+        .setThumbnail(user.displayAvatarURL({ size: 256 }))
         .addFields(
           {
-            name: '👤 Discord',
-            value:
-              `**User:** ${user.tag}\n` +
-              `**ID:** \`${user.id}\`\n` +
-              `**Account created:** ${createdAt}\n` +
-              `**Joined this server:** ${joinedAt}`,
+            name: '👤 User',
+            value: `Tag: **${user.tag}**\nID: \`${user.id}\``,
             inline: false
           },
           {
-            name: '🛡 Moderation',
-            value:
-              `**Warnings:** ${warningsCount}\n` +
-              `**Currently muted:** ${isMuted ? 'Yes' : 'No'}\n` +
-              `**Last infraction:** ${lastInfractionText}`,
+            name: '📅 Account',
+            value: `Created at: ${createdAt}\nJoined this server: ${joinedAt}`,
+            inline: false
+          },
+          {
+            name: '⚠️ Warnings',
+            value: `**${warnings}** / **${config.maxWarnings ?? 3}** (AutoMod base)\n` +
+                   `Infractions registered: **${infractionsCount}**`,
             inline: false
           },
           {
             name: '🔐 Trust Score',
             value: trustCfg.enabled
-              ? `${trustMeta.emoji} **${trustValue}/${trustCfg.max}** — ${trustMeta.text}\n` +
-                `Last trust update: ${lastTrustUpdateText}`
-              : 'Trust system is currently **disabled** in config.',
-            inline: false
-          },
-          {
-            name: '🧩 Roles',
-            value: rolesDisplay,
+              ? `Trust: **${trustValue}/${trustCfg.max}**\nRisk level: **${trustLabel}**`
+              : 'Trust system is currently **disabled**.',
             inline: false
           }
         )
+        .setFooter({ text: `Requested by ${message.author.tag}` })
         .setTimestamp(new Date());
 
       await message.channel.send({ embeds: [embed] }).catch(() => null);
 
-      // --------------------------------------------------------
-      // Logar utilização do comando (opcional mas útil)
-      // --------------------------------------------------------
-      await logger(
-        client,
-        'User Info',
-        user,                // user “analisado”
-        message.author,      // executor do comando
-        `User info requested.\nWarnings: **${warningsCount}**\nTrust: **${trustValue}/${trustCfg.max}**`,
-        guild
-      );
-
     } catch (err) {
       console.error('[userinfo] Error:', err);
-      await message
-        .reply('❌ Failed to fetch user info.')
-        .catch(() => null);
+      await message.reply('❌ An unexpected error occurred while fetching user info.').catch(() => null);
     }
   }
 };
