@@ -1,4 +1,5 @@
 // src/bot.js
+
 const { Client, GatewayIntentBits, Partials } = require('discord.js');
 
 const client = new Client({
