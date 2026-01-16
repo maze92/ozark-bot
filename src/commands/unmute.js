@@ -24,7 +24,6 @@ module.exports = {
 
   async execute(message, args, client) {
     try {
-
       if (!message?.guild) return;
       if (!message.member) return;
 
