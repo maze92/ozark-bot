@@ -6,6 +6,14 @@
 // - Envia logs em tempo real para o Dashboard via Socket.IO
 // - (Agora) o dashboard persiste no MongoDB
 //
+// UX Upgrade (Ponto 4):
+// ✅ Padroniza títulos com emojis, sem mudar lógica do bot
+//    Exemplos:
+//    - "Manual Warn"     -> "⚠️ Manual Warn"
+//    - "Automatic Warn"  -> "🤖⚠️ Automatic Warn"
+//    - "Manual Mute"     -> "🔇 Manual Mute"
+//    - "Automatic Mute"  -> "🤖🔇 Automatic Mute"
+//
 // Notas:
 // - "User" (discord.js) NÃO tem .guild
 // - "GuildMember" TEM .guild
@@ -43,6 +51,36 @@ function resolveGuild(guild, user, executor) {
 }
 
 /**
+ * Aplica um "prefixo" visual ao título, baseado no tipo.
+ * - Não muda o conteúdo do log, só melhora leitura.
+ */
+function decorateTitle(title) {
+  const t = String(title || '').trim();
+  const low = t.toLowerCase();
+
+  // ⚠️ Warn
+  if (low.includes('warn')) {
+    // Automatic -> 🤖⚠️
+    if (low.includes('automatic') || low.includes('automod') || low.includes('auto')) {
+      return `🤖⚠️ ${t}`;
+    }
+    // Manual -> ⚠️
+    return `⚠️ ${t}`;
+  }
+
+  // 🔇 Mute
+  if (low.includes('mute') || low.includes('timeout')) {
+    if (low.includes('automatic') || low.includes('automod') || low.includes('auto')) {
+      return `🤖🔇 ${t}`;
+    }
+    return `🔇 ${t}`;
+  }
+
+  // Outros: não mexe
+  return t || 'Log';
+}
+
+/**
  * Logger centralizado
  * @param {Client} client
  * @param {string} title
@@ -64,6 +102,11 @@ module.exports = async function logger(client, title, user, executor, descriptio
     const nUser = normalizeActor(user);
     const nExec = normalizeActor(executor);
 
+    // --------------------------------------------------------
+    // UX: título com emoji (Ponto 4)
+    // --------------------------------------------------------
+    const finalTitle = decorateTitle(title);
+
     // Embed description
     let desc = '';
     if (nUser?.tag) desc += `👤 **User:** ${nUser.tag}\n`;
@@ -71,7 +114,7 @@ module.exports = async function logger(client, title, user, executor, descriptio
     if (description) desc += `${description}`;
 
     const embed = new EmbedBuilder()
-      .setTitle(title || 'Log')
+      .setTitle(finalTitle || 'Log')
       .setColor('Blue')
       .setDescription(desc || 'No description provided.')
       .setTimestamp(new Date());
@@ -82,9 +125,10 @@ module.exports = async function logger(client, title, user, executor, descriptio
     }
 
     // 2) Dashboard (tempo real + persistência via dashboard.js)
+    // Nota: no dashboard guardamos o "title" já decorado, para bater certo com UI.
     if (dashboard?.sendToDashboard) {
       dashboard.sendToDashboard('log', {
-        title: title || 'Log',
+        title: finalTitle || 'Log',
         user: nUser,
         executor: nExec,
         description: description || '',
