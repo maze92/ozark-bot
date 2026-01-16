@@ -11,7 +11,7 @@ module.exports = (client) => {
 
     try {
       await client.user.setPresence({
-        activities: [{ name: 'moderating the server', type: 3 }], // WATCHING
+        activities: [{ name: 'moderating the server', type: 3 }],
         status: 'online'
       });
     } catch (err) {
