@@ -188,7 +188,7 @@ module.exports = {
         const trustText = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
 
         const dmText =
-          `🔇 You have been temporarily **muted** on the server **${guild.name}**.\n` +
+          `🔇 You received a **manual MUTE** in **${guild.name}**.\n` +
           `⏰ Duration: **${formatDuration(durationMs)}**\n` +
           `📝 Reason: **${reason}**` +
           trustText;
@@ -213,7 +213,8 @@ module.exports = {
         .send(
           `🔇 **${target.user.tag}** has been muted for **${formatDuration(
             durationMs
-          )}**.\n📝 Reason: **${reason}**` +
+          )}**.\n` +
+          `📝 Reason: **${reason}**` +
           trustTextInline
         )
         .catch(() => null);
