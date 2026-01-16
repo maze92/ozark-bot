@@ -29,6 +29,10 @@ const io = new Server(server, {
 const MAX_MEMORY_LOGS = config.dashboard?.maxLogs ?? 200;
 let logsCache = [];
 
+// Estado de GameNews por feed (para painel "GameNews Status")
+// key: source (ex: "GameSpot/News") -> value: objeto de status
+let gameNewsStatus = {};
+
 /**
  * ------------------------------
  * Auth (Token)
@@ -77,7 +81,6 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 /**
  * Health check simples
- * (se quiseres “health real”, fazemos num próximo ponto)
  */
 app.get('/health', (req, res) => {
   res.status(200).send('Bot is running ✅');
@@ -180,6 +183,21 @@ app.get('/api/logs', requireDashboardAuth, async (req, res) => {
 
 /**
  * ------------------------------
+ * (Opcional) API: GET /api/gamenews-status
+ * - devolve snapshot do estado dos feeds GameNews
+ * ------------------------------
+ */
+app.get('/api/gamenews-status', requireDashboardAuth, (req, res) => {
+  const list = Object.values(gameNewsStatus || {});
+  res.json({
+    ok: true,
+    total: list.length,
+    items: list
+  });
+});
+
+/**
+ * ------------------------------
  * Socket.IO auth
  * - Se DASHBOARD_TOKEN existir, valida token em socket.handshake.auth.token
  * ------------------------------
@@ -197,11 +215,18 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log('🔌 Dashboard client connected');
 
-  // Envia cache em memória (rápido)
+  // Envia cache em memória (logs)
   socket.emit('logs', logsCache);
+
+  // Envia estado atual de GameNews
+  socket.emit('gamenews_status', Object.values(gameNewsStatus || {}));
 
   socket.on('requestLogs', () => {
     socket.emit('logs', logsCache);
+  });
+
+  socket.on('requestGameNewsStatus', () => {
+    socket.emit('gamenews_status', Object.values(gameNewsStatus || {}));
   });
 
   socket.on('disconnect', () => {
@@ -268,7 +293,7 @@ async function loadInitialCacheFromMongo() {
       .limit(limit)
       .lean();
 
-    // cache em memória deve estar do mais antigo -> mais recente (para render reverse no frontend)
+    // cache em memória deve estar do mais antigo -> mais recente
     logsCache = items.reverse().map((x) => ({
       title: x.title,
       user: x.user,
@@ -289,27 +314,61 @@ loadInitialCacheFromMongo().catch(() => null);
 
 /**
  * ------------------------------
- * Função pública: sendToDashboard('log', data)
- * - mantém compatibilidade com o teu logger
+ * Função pública: sendToDashboard
+ * - Mantém compatibilidade com o logger
+ * - Agora também aceita:
+ *   - 'gamenews_status' para painel de GameNews
  * ------------------------------
  */
 function sendToDashboard(event, data) {
-  if (event !== 'log') return;
+  // ---------------- LOGS ----------------
+  if (event === 'log') {
+    const payload = {
+      ...data,
+      time: data?.time ? new Date(data.time).toISOString() : new Date().toISOString()
+    };
 
-  const payload = {
-    ...data,
-    time: data?.time ? new Date(data.time).toISOString() : new Date().toISOString()
-  };
+    // 1) guarda em memória
+    logsCache.push(payload);
+    if (logsCache.length > MAX_MEMORY_LOGS) logsCache.shift();
 
-  // 1) guarda em memória
-  logsCache.push(payload);
-  if (logsCache.length > MAX_MEMORY_LOGS) logsCache.shift();
+    // 2) emite em tempo real
+    io.emit('logs', logsCache);
 
-  // 2) emite em tempo real
-  io.emit('logs', logsCache);
+    // 3) persiste no Mongo (async, sem bloquear)
+    saveLogToMongo(payload).catch(() => null);
 
-  // 3) persiste no Mongo (async, sem bloquear)
-  saveLogToMongo(payload).catch(() => null);
+    return;
+  }
+
+  // ------------- GameNews Status -------------
+  if (event === 'gamenews_status') {
+    if (!data || !data.source) return;
+
+    // normaliza timestamps para strings ISO (mais fácil no frontend)
+    const status = {
+      source: data.source,
+      feedName: data.feedName || data.source,
+      feedUrl: data.feedUrl || null,
+      channelId: data.channelId || null,
+      failCount: data.failCount ?? 0,
+      pausedUntil: data.pausedUntil ? new Date(data.pausedUntil).toISOString() : null,
+      lastSentAt: data.lastSentAt ? new Date(data.lastSentAt).toISOString() : null,
+      lastHashesCount: data.lastHashesCount ?? 0,
+      paused: Boolean(data.paused),
+      updatedAt: data.updatedAt ? new Date(data.updatedAt).toISOString() : new Date().toISOString()
+    };
+
+    // guarda na cache em memória (1 por source)
+    gameNewsStatus[status.source] = status;
+
+    // emite lista completa para todos os clientes
+    io.emit('gamenews_status', Object.values(gameNewsStatus));
+
+    return;
+  }
+
+  // outros tipos de evento podem ser ignorados por enquanto
 }
 
 module.exports = {
@@ -317,4 +376,3 @@ module.exports = {
   server,
   sendToDashboard
 };
-
