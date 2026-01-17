@@ -1,6 +1,6 @@
 // src/slash/warn.js
 
-const { PermissionsBitField, MessageFlags } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
 
 const config = require('../config/defaultConfig');
 const logger = require('../systems/logger');
@@ -18,11 +18,9 @@ async function trySendDM(user, content) {
   }
 }
 
-// Helper opcional: resposta "ephemeral" moderna
+// 64 = Ephemeral
 function replyEphemeral(interaction, content) {
-  return interaction
-    .reply({ content, flags: MessageFlags.Ephemeral })
-    .catch(() => null);
+  return interaction.reply({ content, flags: 64 }).catch(() => null);
 }
 
 module.exports = async function warnSlash(client, interaction) {
@@ -32,6 +30,7 @@ module.exports = async function warnSlash(client, interaction) {
     const guild = interaction.guild;
     const executor = interaction.member;
     const botMember = guild.members.me;
+
     if (!executor || !botMember) {
       return replyEphemeral(interaction, t('common.unexpectedError'));
     }
@@ -67,7 +66,9 @@ module.exports = async function warnSlash(client, interaction) {
       return replyEphemeral(interaction, t('warn.cannotWarnAdmin'));
     }
 
-    const reason = (interaction.options.getString('reason') || '').trim() || t('common.noReason');
+    const reason =
+      (interaction.options.getString('reason') || '').trim() || t('common.noReason');
+
     const dbUser = await warningsService.addWarning(guild.id, target.id, 1);
     const baseMaxWarnings = config.maxWarnings ?? 3;
 
@@ -82,6 +83,7 @@ module.exports = async function warnSlash(client, interaction) {
       })
       .catch(() => null);
 
+    // Resposta pública
     await interaction
       .reply({
         content: t('warn.channelConfirm', null, {
@@ -89,8 +91,7 @@ module.exports = async function warnSlash(client, interaction) {
           warnings: dbUser.warnings,
           maxWarnings: baseMaxWarnings,
           reason
-        }),
-        ephemeral: false // isto não gera warning
+        })
       })
       .catch(() => null);
 
@@ -122,7 +123,7 @@ module.exports = async function warnSlash(client, interaction) {
   } catch (err) {
     console.error('[slash/warn] Error:', err);
 
-    const payload = { content: t('common.unexpectedError'), flags: MessageFlags.Ephemeral };
+    const payload = { content: t('common.unexpectedError'), flags: 64 };
 
     if (interaction.deferred || interaction.replied) {
       return interaction.followUp(payload).catch(() => null);
