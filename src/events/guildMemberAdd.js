@@ -1,29 +1,25 @@
 // src/events/guildMemberAdd.js
 
-const User = require('../database/models/User');
+const warningsService = require('../systems/warningsService');
 
 module.exports = (client) => {
   client.on('guildMemberAdd', async (member) => {
     try {
-      if (!member?.guild) return;
+      if (!member?.guild || !member.user) return;
 
-      const existing = await User.findOne({
-        userId: member.id,
-        guildId: member.guild.id
-      });
+      // Garante que o utilizador existe na DB
+      // (não recria se já existir)
+      await warningsService.getOrCreateUser(
+        member.guild.id,
+        member.user.id
+      );
 
-      if (existing) return;
-
-      await User.create({
-        userId: member.id,
-        guildId: member.guild.id,
-        trust: 30,
-        warnings: 0
-      });
-
-      console.log(`✅ Created user entry for ${member.user.tag} (${member.id}) in guild ${member.guild.name}`);
+      console.log(
+        `👤 User joined: ${member.user.tag} (${member.user.id}) | Guild: ${member.guild.name}`
+      );
     } catch (err) {
-      console.error('[guildMemberAdd] Error creating user entry:', err);
+      console.error('[guildMemberAdd] Error handling new member:', err);
     }
   });
 };
+
