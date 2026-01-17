@@ -2,7 +2,8 @@
 
 module.exports = {
   prefix: '!',
-  language: 'en',
+  // Bot language for messages & AutoMod (supported: 'en', 'pt')
+  language: 'pt',
   logChannelName: 'log-bot',
 
   staffRoles: [
