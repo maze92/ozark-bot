@@ -5,6 +5,7 @@ const { PermissionsBitField } = require('discord.js');
 const config = require('../config/defaultConfig');
 const logger = require('../systems/logger');
 const warningsService = require('../systems/warningsService');
+const { t } = require('../systems/i18n');
 
 function isStaff(member) {
   if (!member) return false;
@@ -32,22 +33,22 @@ module.exports = {
       const botMember = guild.members.me;
       if (!botMember) return;
 
+      // staff check
       if (!isStaff(executor)) {
-        return message
-          .reply("❌ You don't have permission to use this command.")
-          .catch(() => null);
+        return message.reply(t('common.noPermission')).catch(() => null);
       }
 
+      // bot perms
       const perms = message.channel.permissionsFor(botMember);
       if (!perms?.has(PermissionsBitField.Flags.ModerateMembers)) {
-        return message
-          .reply('❌ I do not have permission to unmute members (Moderate Members).')
-          .catch(() => null);
+        return message.reply(t('mute.missingPerm')).catch(() => null);
       }
 
       const target = message.mentions.members.first();
       if (!target) {
-        return message.reply(`❌ Usage: ${config.prefix}unmute @user`).catch(() => null);
+        return message
+          .reply(t('common.usage', null, `${config.prefix}unmute @user`))
+          .catch(() => null);
       }
 
       if (target.id === message.author.id) {
@@ -62,7 +63,9 @@ module.exports = {
 
       if (target.roles.highest.position >= botMember.roles.highest.position) {
         return message
-          .reply('❌ I cannot unmute this user (their role is higher or equal to my highest role).')
+          .reply(
+            '❌ I cannot unmute this user (their role is higher or equal to my highest role).'
+          )
           .catch(() => null);
       }
 
@@ -72,22 +75,24 @@ module.exports = {
           .catch(() => null);
       }
 
-      if (typeof target.isCommunicationDisabled === 'function' && !target.isCommunicationDisabled()) {
-        return message
-          .reply(`⚠️ **${target.user.tag}** is not muted.`)
-          .catch(() => null);
+      if (
+        typeof target.isCommunicationDisabled === 'function' &&
+        !target.isCommunicationDisabled()
+      ) {
+        return message.reply(t('unmute.notMuted', null, target.user.tag)).catch(() => null);
       }
 
       await target.timeout(null, `Unmuted by ${message.author.tag}`);
 
       await message.channel
-        .send(`✅ **${target.user.tag}** has been unmuted.`)
+        .send(t('unmute.success', null, target.user.tag))
         .catch(() => null);
 
       let dbUser = null;
       try {
         dbUser = await warningsService.getOrCreateUser(guild.id, target.id);
       } catch {
+        // ignore
       }
 
       const trustText = dbUser?.trust != null ? `\nTrust: **${dbUser.trust}**` : '';
@@ -103,7 +108,7 @@ module.exports = {
       );
     } catch (err) {
       console.error('[unmute] Error:', err);
-      message.reply('❌ Failed to unmute the user.').catch(() => null);
+      message.reply(t('unmute.failed')).catch(() => null);
     }
   }
 };
