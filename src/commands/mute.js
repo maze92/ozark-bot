@@ -18,11 +18,16 @@ function parseDuration(input) {
   if (!value || value <= 0) return null;
 
   switch (unit) {
-    case 's': return value * 1000;
-    case 'm': return value * 60 * 1000;
-    case 'h': return value * 60 * 60 * 1000;
-    case 'd': return value * 24 * 60 * 60 * 1000;
-    default: return null;
+    case 's':
+      return value * 1000;
+    case 'm':
+      return value * 60 * 1000;
+    case 'h':
+      return value * 60 * 60 * 1000;
+    case 'd':
+      return value * 24 * 60 * 60 * 1000;
+    default:
+      return null;
   }
 }
 
@@ -67,6 +72,7 @@ async function trySendDM(user, content) {
     if (!user || !content) return;
     await user.send({ content }).catch(() => null);
   } catch {
+    // ignore
   }
 }
 
@@ -116,7 +122,10 @@ module.exports = {
         return message.reply('⚠️ You cannot mute a bot.').catch(() => null);
       }
 
-      if (typeof target.isCommunicationDisabled === 'function' && target.isCommunicationDisabled()) {
+      if (
+        typeof target.isCommunicationDisabled === 'function' &&
+        target.isCommunicationDisabled()
+      ) {
         return message
           .reply(`⚠️ **${target.user.tag}** is already muted.`)
           .catch(() => null);
@@ -175,7 +184,7 @@ module.exports = {
           dbUser = await warningsService.applyMutePenalty(
             guild.id,
             target.id,
-            durationMs
+            durationMs // argumento extra é ignorado pela função, mas não faz mal
           );
         } else {
           dbUser = await warningsService.getOrCreateUser(guild.id, target.id);
@@ -184,14 +193,12 @@ module.exports = {
         console.error('[mute] warningsService error:', e);
       }
 
+      // DM para o user: sem mostrar trust
       if (config.notifications?.dmOnMute) {
-        const trustText = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
-
         const dmText =
           `🔇 You received a **manual MUTE** in **${guild.name}**.\n` +
           `⏰ Duration: **${formatDuration(durationMs)}**\n` +
-          `📝 Reason: **${reason}**` +
-          trustText;
+          `📝 Reason: **${reason}**`;
 
         await trySendDM(target.user, dmText);
       }
@@ -207,18 +214,16 @@ module.exports = {
         })
         .catch(() => null);
 
-      const trustTextInline = dbUser?.trust != null ? `\n🔐 Trust: **${dbUser.trust}**` : '';
-
+      // Mensagem pública: sem trust
       await message.channel
         .send(
           `🔇 **${target.user.tag}** has been muted for **${formatDuration(
             durationMs
-          )}**.\n` +
-          `📝 Reason: **${reason}**` +
-          trustTextInline
+          )}**.\n` + `📝 Reason: **${reason}**`
         )
         .catch(() => null);
 
+      // Logger interno continua a ver trust
       const trustTextLog = dbUser?.trust != null ? `\nTrust: **${dbUser.trust}**` : '';
 
       await logger(
