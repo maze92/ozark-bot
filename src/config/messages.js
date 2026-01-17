@@ -58,4 +58,76 @@ module.exports = {
       warnReason: (word) => `Inappropriate language (detected: "${word}")`,
       warnLogReason: (word) => `AutoMod detected banned word: ${word}`,
       warnChannel: ({ mention, warnings, maxWarnings }) =>
-        `⚠️ ${mention}, you received a **WARN**.\n📝 Reason: **Inappropriate language**\n📌 Warnings: **${warnings}**
+        `⚠️ ${mention}, you received a **WARN**.\n📝 Reason: **Inappropriate language**\n📌 Warnings: **${warnings}/${maxWarnings}**`,
+      muteChannel: ({ mention, minutes }) =>
+        `🔇 ${mention} has been **muted**.\n⏱️ Duration: **${minutes} minutes**\n📝 Reason: **Exceeded the warning limit**`,
+      muteDM: ({ guildName, minutes }) =>
+        `🔇 You have been **muted** in **${guildName}**.\n⏱️ Duration: **${minutes} minutes**\n📝 Reason: **Exceeded the warning limit**`
+    }
+  },
+
+  pt: {
+    common: {
+      noPermission: '❌ Não tens permissão para usar este comando.',
+      usage: (text) => `❌ Uso correto: ${text}`,
+      unexpectedError: '❌ Ocorreu um erro inesperado.',
+      noReason: 'Sem motivo indicado'
+    },
+
+    warn: {
+      cannotWarnSelf: '❌ Não te podes avisar a ti próprio.',
+      cannotWarnBot: '❌ Não podes avisar o bot.',
+      hierarchyBot: '❌ Não consigo avisar este utilizador por causa da hierarquia de cargos (o meu cargo não é alto o suficiente).',
+      hierarchyYou: '❌ Não podes avisar um utilizador com cargo igual ou superior ao teu.',
+      cannotWarnAdmin: '❌ Não podes avisar um Administrador.',
+      warnedPublic: ({ mention, warnings, reason }) =>
+        `⚠️ ${mention} recebeu um aviso.\n📌 Total de avisos: **${warnings}**\n📝 Motivo: **${reason}**`,
+      warnedDM: ({ guildName, warnings, reason }) =>
+        `⚠️ Recebeste um **AVISO** em **${guildName}**.\n📝 Motivo: **${reason}**\n📌 Total de avisos: **${warnings}**`
+    },
+
+    mute: {
+      cannotMuteSelf: '❌ Não te podes silenciar a ti próprio.',
+      cannotMuteBot: '❌ Não podes silenciar o bot.',
+      cannotMuteBots: '⚠️ Não podes silenciar um bot.',
+      alreadyMuted: (tag) => `⚠️ **${tag}** já está silenciado.`,
+      missingPerm: '❌ Não tenho permissão para aplicar timeout (Moderate Members).',
+      hierarchyBot: '❌ Não consigo silenciar este utilizador (o cargo dele é igual ou superior ao meu cargo mais alto).',
+      hierarchyYou: '❌ Não podes silenciar um utilizador com cargo igual ou superior ao teu.',
+      cannotMuteAdmin: '❌ Não podes silenciar um Administrador.',
+      tooLong: '❌ A duração do timeout não pode exceder 28 dias.',
+      mutedPublic: ({ tag, duration, reason }) =>
+        `🔇 **${tag}** foi silenciado por **${duration}**.\n📝 Motivo: **${reason}**`,
+      mutedDM: ({ guildName, duration, reason }) =>
+        `🔇 Recebeste um **SILENCIAMENTO** em **${guildName}**.\n⏰ Duração: **${duration}**\n📝 Motivo: **${reason}**`,
+      failedMute: '❌ Falha ao silenciar. Verifica permissões e hierarquia de cargos.'
+    },
+
+    userinfo: {
+      title: (tag) => `Informação do Utilizador - ${tag}`,
+      recentInfractionsStaffOnly: 'Detalhes de infrações recentes são **visíveis apenas para staff**.',
+      noRecentInfractions: 'Sem infrações recentes.',
+      trustDisabled: 'O sistema de trust está **desativado**.',
+      trustInternal: 'O Trust Score é **interno** e visível apenas para staff.\nAs decisões de moderação podem ser mais rígidas para reincidentes.',
+      fields: {
+        user: '👤 Utilizador',
+        account: '📅 Conta',
+        warnings: '⚠️ Avisos',
+        trust: '🔐 Trust Score',
+        recent: (n) => `🧾 Infrações recentes (últimas ${n})`,
+        summary: 'Resumo por tipo'
+      }
+    },
+
+    automod: {
+      warnReason: (word) => `Linguagem inapropriada (detetado: "${word}")`,
+      warnLogReason: (word) => `AutoMod detetou palavra proibida: ${word}`,
+      warnChannel: ({ mention, warnings, maxWarnings }) =>
+        `⚠️ ${mention}, recebeste um **AVISO**.\n📝 Motivo: **Linguagem inapropriada**\n📌 Avisos: **${warnings}/${maxWarnings}**`,
+      muteChannel: ({ mention, minutes }) =>
+        `🔇 ${mention} foi **silenciado**.\n⏱️ Duração: **${minutes} minutos**\n📝 Motivo: **Excedeu o limite de avisos**`,
+      muteDM: ({ guildName, minutes }) =>
+        `🔇 Foste **silenciado** em **${guildName}**.\n⏱️ Duração: **${minutes} minutos**\n📝 Motivo: **Excedeu o limite de avisos**`
+    }
+  }
+};
