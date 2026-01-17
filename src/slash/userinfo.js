@@ -1,6 +1,6 @@
 // src/slash/userinfo.js
 
-const { EmbedBuilder, PermissionsBitField, MessageFlags } = require('discord.js');
+const { EmbedBuilder, PermissionsBitField } = require('discord.js');
 
 const config = require('../config/defaultConfig');
 const warningsService = require('../systems/warningsService');
@@ -89,7 +89,7 @@ module.exports = async function userinfoSlash(client, interaction) {
       return interaction
         .reply({
           content: t('common.cannotResolveUser'),
-          flags: MessageFlags.Ephemeral
+          flags: 64 // ephemeral
         })
         .catch(() => null);
     }
@@ -203,7 +203,7 @@ module.exports = async function userinfoSlash(client, interaction) {
 
     const payload = {
       content: t('common.unexpectedError'),
-      flags: MessageFlags.Ephemeral
+      flags: 64
     };
 
     if (interaction.deferred || interaction.replied) {
