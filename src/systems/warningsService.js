@@ -27,30 +27,6 @@ function clampTrust(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-async function getOrCreateUser(guildId, userId) {
-  let u = await User.findOne({ guildId, userId });
-
-  if (!u) {
-    const trustCfg = getTrustConfig();
-
-    u = await User.create({
-      guildId,
-      userId,
-      warnings: 0,
-      trust: trustCfg.base,
-      lastInfractionAt: null,
-      lastTrustUpdateAt: new Date()
-    });
-  }
-
-  const trustCfg = getTrustConfig();
-
-  if (!Number.isFinite(u.trust)) u.trust = trustCfg.base;
-  if (!u.lastTrustUpdateAt) u.lastTrustUpdateAt = new Date();
-
-  return u;
-}
-
 function applyTrustRegen(u, trustCfg, now) {
   if (!trustCfg.enabled) return;
 
@@ -99,13 +75,55 @@ function applyTrustPenalty(u, trustCfg, type, now) {
   u.lastTrustUpdateAt = now;
 }
 
+async function getOrCreateUser(guildId, userId) {
+  let u = await User.findOne({ guildId, userId });
+  const trustCfg = getTrustConfig();
+  const now = new Date();
+
+  // Criar registo novo com trust base
+  if (!u) {
+    u = await User.create({
+      guildId,
+      userId,
+      warnings: 0,
+      trust: trustCfg.base,
+      lastInfractionAt: null,
+      lastTrustUpdateAt: now
+    });
+    return u;
+  }
+
+  // Normalizações
+  if (!Number.isFinite(u.trust)) u.trust = trustCfg.base;
+  if (!u.lastTrustUpdateAt) u.lastTrustUpdateAt = u.createdAt || now;
+
+  // ✅ Aplicar regen aqui, para qualquer uso do warningsService
+  const beforeTrust = u.trust;
+  const beforeLastUpdate =
+    u.lastTrustUpdateAt && typeof u.lastTrustUpdateAt.getTime === 'function'
+      ? u.lastTrustUpdateAt.getTime()
+      : 0;
+
+  applyTrustRegen(u, trustCfg, now);
+
+  const afterLastUpdate =
+    u.lastTrustUpdateAt && typeof u.lastTrustUpdateAt.getTime === 'function'
+      ? u.lastTrustUpdateAt.getTime()
+      : 0;
+
+  // Só gravar se algo mudou (evita spam na DB)
+  if (u.trust !== beforeTrust || afterLastUpdate !== beforeLastUpdate) {
+    await u.save().catch(() => null);
+  }
+
+  return u;
+}
+
 async function addWarning(guildId, userId, amount = 1) {
   const trustCfg = getTrustConfig();
   const now = new Date();
 
   const u = await getOrCreateUser(guildId, userId);
-
-  applyTrustRegen(u, trustCfg, now);
 
   u.warnings = (u.warnings || 0) + amount;
 
@@ -120,8 +138,6 @@ async function applyMutePenalty(guildId, userId) {
   const now = new Date();
 
   const u = await getOrCreateUser(guildId, userId);
-
-  applyTrustRegen(u, trustCfg, now);
 
   applyTrustPenalty(u, trustCfg, 'MUTE', now);
 
