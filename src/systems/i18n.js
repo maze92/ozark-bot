@@ -3,25 +3,44 @@
 const config = require('../config/defaultConfig');
 const messages = require('../config/messages');
 
-function getLang(explicitLang) {
-  const lang = (explicitLang || config.language || 'en').toLowerCase();
-  return messages[lang] ? lang : 'en';
+function getLang(langOverride) {
+  const cfg = (langOverride || config.language || 'en').toLowerCase();
+  return cfg === 'pt' ? 'pt' : 'en';
 }
 
-function t(path, lang, vars) {
-  const useLang = getLang(lang);
-  const fallbackLang = 'en';
+function getFromPath(root, path) {
+  const parts = String(path || '').split('.');
+  let current = root;
 
-  const read = (obj, p) => p.split('.').reduce((acc, k) => (acc ? acc[k] : undefined), obj);
+  for (const p of parts) {
+    if (!current || typeof current !== 'object') return null;
+    if (!(p in current)) return null;
+    current = current[p];
+  }
 
-  let value = read(messages[useLang], path);
-  if (value === undefined) value = read(messages[fallbackLang], path);
-
-  if (typeof value === 'function') return value(vars);
-  if (typeof value === 'string') return value;
-
-  // fallback seguro
-  return path;
+  return current;
 }
 
-module.exports = { t, getLang };
+/**
+ * t('common.noPermission')
+ * t('common.usage', null, '!warn @user [reason]')
+ * t('clear.success', null, { count: 5 })
+ */
+function t(path, langOverride, value) {
+  const lang = getLang(langOverride);
+  const root = messages[lang] || messages.en;
+
+  const node = getFromPath(root, path);
+  if (node == null) {
+    // fallback: devolve a própria key se não existir
+    return path;
+  }
+
+  if (typeof node === 'function') {
+    return node(value);
+  }
+
+  return node;
+}
+
+module.exports = { t };
