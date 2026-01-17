@@ -98,6 +98,10 @@
     }
     button:hover { background: rgba(255,255,255,0.11); }
     button:active { transform: translateY(1px); }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
     .btn-primary {
       background: rgba(230,0,18,0.18);
       border-color: rgba(230,0,18,0.35);
@@ -235,7 +239,7 @@
     }
     .overlay.show { display:flex; }
     .modal {
-      width: min(720px, 100%);
+      width: min(760px, 100%);
       border-radius: 18px;
       border: 1px solid var(--border);
       background: rgba(15,17,21,0.92);
@@ -310,6 +314,7 @@
     <div class="tabs" id="tabs">
       <div class="tab active" data-tab="overview">Overview</div>
       <div class="tab" data-tab="logs">Logs</div>
+      <div class="tab" data-tab="cases">Cases</div>
       <div class="tab" data-tab="gamenews">GameNews</div>
       <div class="tab" data-tab="user">User</div>
       <div class="tab" data-tab="config">Config</div>
@@ -342,7 +347,7 @@
           <div class="kpi">
             <div>
               <div class="big" id="kpiLogs">0</div>
-              <div class="small">logs carregados</div>
+              <div class="small">logs (page items)</div>
             </div>
             <div>
               <div class="big" id="kpiFeeds">0</div>
@@ -383,13 +388,68 @@
             <option value="anti-spam">Anti-Spam</option>
             <option value="game news">Game News</option>
           </select>
-          <button id="btnReloadLogs">Reload from DB</button>
+          <select id="logLimit" title="Per page">
+            <option value="25">25 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+            <option value="200">200 / page</option>
+          </select>
+          <button id="btnReloadLogs">Reload</button>
+          <button class="btn-primary" id="btnExportCsv">Export CSV</button>
         </div>
-        <div class="hint">Tip: usa o selector de guild no topo para filtrar tudo.</div>
+
+        <div class="row" style="margin-top: 10px;">
+          <button id="btnPrevLogs">Prev</button>
+          <span class="badge info" id="logsPageBadge">Page 1</span>
+          <button id="btnNextLogs">Next</button>
+          <span class="spacer"></span>
+          <span class="badge" id="logsTotalBadge">Total: 0</span>
+        </div>
+
+        <div class="hint">Tip: usa o selector de guild no topo para filtrar tudo. Pesquisa e tipo são server-side.</div>
       </div>
 
       <div style="height: 12px;"></div>
       <div id="logsList"></div>
+    </div>
+
+    <!-- Cases -->
+    <div class="section" id="tab-cases">
+      <div class="card">
+        <div class="row">
+          <input id="casesQ" placeholder="Search caseId / reason / type / userId / moderatorId" style="flex:1; min-width: 260px;" />
+          <input id="casesUserId" placeholder="User ID (optional)" style="width: 240px;" />
+          <select id="casesType" style="width: 180px;">
+            <option value="">All types</option>
+            <option value="WARN">WARN</option>
+            <option value="MUTE">MUTE</option>
+            <option value="KICK">KICK</option>
+            <option value="BAN">BAN</option>
+          </select>
+          <select id="casesLimit" title="Per page">
+            <option value="25">25 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+          </select>
+          <button id="btnReloadCases">Reload</button>
+        </div>
+
+        <div class="row" style="margin-top: 10px;">
+          <button id="btnPrevCases">Prev</button>
+          <span class="badge info" id="casesPageBadge">Page 1</span>
+          <button id="btnNextCases">Next</button>
+          <span class="spacer"></span>
+          <span class="badge" id="casesTotalBadge">Total: 0</span>
+        </div>
+
+        <div class="hint">
+          A tab <b>Cases</b> usa infractions com <b>caseId</b>. Precisas selecionar uma guild no topo para pesquisar.
+          Clica num item para ver detalhes.
+        </div>
+      </div>
+
+      <div style="height: 12px;"></div>
+      <div id="casesList"></div>
     </div>
 
     <!-- GameNews -->
@@ -475,7 +535,7 @@
     </div>
   </div>
 
-  <!-- Modal -->
+  <!-- Action Modal -->
   <div class="overlay" id="overlay">
     <div class="modal">
       <div class="modalHead">
@@ -500,6 +560,26 @@
     </div>
   </div>
 
+  <!-- Case Details Modal -->
+  <div class="overlay" id="caseOverlay">
+    <div class="modal">
+      <div class="modalHead">
+        <div class="row" style="gap: 10px;">
+          <span class="badge info" id="caseBadge">Case</span>
+          <span class="mono" id="caseTitle">#-</span>
+        </div>
+        <button id="caseClose">Close</button>
+      </div>
+      <div class="modalBody" id="caseBody">
+        <div class="hint">Loading…</div>
+      </div>
+      <div class="modalActions">
+        <button id="caseCopy">Copy JSON</button>
+        <button class="btn-primary" id="caseClose2">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -510,11 +590,26 @@
       token: localStorage.getItem('DASHBOARD_TOKEN') || '',
       guildId: '',
       guilds: [],
-      logs: [],
       feeds: [],
       config: null,
       schema: null,
-      user: null
+      user: null,
+
+      // logs pagination
+      logs: {
+        page: 1,
+        limit: 50,
+        total: 0,
+        items: []
+      },
+
+      // cases pagination
+      cases: {
+        page: 1,
+        limit: 25,
+        total: 0,
+        items: []
+      }
     };
 
     // ------------------------------
@@ -580,6 +675,32 @@
       return state.guildId || '';
     }
 
+    function escHtml(s) {
+      return String(s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // download helper (blob)
+    async function downloadWithAuth(url, filename) {
+      const res = await fetch(url, { headers: headers() });
+      if (res.status === 401) {
+        toast('Unauthorized: set token.', 'bad');
+        return;
+      }
+      if (!res.ok) {
+        toast('Download failed.', 'bad');
+        return;
+      }
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 1500);
+    }
+
     // ------------------------------
     // Tabs
     // ------------------------------
@@ -591,6 +712,10 @@
       const t = e.target.closest('.tab');
       if (!t) return;
       setTab(t.dataset.tab);
+
+      // lazy load
+      if (t.dataset.tab === 'logs') loadLogsPage(1).catch(() => null);
+      if (t.dataset.tab === 'cases') loadCasesPage(1).catch(() => null);
     });
 
     // ------------------------------
@@ -630,12 +755,20 @@
       $('kpiGuilds').textContent = String(state.guilds.length);
     }
 
-    $('guildPicker').addEventListener('change', () => {
+    $('guildPicker').addEventListener('change', async () => {
       state.guildId = $('guildPicker').value;
-      filterAndRenderLogs();
-      renderFeeds();
+
+      // Reset paginations on guild change
+      state.logs.page = 1;
+      state.cases.page = 1;
+
       // user tab depends on guild
-      $('userStatus').textContent = state.guildId ? 'Guild selected' : 'Select a guild'
+      $('userStatus').textContent = state.guildId ? 'Guild selected' : 'Select a guild';
+
+      // Refresh current tab data
+      await loadLogsPage(1).catch(() => null);
+      await loadCasesPage(1).catch(() => null);
+      renderFeeds();
     });
 
     // ------------------------------
@@ -737,7 +870,7 @@
     $('btnSaveConfig').addEventListener('click', saveConfigPatch);
 
     // ------------------------------
-    // Logs
+    // Logs (Server-side pagination)
     // ------------------------------
     function logColor(title) {
       const t = String(title || '').toLowerCase();
@@ -775,68 +908,325 @@
         div.innerHTML = `
           <div class="logHead">
             <div class="logTitle">
-              <span class="badge ${logColor(log.title)}">${log.title || 'Log'}</span>
-              ${tb ? `<span class="badge ${tb.cls}">${tb.label}</span>` : ''}
-              ${guild ? `<span class="badge">${guild}</span>` : ''}
+              <span class="badge ${logColor(log.title)}">${escHtml(log.title || 'Log')}</span>
+              ${tb ? `<span class="badge ${tb.cls}">${escHtml(tb.label)}</span>` : ''}
+              ${guild ? `<span class="badge">${escHtml(guild)}</span>` : ''}
             </div>
-            <div class="mono">${safeDate(log.time || log.timestamp || Date.now())}</div>
+            <div class="mono">${safeDate(log.time || log.createdAt || log.timestamp || Date.now())}</div>
           </div>
-          <div class="logDesc">${(log.description || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-          <div class="logMeta">👤 ${userTag} • 🛠 ${execTag}</div>
+          <div class="logDesc">${escHtml(log.description || '')}</div>
+          <div class="logMeta">👤 ${escHtml(userTag)} • 🛠 ${escHtml(execTag)}</div>
         `;
         list.appendChild(div);
       }
     }
 
-    function filterAndRenderLogs() {
-      const search = ($('logSearch').value || '').toLowerCase();
-      const type = ($('logType').value || '').toLowerCase();
-      const gid = selectedGuild();
+    function updateLogsPagerUI() {
+      const p = state.logs.page;
+      const lim = state.logs.limit;
+      const total = state.logs.total;
 
-      const filtered = state.logs.filter((log) => {
-        if (gid && log.guild?.id !== gid) return false;
-        const title = (log.title || '').toLowerCase();
-        if (type && !title.includes(type)) return false;
-        if (!search) return true;
-        const blob = [
-          log.title,
-          log.description,
-          log.user?.tag,
-          log.executor?.tag,
-          log.guild?.name
-        ].map(x => String(x || '').toLowerCase()).join(' ');
-        return blob.includes(search);
-      });
+      const maxPage = Math.max(Math.ceil(total / lim) || 1, 1);
 
-      renderLogs(filtered.slice().reverse());
-      $('kpiLogs').textContent = String(state.logs.length);
+      $('logsPageBadge').textContent = `Page ${p} / ${maxPage}`;
+      $('logsTotalBadge').textContent = `Total: ${total}`;
+      $('btnPrevLogs').disabled = p <= 1;
+      $('btnNextLogs').disabled = p >= maxPage;
+
+      $('kpiLogs').textContent = String(state.logs.items.length);
     }
 
-    async function loadLogsFromDB() {
+    function buildLogsUrl(page) {
       const gid = selectedGuild();
-      const url = new URL('/api/logs', location.origin);
-      url.searchParams.set('page', '1');
-      url.searchParams.set('limit', '200');
-      if (gid) url.searchParams.set('guildId', gid);
+      const search = ($('logSearch').value || '').trim();
+      const type = ($('logType').value || '').trim();
+      const limit = parseInt($('logLimit').value || '50', 10) || 50;
 
+      state.logs.limit = Math.min(Math.max(limit, 1), 200);
+
+      const url = new URL('/api/logs', location.origin);
+      url.searchParams.set('page', String(page));
+      url.searchParams.set('limit', String(state.logs.limit));
+      if (gid) url.searchParams.set('guildId', gid);
+      if (search) url.searchParams.set('search', search);
+      if (type) url.searchParams.set('type', type);
+      return url;
+    }
+
+    async function loadLogsPage(page) {
+      const url = buildLogsUrl(page);
       const res = await fetch(url.toString(), { headers: headers() });
       if (res.status === 401) {
         toast('Unauthorized: set token.', 'bad');
         return;
       }
-      const json = await res.json();
-      if (!json.ok) {
-        toast('Failed to load logs.', 'bad');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        toast(json.error || 'Failed to load logs.', 'bad');
         return;
       }
-      state.logs = Array.isArray(json.items) ? json.items : [];
-      filterAndRenderLogs();
-      toast('Logs reloaded.', 'ok');
+
+      state.logs.page = page;
+      state.logs.total = Number(json.total ?? 0) || 0;
+      state.logs.items = Array.isArray(json.items) ? json.items : [];
+
+      renderLogs(state.logs.items);
+      updateLogsPagerUI();
+      toast('Logs loaded.', 'ok');
     }
 
-    $('btnReloadLogs').addEventListener('click', loadLogsFromDB);
-    $('logSearch').addEventListener('input', filterAndRenderLogs);
-    $('logType').addEventListener('change', filterAndRenderLogs);
+    async function exportLogsCsv() {
+      const url = buildLogsUrl(state.logs.page);
+      url.pathname = '/api/logs/export.csv';
+      await downloadWithAuth(url.toString(), 'ozark-logs.csv');
+    }
+
+    $('btnReloadLogs').addEventListener('click', () => loadLogsPage(1).catch(() => null));
+    $('btnExportCsv').addEventListener('click', () => exportLogsCsv().catch(() => null));
+
+    $('logSearch').addEventListener('input', () => {
+      // debounce-ish: quick reset to page 1
+      clearTimeout(window.__logSearchT);
+      window.__logSearchT = setTimeout(() => loadLogsPage(1).catch(() => null), 250);
+    });
+    $('logType').addEventListener('change', () => loadLogsPage(1).catch(() => null));
+    $('logLimit').addEventListener('change', () => loadLogsPage(1).catch(() => null));
+
+    $('btnPrevLogs').addEventListener('click', () => loadLogsPage(Math.max(state.logs.page - 1, 1)).catch(() => null));
+    $('btnNextLogs').addEventListener('click', () => loadLogsPage(state.logs.page + 1).catch(() => null));
+
+    // ------------------------------
+    // Cases (Server-side pagination)
+    // ------------------------------
+    function caseTypeBadge(type) {
+      const t = String(type || '').toUpperCase();
+      if (t === 'MUTE' || t === 'BAN') return 'bad';
+      if (t === 'WARN') return 'warn';
+      return 'info';
+    }
+
+    function updateCasesPagerUI() {
+      const p = state.cases.page;
+      const lim = state.cases.limit;
+      const total = state.cases.total;
+
+      const maxPage = Math.max(Math.ceil(total / lim) || 1, 1);
+
+      $('casesPageBadge').textContent = `Page ${p} / ${maxPage}`;
+      $('casesTotalBadge').textContent = `Total: ${total}`;
+      $('btnPrevCases').disabled = p <= 1;
+      $('btnNextCases').disabled = p >= maxPage;
+    }
+
+    function buildCasesUrl(page) {
+      const guildId = selectedGuild();
+      const q = ($('casesQ').value || '').trim();
+      const userId = ($('casesUserId').value || '').trim();
+      const type = ($('casesType').value || '').trim();
+      const limit = parseInt($('casesLimit').value || '25', 10) || 25;
+
+      state.cases.limit = Math.min(Math.max(limit, 1), 100);
+
+      const url = new URL('/api/cases', location.origin);
+      url.searchParams.set('page', String(page));
+      url.searchParams.set('limit', String(state.cases.limit));
+      if (guildId) url.searchParams.set('guildId', guildId);
+      if (q) url.searchParams.set('q', q);
+      if (userId) url.searchParams.set('userId', userId);
+      if (type) url.searchParams.set('type', type);
+      return url;
+    }
+
+    function renderCases(items) {
+      const list = $('casesList');
+      list.innerHTML = '';
+
+      const gid = selectedGuild();
+      if (!gid) {
+        const empty = document.createElement('div');
+        empty.className = 'card';
+        empty.innerHTML = `<h2>Select a guild</h2><div class="hint">Seleciona uma guild no topo para pesquisar cases.</div>`;
+        list.appendChild(empty);
+        return;
+      }
+
+      if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'card';
+        empty.innerHTML = `<h2>No cases</h2><div class="hint">Sem cases para o filtro atual.</div>`;
+        list.appendChild(empty);
+        return;
+      }
+
+      for (const c of items) {
+        const div = document.createElement('div');
+        div.className = 'logItem';
+
+        const typeCls = caseTypeBadge(c.type);
+        const caseId = c.caseId != null ? `#${c.caseId}` : '(no caseId)';
+        const reason = escHtml(c.reason || '');
+        const userId = escHtml(c.userId || '');
+        const modId = escHtml(c.moderatorId || '');
+
+        div.innerHTML = `
+          <div class="logHead">
+            <div class="logTitle">
+              <span class="badge info">Case ${escHtml(caseId)}</span>
+              <span class="badge ${typeCls}">${escHtml(c.type || 'N/A')}</span>
+              <span class="badge">user: <span class="mono">${userId}</span></span>
+            </div>
+            <div class="mono">${safeDate(c.createdAt)}</div>
+          </div>
+          <div class="logDesc">${reason}</div>
+          <div class="logMeta">🛠 moderatorId: <span class="mono">${modId}</span></div>
+        `;
+
+        div.addEventListener('click', () => openCaseModal(c.caseId).catch(() => null));
+        list.appendChild(div);
+      }
+    }
+
+    async function loadCasesPage(page) {
+      const gid = selectedGuild();
+      if (!gid) {
+        // still render empty prompt
+        state.cases.items = [];
+        state.cases.total = 0;
+        renderCases([]);
+        updateCasesPagerUI();
+        return;
+      }
+
+      const url = buildCasesUrl(page);
+      const res = await fetch(url.toString(), { headers: headers() });
+      if (res.status === 401) {
+        toast('Unauthorized: set token.', 'bad');
+        return;
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        toast(json.error || 'Failed to load cases.', 'bad');
+        return;
+      }
+
+      state.cases.page = page;
+      state.cases.total = Number(json.total ?? 0) || 0;
+      state.cases.items = Array.isArray(json.items) ? json.items : [];
+
+      renderCases(state.cases.items);
+      updateCasesPagerUI();
+      toast('Cases loaded.', 'ok');
+    }
+
+    $('btnReloadCases').addEventListener('click', () => loadCasesPage(1).catch(() => null));
+    $('casesQ').addEventListener('input', () => {
+      clearTimeout(window.__casesSearchT);
+      window.__casesSearchT = setTimeout(() => loadCasesPage(1).catch(() => null), 250);
+    });
+    $('casesUserId').addEventListener('input', () => {
+      clearTimeout(window.__casesUserT);
+      window.__casesUserT = setTimeout(() => loadCasesPage(1).catch(() => null), 250);
+    });
+    $('casesType').addEventListener('change', () => loadCasesPage(1).catch(() => null));
+    $('casesLimit').addEventListener('change', () => loadCasesPage(1).catch(() => null));
+    $('btnPrevCases').addEventListener('click', () => loadCasesPage(Math.max(state.cases.page - 1, 1)).catch(() => null));
+    $('btnNextCases').addEventListener('click', () => loadCasesPage(state.cases.page + 1).catch(() => null));
+
+    // ------------------------------
+    // Case details modal
+    // ------------------------------
+    const caseModal = {
+      current: null
+    };
+
+    async function openCaseModal(caseId) {
+      const gid = selectedGuild();
+      if (!gid) return;
+
+      const id = parseInt(String(caseId), 10);
+      if (!Number.isFinite(id) || id <= 0) return;
+
+      $('caseBadge').textContent = 'Case';
+      $('caseTitle').textContent = `#${id}`;
+      $('caseBody').innerHTML = `<div class="hint">Loading…</div>`;
+      $('caseOverlay').classList.add('show');
+
+      const url = new URL('/api/case', location.origin);
+      url.searchParams.set('guildId', gid);
+      url.searchParams.set('caseId', String(id));
+
+      const res = await fetch(url.toString(), { headers: headers() });
+      if (res.status === 401) {
+        toast('Unauthorized: set token.', 'bad');
+        closeCaseModal();
+        return;
+      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        toast(json.error || 'Failed loading case.', 'bad');
+        closeCaseModal();
+        return;
+      }
+
+      caseModal.current = json.item;
+
+      const item = json.item || {};
+      const typeCls = caseTypeBadge(item.type);
+      const dur = item.duration ? `${Math.round(Number(item.duration)/1000)}s` : 'N/A';
+
+      $('caseBody').innerHTML = `
+        <div class="row" style="justify-content: space-between;">
+          <div class="row" style="gap: 10px;">
+            <span class="badge info">Case #${escHtml(item.caseId)}</span>
+            <span class="badge ${typeCls}">${escHtml(item.type)}</span>
+          </div>
+          <span class="badge info">${escHtml(safeDate(item.createdAt))}</span>
+        </div>
+
+        <div style="height: 10px;"></div>
+
+        <div class="card" style="background: rgba(0,0,0,0.20);">
+          <div class="hint">User</div>
+          <div class="mono">${escHtml(item.userTag || item.userId || 'N/A')} (${escHtml(item.userId || '')})</div>
+
+          <div style="height: 10px;"></div>
+
+          <div class="hint">Moderator</div>
+          <div class="mono">${escHtml(item.moderatorTag || item.moderatorId || 'N/A')} (${escHtml(item.moderatorId || '')})</div>
+
+          <div style="height: 10px;"></div>
+
+          <div class="hint">Duration</div>
+          <div class="mono">${escHtml(dur)}</div>
+
+          <div style="height: 10px;"></div>
+
+          <div class="hint">Reason</div>
+          <div class="mono">${escHtml(item.reason || '')}</div>
+        </div>
+
+        <div class="hint" style="margin-top: 10px;">
+          guildId: <span class="mono">${escHtml(item.guildId || '')}</span>
+        </div>
+      `;
+    }
+
+    function closeCaseModal() {
+      $('caseOverlay').classList.remove('show');
+    }
+
+    $('caseClose').addEventListener('click', closeCaseModal);
+    $('caseClose2').addEventListener('click', closeCaseModal);
+    $('caseOverlay').addEventListener('click', (e) => { if (e.target === $('caseOverlay')) closeCaseModal(); });
+
+    $('caseCopy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(caseModal.current || {}, null, 2));
+        toast('Case JSON copied.', 'ok');
+      } catch {
+        toast('Failed to copy.', 'bad');
+      }
+    });
 
     // ------------------------------
     // GameNews
@@ -851,7 +1241,6 @@
     function renderFeeds() {
       const grid = $('feedsGrid');
       const pausedOnly = $('feedsPausedOnly').value === '1';
-      const gid = selectedGuild(); // not used; feeds are global
 
       const normalized = (state.feeds || []).map(f => ({
         source: f.source || f.feedName || 'Unknown',
@@ -892,18 +1281,18 @@
 
         card.innerHTML = `
           <div class="row" style="justify-content: space-between;">
-            <h2 style="margin:0;">${f.feedName}</h2>
-            <span class="badge ${statusCls}">${statusText}</span>
+            <h2 style="margin:0;">${escHtml(f.feedName)}</h2>
+            <span class="badge ${statusCls}">${escHtml(statusText)}</span>
           </div>
-          <div class="hint"><span class="mono">source:</span> <span class="mono">${f.source}</span></div>
-          ${f.feedUrl ? `<div class="hint"><span class="mono">feedUrl:</span> <span class="mono">${f.feedUrl}</span></div>` : ''}
-          ${f.channelId ? `<div class="hint"><span class="mono">channelId:</span> <span class="mono">${f.channelId}</span></div>` : ''}
+          <div class="hint"><span class="mono">source:</span> <span class="mono">${escHtml(f.source)}</span></div>
+          ${f.feedUrl ? `<div class="hint"><span class="mono">feedUrl:</span> <span class="mono">${escHtml(f.feedUrl)}</span></div>` : ''}
+          ${f.channelId ? `<div class="hint"><span class="mono">channelId:</span> <span class="mono">${escHtml(f.channelId)}</span></div>` : ''}
           <div class="row" style="margin-top: 10px;">
-            <span class="badge">failCount: ${f.failCount}</span>
-            <span class="badge">lastHashes: ${f.lastHashesCount}</span>
+            <span class="badge">failCount: ${escHtml(String(f.failCount))}</span>
+            <span class="badge">lastHashes: ${escHtml(String(f.lastHashesCount))}</span>
           </div>
-          <div class="hint" style="margin-top: 10px;">lastSentAt: <b>${safeDate(f.lastSentAt)}</b></div>
-          <div class="hint">pausedUntil: <b>${safeDate(f.pausedUntil)}</b></div>
+          <div class="hint" style="margin-top: 10px;">lastSentAt: <b>${escHtml(safeDate(f.lastSentAt))}</b></div>
+          <div class="hint">pausedUntil: <b>${escHtml(safeDate(f.pausedUntil))}</b></div>
         `;
 
         grid.appendChild(card);
@@ -947,29 +1336,29 @@
       const db = u.db || {};
       const tb = trustBadge(db.trust);
 
-      const avatar = d.avatarUrl ? `<img src="${d.avatarUrl}" width="52" height="52" style="border-radius: 16px; border: 1px solid var(--border);"/>` : '';
+      const avatar = d.avatarUrl ? `<img src="${escHtml(d.avatarUrl)}" width="52" height="52" style="border-radius: 16px; border: 1px solid var(--border);"/>` : '';
 
       card.innerHTML = `
         <div class="row" style="justify-content: space-between; align-items: flex-start;">
           <div class="row" style="align-items:center;">
             ${avatar}
             <div>
-              <div style="font-weight: 800; font-size: 14px;">${d.tag || d.username || d.id}</div>
-              <div class="hint">ID: <span class="mono">${d.id}</span></div>
+              <div style="font-weight: 800; font-size: 14px;">${escHtml(d.tag || d.username || d.id)}</div>
+              <div class="hint">ID: <span class="mono">${escHtml(d.id)}</span></div>
             </div>
           </div>
           <div class="row">
-            <span class="badge ${tb.cls}">${tb.label}</span>
-            <span class="badge">warnings: ${db.warnings ?? 0}</span>
+            <span class="badge ${tb.cls}">${escHtml(tb.label)}</span>
+            <span class="badge">warnings: ${escHtml(String(db.warnings ?? 0))}</span>
           </div>
         </div>
 
         <div class="row" style="margin-top: 10px;">
-          <span class="badge info">created: ${safeDate(d.createdAt)}</span>
-          <span class="badge info">joined: ${safeDate(d.joinedAt)}</span>
+          <span class="badge info">created: ${escHtml(safeDate(d.createdAt))}</span>
+          <span class="badge info">joined: ${escHtml(safeDate(d.joinedAt))}</span>
         </div>
 
-        <div class="hint" style="margin-top: 10px;">Roles (${(d.roles || []).length}): ${(d.roles || []).slice(0,6).map(r => `<span class="mono">${r.name}</span>`).join(', ')}${(d.roles||[]).length>6?'…':''}</div>
+        <div class="hint" style="margin-top: 10px;">Roles (${(d.roles || []).length}): ${(d.roles || []).slice(0,6).map(r => `<span class="mono">${escHtml(r.name)}</span>`).join(', ')}${(d.roles||[]).length>6?'…':''}</div>
 
         <div style="height: 10px;"></div>
         <div class="row">
@@ -991,12 +1380,13 @@
         div.innerHTML = `
           <div class="logHead">
             <div class="logTitle">
-              <span class="badge ${cls}">${inf.type}</span>
-              ${inf.duration ? `<span class="badge">duration: ${Math.round(inf.duration/1000)}s</span>` : ''}
+              <span class="badge ${cls}">${escHtml(inf.type)}</span>
+              ${inf.caseId != null ? `<span class="badge info">Case #${escHtml(String(inf.caseId))}</span>` : ''}
+              ${inf.duration ? `<span class="badge">duration: ${escHtml(String(Math.round(inf.duration/1000)))}s</span>` : ''}
             </div>
-            <div class="mono">${safeDate(inf.createdAt || inf.time)}</div>
+            <div class="mono">${escHtml(safeDate(inf.createdAt || inf.time))}</div>
           </div>
-          <div class="logDesc">${String(inf.reason || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+          <div class="logDesc">${escHtml(String(inf.reason || ''))}</div>
         `;
         list.appendChild(div);
       }
@@ -1083,12 +1473,12 @@
       let lines = [];
       lines.push(`<div class="row" style="justify-content: space-between;">
         <h2 style="margin:0;">Preview</h2>
-        <span class="badge info">${type?.toUpperCase()}</span>
+        <span class="badge info">${escHtml(type?.toUpperCase())}</span>
       </div>`);
-      lines.push(`<div class="hint">Guild: <span class="mono">${guildId || 'N/A'}</span></div>`);
-      lines.push(`<div class="hint">User: <span class="mono">${u?.tag || u?.id || 'N/A'}</span></div>`);
-      if (type === 'mute') lines.push(`<div class="hint">Duration: <span class="mono">${duration || 'default'}</span></div>`);
-      lines.push(`<div class="hint">Reason: <span class="mono">${reason.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span></div>`);
+      lines.push(`<div class="hint">Guild: <span class="mono">${escHtml(guildId || 'N/A')}</span></div>`);
+      lines.push(`<div class="hint">User: <span class="mono">${escHtml(u?.tag || u?.id || 'N/A')}</span></div>`);
+      if (type === 'mute') lines.push(`<div class="hint">Duration: <span class="mono">${escHtml(duration || 'default')}</span></div>`);
+      lines.push(`<div class="hint">Reason: <span class="mono">${escHtml(reason)}</span></div>`);
       $('modalPreview').innerHTML = lines.join('');
     }
 
@@ -1128,9 +1518,11 @@
 
       toast(`${type.toUpperCase()} executed.`, 'ok');
       closeModal();
-      // refresh user + logs
+
+      // refresh user + logs + cases (because actions create infractions)
       await loadUser().catch(() => null);
-      await loadLogsFromDB().catch(() => null);
+      await loadLogsPage(1).catch(() => null);
+      await loadCasesPage(1).catch(() => null);
     }
 
     $('modalConfirm').addEventListener('click', confirmAction);
@@ -1146,11 +1538,7 @@
       console.error('Socket connect error:', err.message);
     });
 
-    socket.on('logs', (logs) => {
-      state.logs = Array.isArray(logs) ? logs : [];
-      filterAndRenderLogs();
-    });
-
+    // Keep these for realtime feel (doesn't override paginated views)
     socket.on('gamenews_status', (feeds) => {
       state.feeds = Array.isArray(feeds) ? feeds : [];
       renderFeeds();
@@ -1159,7 +1547,6 @@
     socket.on('config', (cfg) => {
       state.config = cfg;
       renderConfigBadges();
-      // keep config viewer in sync if open
       if (document.activeElement !== $('cfgView')) {
         $('cfgView').value = JSON.stringify(cfg, null, 2);
       }
@@ -1171,9 +1558,14 @@
     async function boot() {
       await loadGuilds().catch(() => null);
       await loadConfig().catch(() => null);
-      await loadLogsFromDB().catch(() => null);
+      await loadLogsPage(1).catch(() => null);
+      await loadCasesPage(1).catch(() => null);
       await loadFeeds().catch(() => null);
       await refreshHealth().catch(() => null);
+
+      // init dropdowns default values into state
+      state.logs.limit = parseInt($('logLimit').value || '50', 10) || 50;
+      state.cases.limit = parseInt($('casesLimit').value || '25', 10) || 25;
     }
 
     $('btnReloadAll').addEventListener('click', boot);
@@ -1182,7 +1574,6 @@
     boot();
     setInterval(refreshHealth, 5000);
     setInterval(() => {
-      socket.emit('requestLogs');
       socket.emit('requestGameNewsStatus');
       socket.emit('requestConfig');
     }, 5000);
