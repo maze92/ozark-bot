@@ -1,15 +1,15 @@
 // src/slash/clear.js
 
-const { PermissionsBitField, MessageFlags } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
 
 const logger = require('../systems/logger');
 const { t } = require('../systems/i18n');
 const { isStaff } = require('./utils');
 
-// Helper para respostas ephemerais no novo formato
+// Helper para respostas ephemerais (64 = Ephemeral)
 function replyEphemeral(interaction, content) {
   return interaction
-    .reply({ content, flags: MessageFlags.Ephemeral })
+    .reply({ content, flags: 64 })
     .catch(() => null);
 }
 
@@ -53,7 +53,7 @@ module.exports = async function clearSlash(client, interaction) {
     await interaction
       .reply({
         content: t('clear.success', null, { count: deletedCount }),
-        flags: MessageFlags.Ephemeral
+        flags: 64 // resposta ephemeral com flags
       })
       .catch(() => null);
 
@@ -62,13 +62,16 @@ module.exports = async function clearSlash(client, interaction) {
       'Slash Clear Messages',
       null,
       interaction.user,
-      t('log.actions.clear', null, { count: deletedCount, channelId: interaction.channel.id }),
+      t('log.actions.clear', null, {
+        count: deletedCount,
+        channelId: interaction.channel.id
+      }),
       guild
     );
   } catch (err) {
     console.error('[slash/clear] Error:', err);
 
-    const payload = { content: t('common.unexpectedError'), flags: MessageFlags.Ephemeral };
+    const payload = { content: t('common.unexpectedError'), flags: 64 };
 
     if (interaction.deferred || interaction.replied) {
       return interaction.followUp(payload).catch(() => null);
