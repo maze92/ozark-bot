@@ -2,23 +2,51 @@
 
 const { Schema, model } = require('mongoose');
 
-const infractionSchema = new Schema({
-  guildId: { type: String, required: true },
-  userId: { type: String, required: true },
-  moderatorId: { type: String, required: true },
+const infractionSchema = new Schema(
+  {
+    guildId: {
+      type: String,
+      required: true,
+      index: true
+    },
 
-  type: {
-    type: String,
-    enum: ['WARN', 'MUTE', 'KICK', 'BAN'],
-    required: true
+    userId: {
+      type: String,
+      required: true,
+      index: true
+    },
+
+    moderatorId: {
+      type: String,
+      required: true
+    },
+
+    type: {
+      type: String,
+      enum: ['WARN', 'MUTE', 'KICK', 'BAN'],
+      required: true,
+      index: true
+    },
+
+    reason: {
+      type: String,
+      default: 'No reason provided',
+      maxlength: 500
+    },
+
+    duration: {
+      type: Number,
+      default: null,
+      min: 0
+    }
   },
-
-  reason: { type: String, default: 'No reason provided' },
-
-  duration: { type: Number, default: null }
-}, { timestamps: true });
+  {
+    timestamps: true,
+    versionKey: false
+  }
+);
 
 infractionSchema.index({ guildId: 1, userId: 1, createdAt: -1 });
+infractionSchema.index({ guildId: 1, type: 1, createdAt: -1 });
 
 module.exports = model('Infraction', infractionSchema);
-
