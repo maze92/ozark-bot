@@ -33,15 +33,15 @@ module.exports = {
       const botMember = guild.members.me;
       if (!botMember) return;
 
-      // staff check
       if (!isStaff(executor)) {
         return message.reply(t('common.noPermission')).catch(() => null);
       }
 
-      // bot perms
       const perms = message.channel.permissionsFor(botMember);
       if (!perms?.has(PermissionsBitField.Flags.ModerateMembers)) {
-        return message.reply(t('mute.missingPerm')).catch(() => null);
+        return message
+          .reply('❌ I do not have permission to unmute members (Moderate Members).')
+          .catch(() => null);
       }
 
       const target = message.mentions.members.first();
@@ -63,9 +63,7 @@ module.exports = {
 
       if (target.roles.highest.position >= botMember.roles.highest.position) {
         return message
-          .reply(
-            '❌ I cannot unmute this user (their role is higher or equal to my highest role).'
-          )
+          .reply('❌ I cannot unmute this user (their role is higher or equal to my highest role).')
           .catch(() => null);
       }
 
