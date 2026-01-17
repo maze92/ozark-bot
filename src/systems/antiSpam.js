@@ -252,7 +252,8 @@ module.exports = async function antiSpam(message, client) {
 
     const trustAfter = dbUserAfter?.trust ?? trustValue;
 
-    await infractionsService.create({
+    // Cria infraction MUTE com Case ID
+    const inf = await infractionsService.create({
       guild,
       user: message.author,
       moderator: client.user,
@@ -261,12 +262,14 @@ module.exports = async function antiSpam(message, client) {
       duration: effectiveMute
     }).catch(() => null);
 
+    const casePrefix = inf?.caseId ? `Case: **#${inf.caseId}**\n` : '';
+
     await logger(
       client,
       'Anti-Spam Mute',
       message.author,
       client.user,
-      t('log.actions.antispamMute', null, {
+      casePrefix + t('log.actions.antispamMute', null, {
         durationSeconds: Math.round(effectiveMute / 1000),
         threshold: effectiveMaxMessages,
         intervalMs: safeInterval,
