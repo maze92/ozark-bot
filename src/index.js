@@ -35,6 +35,12 @@ client.once('clientReady', async () => {
   status.setDiscordReady(true);
 });
 
+const registerSlashCommands = require('./slash/register');
+
+client.once('clientReady', async () => {
+  await registerSlashCommands(client);
+});
+
 // Dashboard server (Railway precisa de porta aberta)
 const PORT = process.env.PORT || 3000;
 dashboard.server.listen(PORT, () => {
