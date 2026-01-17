@@ -1,109 +1,85 @@
 # Ozark Discord Bot
 
-Ozark é um bot de Discord focado em **moderação automática**, **gestão de infrações**, **sistema de Trust Score**, **RSS Game News** e **dashboard web em tempo real**.
+**Ozark** é um bot de Discord focado em **moderação automática**, **gestão de infrações**, **Trust Score**, **RSS Game News** e **dashboard web em tempo real**.
 
-O objetivo do projeto é oferecer uma base **robusta, extensível e profissional**, adequada tanto para servidores pequenos como para comunidades maiores.
-
----
-
-## 🚀 Funcionalidades Principais
-
-### 🛡️ Moderação Automática (AutoMod)
-- Deteção de palavras proibidas (PT / EN)
-- Normalização de texto (leet, símbolos, links, emojis)
-- Apagamento automático de mensagens ofensivas
-- Sistema de **warnings progressivos**
-- Timeout automático ao atingir o limite
-- Severidade ajustada por **Trust Score**
-- Notificação por **DM** ao utilizador (configurável)
+Foi concebido para servir como uma base **robusta, extensível e profissional**, adequada tanto para comunidades pequenas como para servidores de grande dimensão.
 
 ---
 
-### 🔐 Trust Score System
-- Cada utilizador possui um Trust Score persistente
-- Penalizações automáticas:
-  - WARN → reduz trust
-  - MUTE → penalização maior
-- Regeneração automática de trust ao longo do tempo
-- Trust influencia:
-  - Nº de avisos tolerados
-  - Duração do mute
-- Sistema centralizado (`warningsService`)
+## ✨ Destaques
+
+- Compatível com `discord.js` **v14.25+** (preparado para v15)
+- AutoMod avançado com normalização de texto (PT / EN)
+- Trust Score persistente e progressivo
+- Dashboard web com monitorização em tempo real
+- Preparado para produção (Railway, Docker, VPS)
 
 ---
 
-### 🧑‍⚖️ Comandos de Staff
-- `!warn` – aviso manual com trust + logs
-- `!mute` / `!unmute` – timeout manual com hierarquia segura
-- `!clear` – limpeza de mensagens
-- `!userinfo` – info do utilizador (trust visível apenas para staff)
-- Cooldowns por comando e utilizador
+## 🚀 Funcionalidades
 
----
+### 🛡️ Moderação Automática
+- Deteção de linguagem ofensiva com normalização de:
+  - acentos
+  - símbolos
+  - variações comuns de bypass
+- Warnings progressivos e automáticos
+- Timeout baseado em Trust Score
+- Anti-Spam com cooldown inteligente
+- Exclusões por cargos (staff / admins)
 
-### 🚫 Anti-Spam / Flood Protection
-- Deteção de spam por frequência de mensagens
-- Timeout automático
-- Cooldown de ações para evitar loops
-- Bypass por roles ou administradores
-- Logs automáticos
-
----
+### 🧠 Trust Score
+- Score individual persistente por utilizador
+- Penalizações automáticas por infrações
+- Regeneração gradual ao longo do tempo
+- Influência direta em:
+  - número de avisos permitidos
+  - duração dos mutes
 
 ### 📰 Game News (RSS)
-- Sistema RSS modular (GameSpot)
-- Um feed → um canal
-- Dedupe real via hashes persistentes
-- Bloqueio de notícias antigas
-- Retry com jitter
-- Backoff automático por feed
-- Persistência de estado no MongoDB
+- Leitura de múltiplos feeds RSS
+- Deduplicação real por hash
+- Retry com backoff e jitter
+- Persistência em MongoDB
+- Integração com dashboard e estado da aplicação
 
----
-
-### 📊 Dashboard Web (Tempo Real)
-- Logs em tempo real via Socket.IO
-- Persistência de logs no MongoDB
-- Painel **GameNews Status**:
-  - Estado do feed (OK / Paused)
-  - Última notícia enviada
-  - Nº de falhas
-  - Nº de hashes guardados
-- API protegida por token (opcional)
-- Interface simples e leve
-
----
-
-### ❤️ Health & Estabilidade
-- Endpoint `/health` com estado do sistema
-- MongoDB connection guard
-- ErrorGuard global
-- Proteção contra crashes por falhas externas
-
----
-
-## 🧱 Stack Técnica
-- Node.js
-- discord.js v14+
-- MongoDB (Mongoose)
+### 📊 Dashboard Web
 - Express + Socket.IO
-- Railway ready
+- Visualização de:
+  - estado do bot
+  - estado do MongoDB
+  - estado do GameNews
+  - Trust Score e infrações
+- Endpoint `/health` para monitorização externa
+- Autenticação por token (`DASHBOARD_TOKEN`)
+
+### ⚙️ Comandos
+- Comandos de texto (prefixo configurável)
+- Slash Commands (`/warn`, `/mute`, `/unmute`, `/userinfo`, etc.)
+- Respostas ephemerais para ações administrativas
+- Lógica partilhada entre comandos texto e slash
+
+---
+
+## 🛠️ Requisitos
+
+- **Node.js 20.x**
+- MongoDB (local ou cloud)
+- Bot criado no Discord Developer Portal com:
+  - Message Content Intent
+  - Guild Members Intent
 
 ---
 
 ## ⚙️ Configuração
-Todas as opções estão centralizadas em: src/config/defaultConfig.js
-Inclui:
-- Moderação
-- Trust Score
-- Anti-spam
-- GameNews
-- Dashboard
-- Cooldowns
 
----
+### Variáveis de ambiente
 
-## 📌 Estado do Projeto
-✔️ Estável  
-✔️ Modular  
-✔️ Pronto para expansão futura (tickets, appeals, levels, etc.)
+Cria um ficheiro `.env`:
+
+```env
+TOKEN=discord_bot_token
+MONGO_URI=mongodb_connection_string
+DASHBOARD_TOKEN=secure_random_token
+PORT=3000
+
