@@ -1,6 +1,6 @@
 // src/slash/userinfo.js
 
-const { EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { EmbedBuilder, PermissionsBitField, MessageFlags } = require('discord.js');
 
 const config = require('../config/defaultConfig');
 const warningsService = require('../systems/warningsService');
@@ -86,7 +86,12 @@ module.exports = async function userinfoSlash(client, interaction) {
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const member = await guild.members.fetch(targetUser.id).catch(() => null);
     if (!member?.user) {
-      return interaction.reply({ content: t('common.cannotResolveUser'), ephemeral: true }).catch(() => null);
+      return interaction
+        .reply({
+          content: t('common.cannotResolveUser'),
+          flags: MessageFlags.Ephemeral
+        })
+        .catch(() => null);
     }
 
     const user = member.user;
@@ -174,7 +179,8 @@ module.exports = async function userinfoSlash(client, interaction) {
       .setFooter({ text: t('userinfo.requestedBy', null, { tag: interaction.user.tag }) })
       .setTimestamp(new Date());
 
-    await interaction.reply({ embeds: [embed], ephemeral: false }).catch(() => null);
+    // Resposta pública (sem ephemeral)
+    await interaction.reply({ embeds: [embed] }).catch(() => null);
 
     await logger(
       client,
@@ -194,8 +200,15 @@ module.exports = async function userinfoSlash(client, interaction) {
     );
   } catch (err) {
     console.error('[slash/userinfo] Error:', err);
-    const payload = { content: t('common.unexpectedError'), ephemeral: true };
-    if (interaction.deferred || interaction.replied) return interaction.followUp(payload).catch(() => null);
+
+    const payload = {
+      content: t('common.unexpectedError'),
+      flags: MessageFlags.Ephemeral
+    };
+
+    if (interaction.deferred || interaction.replied) {
+      return interaction.followUp(payload).catch(() => null);
+    }
     return interaction.reply(payload).catch(() => null);
   }
 };
