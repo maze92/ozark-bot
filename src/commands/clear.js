@@ -27,20 +27,16 @@ module.exports = {
 
       const perms = message.channel.permissionsFor(botMember);
       if (!perms?.has(PermissionsBitField.Flags.ManageMessages)) {
-        return message
-          .reply('❌ I do not have permission to manage messages in this channel.')
-          .catch(() => null);
+        return message.reply(t('clear.noPerm')).catch(() => null);
       }
 
       const amount = parseAmount(args?.[0]);
       if (!amount) {
         const prefix = config.prefix || '!';
-        return message
-          .reply(t('common.usage', null, `${prefix}clear <1-100>`))
-          .catch(() => null);
+        return message.reply(t('common.usage', null, `${prefix}clear <1-100>`)).catch(() => null);
       }
 
-      // Tentamos apagar também a mensagem do comando (amount + 1)
+      // apaga também a mensagem do comando
       const toDelete = Math.min(100, amount + 1);
 
       let deleted = null;
@@ -52,26 +48,19 @@ module.exports = {
       }
 
       if (!deleted) {
-        return message
-          .reply(
-            '⚠️ I could not delete messages. They may be too old (14+ days) or I lack permissions.'
-          )
-          .catch(() => null);
+        return message.reply(t('clear.tooOldOrNoPerm')).catch(() => null);
       }
 
-      // deleted inclui (provavelmente) a mensagem do comando — ajusta para o feedback
       const deletedCountRaw = deleted.size || 0;
       const removedCommandMsg = deleted.has(message.id) ? 1 : 0;
       const deletedCount = Math.max(0, deletedCountRaw - removedCommandMsg);
 
       const feedback = await message.channel
-        .send(`🧹 Cleared **${deletedCount}** messages.`)
+        .send(t('clear.success', null, { count: deletedCount }))
         .catch(() => null);
 
       if (feedback) {
-        setTimeout(() => {
-          feedback.delete().catch(() => null);
-        }, 5000).unref?.();
+        setTimeout(() => feedback.delete().catch(() => null), 5000).unref?.();
       }
 
       await logger(
@@ -84,9 +73,7 @@ module.exports = {
       );
     } catch (err) {
       console.error('[clear] Error:', err);
-      message
-        .reply(t('common.unexpectedError'))
-        .catch(() => null);
+      message.reply(t('common.unexpectedError')).catch(() => null);
     }
   }
 };
