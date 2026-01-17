@@ -33,10 +33,12 @@ module.exports = {
       const amount = parseAmount(args?.[0]);
       if (!amount) {
         const prefix = config.prefix || '!';
-        return message.reply(t('common.usage', null, `${prefix}clear <1-100>`)).catch(() => null);
+        return message
+          .reply(t('common.usage', null, `${prefix}clear <1-100>`))
+          .catch(() => null);
       }
 
-      // apaga também a mensagem do comando
+      // Tentamos apagar também a mensagem do comando (amount + 1)
       const toDelete = Math.min(100, amount + 1);
 
       let deleted = null;
@@ -51,6 +53,7 @@ module.exports = {
         return message.reply(t('clear.tooOldOrNoPerm')).catch(() => null);
       }
 
+      // Ajustar para não contar a mensagem do comando
       const deletedCountRaw = deleted.size || 0;
       const removedCommandMsg = deleted.has(message.id) ? 1 : 0;
       const deletedCount = Math.max(0, deletedCountRaw - removedCommandMsg);
@@ -60,7 +63,9 @@ module.exports = {
         .catch(() => null);
 
       if (feedback) {
-        setTimeout(() => feedback.delete().catch(() => null), 5000).unref?.();
+        setTimeout(() => {
+          feedback.delete().catch(() => null);
+        }, 5000).unref?.();
       }
 
       await logger(
