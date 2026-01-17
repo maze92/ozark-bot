@@ -6,6 +6,7 @@ const config = require('../config/defaultConfig');
 const logger = require('./logger');
 const warningsService = require('./warningsService');
 const infractionsService = require('./infractionsService');
+const { t } = require('./i18n');
 
 function getTrustConfig() {
   const cfg = config.trust || {};
@@ -41,11 +42,10 @@ function clamp(value, min, max) {
 function getEffectiveWarningsLimit(baseMaxWarnings, trustCfg, trustValue) {
   if (!trustCfg.enabled) return baseMaxWarnings;
 
-  const t = Number.isFinite(trustValue) ? trustValue : trustCfg.base;
-
+  const tVal = Number.isFinite(trustValue) ? trustValue : trustCfg.base;
   let effective = baseMaxWarnings;
 
-  if (t <= trustCfg.lowThreshold) {
+  if (tVal <= trustCfg.lowThreshold) {
     effective = baseMaxWarnings - (trustCfg.lowTrustWarningsPenalty || 1);
   }
 
@@ -56,13 +56,12 @@ function getEffectiveWarningsLimit(baseMaxWarnings, trustCfg, trustValue) {
 function getEffectiveMuteDuration(baseMuteMs, trustCfg, trustValue) {
   if (!trustCfg.enabled) return baseMuteMs;
 
-  const t = Number.isFinite(trustValue) ? trustValue : trustCfg.base;
+  const tVal = Number.isFinite(trustValue) ? trustValue : trustCfg.base;
 
   let multiplier = 1;
-
-  if (t <= trustCfg.lowThreshold) {
+  if (tVal <= trustCfg.lowThreshold) {
     multiplier = trustCfg.lowTrustMuteMultiplier ?? 1.5;
-  } else if (t >= trustCfg.highThreshold) {
+  } else if (tVal >= trustCfg.highThreshold) {
     multiplier = trustCfg.highTrustMuteMultiplier ?? 0.8;
   }
 
@@ -77,48 +76,13 @@ function getEffectiveMuteDuration(baseMuteMs, trustCfg, trustValue) {
   return duration;
 }
 
-function buildWarnChannelMessage({ userMention, warnings, maxWarnings, trustText }) {
-  return (
-    `⚠️ ${userMention}, you received a **WARN**.\n` +
-    `📝 Reason: **Inappropriate language**\n` +
-    `📌 Warnings: **${warnings}/${maxWarnings}**` +
-    (trustText ? `\n${trustText}` : '')
-  );
-}
-
-function buildWarnDMMessage({ guildName, reason, warnings, maxWarnings, trustText }) {
-  return (
-    `⚠️ You received a **WARN** in **${guildName}**.\n` +
-    `📝 Reason: **${reason}**\n` +
-    `📌 Warnings: **${warnings}/${maxWarnings}**` +
-    (trustText ? `\n${trustText}` : '')
-  );
-}
-
-function buildMuteChannelMessage({ userMention, minutes, reason, trustText }) {
-  return (
-    `🔇 ${userMention} has been **muted**.\n` +
-    `⏱️ Duration: **${minutes} minutes**\n` +
-    `📝 Reason: **${reason}**` +
-    (trustText ? `\n${trustText}` : '')
-  );
-}
-
-function buildMuteDMMessage({ guildName, minutes, reason, trustText }) {
-  return (
-    `🔇 You have been **muted** in **${guildName}**.\n` +
-    `⏱️ Duration: **${minutes} minutes**\n` +
-    `📝 Reason: **${reason}**` +
-    (trustText ? `\n${trustText}` : '')
-  );
-}
-
 async function trySendDM(user, content) {
   try {
     if (!user) return;
     if (!content) return;
     await user.send({ content }).catch(() => null);
   } catch {
+    // ignore
   }
 }
 
@@ -127,26 +91,17 @@ function minutesFromMs(ms) {
   return Math.round(ms / 60000);
 }
 
-function isStaff(member) {
-  if (!member) return false;
-
-  const isAdmin = member.permissions?.has(PermissionsBitField.Flags.Administrator);
-  if (isAdmin) return true;
-
-  const staffRoles = Array.isArray(config.staffRoles) ? config.staffRoles : [];
-  if (!staffRoles.length) return false;
-
-  return member.roles?.cache?.some((r) => staffRoles.includes(r.id));
-}
-
 function getLanguageBannedWords(language) {
   const bannedWords = config.bannedWords || {};
 
   const langWords = bannedWords[language] || bannedWords.en || [];
   const allWords = Array.isArray(bannedWords.all) ? bannedWords.all : [];
 
-  const merged = [...langWords, ...allWords].map((w) => String(w || '').trim().toLowerCase());
-  return Array.from(new Set(merged.filter(Boolean)));
+  const merged = [...langWords, ...allWords]
+    .map((w) => String(w || '').trim().toLowerCase())
+    .filter(Boolean);
+
+  return Array.from(new Set(merged));
 }
 
 function findBannedWordInContent(content, language) {
@@ -158,11 +113,7 @@ function findBannedWordInContent(content, language) {
   const lower = content.toLowerCase();
 
   for (const banned of words) {
-    if (!banned) continue;
-
-    if (lower.includes(banned)) {
-      return banned;
-    }
+    if (lower.includes(banned)) return banned;
   }
 
   return null;
@@ -172,76 +123,64 @@ module.exports = async (message, client) => {
   try {
     if (!message?.guild) return;
     if (!message.member) return;
-
-    if (message.author.bot) return;
+    if (message.author?.bot) return;
 
     const guild = message.guild;
     const botMember = guild.members.me;
     if (!botMember) return;
 
-    if (!message.content || typeof message.content !== 'string') return;
-
     const baseCfg = config.autoModeration || {};
     if (baseCfg.enabled === false) return;
 
+    if (!message.content || typeof message.content !== 'string') return;
+
+    // evita DM
     if (message.channel?.isDMBased?.() || message.channel?.type === 1) return;
 
+    // permissões mínimas
     const perms = message.channel.permissionsFor(botMember);
     if (!perms?.has(PermissionsBitField.Flags.ManageMessages)) return;
 
+    // Config por canal (se existir)
     const channelCfg = (baseCfg.channels && baseCfg.channels[message.channel.id]) || null;
     const language = (channelCfg && channelCfg.language) || config.language || 'en';
 
     const foundWord = findBannedWordInContent(message.content, language);
     if (!foundWord) return;
 
-    const member = message.member;
-
+    // roles isentas
     const exemptRoles = Array.isArray(baseCfg.exemptRoles) ? baseCfg.exemptRoles : [];
-    if (exemptRoles.length && member.roles.cache.some((r) => exemptRoles.includes(r.id))) {
+    if (exemptRoles.length && message.member.roles.cache.some((r) => exemptRoles.includes(r.id))) {
       return;
     }
 
     const trustCfg = getTrustConfig();
 
+    // ✅ garante regen (com a correção no warningsService)
     const dbUser = await warningsService.getOrCreateUser(guild.id, message.author.id);
 
     const currentTrust = trustCfg.enabled
-      ? clamp(
-          dbUser?.trust ?? trustCfg.base,
-          trustCfg.min,
-          trustCfg.max
-        )
+      ? clamp(dbUser?.trust ?? trustCfg.base, trustCfg.min, trustCfg.max)
       : trustCfg.base;
 
-    const baseMaxWarnings = Number(baseCfg.maxWarnings ?? 3);
-    const effectiveMaxWarnings = getEffectiveWarningsLimit(
-      baseMaxWarnings,
-      trustCfg,
-      currentTrust
-    );
+    const baseMaxWarnings = Number(baseCfg.maxWarnings ?? config.maxWarnings ?? 3);
+    const effectiveMaxWarnings = getEffectiveWarningsLimit(baseMaxWarnings, trustCfg, currentTrust);
 
-    let canDelete = true;
+    // tenta apagar mensagem
+    let deleted = true;
     try {
       await message.delete().catch((err) => {
-        canDelete = false;
-        if (err?.code !== 10008) {
-          console.error('[AutoMod] Failed to delete message:', err);
-        }
+        deleted = false;
+        // 10008 = Unknown Message (já apagada)
+        if (err?.code !== 10008) console.error('[AutoMod] Failed to delete message:', err);
       });
     } catch (err) {
-      canDelete = false;
+      deleted = false;
       console.error('[AutoMod] Fatal error deleting message:', err);
     }
 
+    // aplica warn + penalização trust (WARN)
     const updatedUser = await warningsService.addWarning(guild.id, message.author.id, 1);
-    const trustAfterWarn = trustCfg.enabled
-      ? clamp(
-          updatedUser?.trust ?? trustCfg.base,
-          trustCfg.min,
-          trustCfg.max
-        )
-      : updatedUser?.trust ?? trustCfg.base;
 
     await infractionsService
       .create({
@@ -249,76 +188,69 @@ module.exports = async (message, client) => {
         user: message.author,
         moderator: client.user,
         type: 'WARN',
-        reason: `AutoMod detected banned word: ${foundWord}`,
+        reason: t('automod.warnLogReason', language, foundWord),
         duration: null
       })
       .catch(() => null);
 
-    const trustLine = trustCfg.enabled ? `🔐 Trust: **${currentTrust}/${trustCfg.max}**` : '';
-
+    // Mensagem pública (NÃO mostra trust)
     await message.channel
       .send({
-        content: buildWarnChannelMessage({
-          userMention: `${message.author}`,
+        content: t('automod.warnChannel', language, {
+          mention: `${message.author}`,
           warnings: updatedUser.warnings,
-          maxWarnings: effectiveMaxWarnings,
-          trustText: '' // NÃO mostrar trust ao utilizador
+          maxWarnings: effectiveMaxWarnings
         })
       })
       .catch(() => null);
 
+    // DM (NÃO mostra trust)
     if (config.notifications?.dmOnWarn) {
-      const dmText = buildWarnDMMessage({
-        guildName: guild.name,
-        reason: `Inappropriate language (detected: "${foundWord}")`,
-        warnings: updatedUser.warnings,
-        maxWarnings: effectiveMaxWarnings,
-        trustText: '' // NÃO mostrar trust em DM
-      });
-
-      await trySendDM(message.author, dmText);
+      await trySendDM(
+        message.author,
+        // mantém simples: usa a reason traduzida
+        `${t('automod.warnReason', language, foundWord)}`
+      );
     }
 
+    // Log interno (pode ter trust)
     await logger(
       client,
       'Automatic Warn',
       message.author,
       client.user,
-      `Word: **${foundWord}**\n` +
-        `Warnings: **${updatedUser.warnings}/${effectiveMaxWarnings}**\n` +
+      `Word: **${foundWord}**\nWarnings: **${updatedUser.warnings}/${effectiveMaxWarnings}**\n` +
         (trustCfg.enabled ? `Trust: **${currentTrust}/${trustCfg.max}**\n` : '') +
-        `Deleted: **${canDelete ? 'yes' : 'no'}**`,
+        `Deleted: **${deleted ? 'yes' : 'no'}**`,
       guild
     );
 
-    if (updatedUser.warnings < effectiveMaxWarnings) {
-      return;
-    }
+    // ainda não chegou ao limite
+    if (updatedUser.warnings < effectiveMaxWarnings) return;
 
+    // precisa de permissão para timeout
     if (!perms.has(PermissionsBitField.Flags.ModerateMembers)) return;
 
-    const canTimeout =
-      typeof member.isCommunicationDisabled === 'function'
-        ? !member.isCommunicationDisabled()
-        : true;
+    // já está em timeout?
+    const isTimedOut =
+      typeof message.member.isCommunicationDisabled === 'function'
+        ? message.member.isCommunicationDisabled()
+        : false;
 
-    if (!canTimeout) {
-      return;
-    }
+    if (isTimedOut) return;
 
-    const executorIsStaff = isStaff(message.member);
-    if (!executorIsStaff && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-      return;
-    }
+    const baseMuteMs = Number(baseCfg.muteDuration ?? config.muteDuration ?? 10 * 60 * 1000);
 
-    const baseMuteMs = Number(baseCfg.muteDuration ?? 10 * 60 * 1000);
-    const effectiveMute = getEffectiveMuteDuration(baseMuteMs, trustCfg, trustAfterWarn);
-    const mins = minutesFromMs(effectiveMute);
+    // trust depois do warn já está em updatedUser.trust (penalização WARN aplicada)
+    const trustAfterWarn = trustCfg.enabled
+      ? clamp(updatedUser?.trust ?? currentTrust, trustCfg.min, trustCfg.max)
+      : (updatedUser?.trust ?? currentTrust);
 
-    await message.member.timeout(
-      effectiveMute,
-      'AutoMod: exceeded warning limit'
-    );
+    const effectiveMuteMs = getEffectiveMuteDuration(baseMuteMs, trustCfg, trustAfterWarn);
+    const mins = minutesFromMs(effectiveMuteMs);
+
+    // aplicar timeout
+    await message.member.timeout(effectiveMuteMs, 'AutoMod: exceeded warning limit');
 
     await infractionsService
       .create({
@@ -327,10 +259,11 @@ module.exports = async (message, client) => {
         moderator: client.user,
         type: 'MUTE',
         reason: 'AutoMod: exceeded warning limit',
-        duration: effectiveMute
+        duration: effectiveMuteMs
       })
       .catch(() => null);
 
+    // penalização trust de mute
     let afterMuteUser = updatedUser;
     try {
       afterMuteUser = await warningsService.applyMutePenalty(guild.id, message.author.id);
@@ -339,39 +272,28 @@ module.exports = async (message, client) => {
     }
 
     const trustAfterMute = trustCfg.enabled
-      ? clamp(
-          afterMuteUser?.trust ?? trustAfterWarn,
-          trustCfg.min,
-          trustCfg.max
-        )
-      : afterMuteUser?.trust ?? trustAfterWarn;
+      ? clamp(afterMuteUser?.trust ?? trustAfterWarn, trustCfg.min, trustCfg.max)
+      : (afterMuteUser?.trust ?? trustAfterWarn);
 
-    const trustAfterLine = trustCfg.enabled
-      ? `🔐 Trust after mute: **${trustAfterMute}/${trustCfg.max}**`
-      : '';
-
+    // Mensagem pública (NÃO mostra trust)
     await message.channel
       .send({
-        content: buildMuteChannelMessage({
-          userMention: `${message.author}`,
-          minutes: mins,
-          reason: 'Exceeded the warning limit',
-          trustText: '' // NÃO mostrar trust no canal
+        content: t('automod.muteChannel', language, {
+          mention: `${message.author}`,
+          minutes: mins
         })
       })
       .catch(() => null);
 
+    // DM (NÃO mostra trust)
     if (config.notifications?.dmOnMute) {
-      const dmText = buildMuteDMMessage({
-        guildName: guild.name,
-        minutes: mins,
-        reason: 'Exceeded the warning limit',
-        trustText: '' // NÃO mostrar trust no DM
-      });
-
-      await trySendDM(message.author, dmText);
+      await trySendDM(
+        message.author,
+        t('automod.muteDM', language, { guildName: guild.name, minutes: mins })
+      );
     }
 
+    // Log interno (pode ter trust)
     await logger(
       client,
       'Automatic Mute',
@@ -382,6 +304,7 @@ module.exports = async (message, client) => {
       guild
     );
 
+    // opcional: reset warnings após mute (comportamento comum)
     await warningsService.resetWarnings(guild.id, message.author.id).catch(() => null);
   } catch (err) {
     console.error('[AutoMod] Critical error:', err);
