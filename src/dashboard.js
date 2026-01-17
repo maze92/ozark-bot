@@ -440,6 +440,132 @@ app.get('/api/logs', requireDashboardAuth, async (req, res) => {
   }
 });
 
+// Export logs to CSV (supports same filters as /api/logs)
+app.get('/api/logs/export.csv', requireDashboardAuth, async (req, res) => {
+  try {
+    const search = (req.query.search || '').toString().trim();
+    const type = (req.query.type || '').toString().trim().toLowerCase();
+    const guildId = (req.query.guildId || '').toString().trim();
+
+    const csvEscape = (v) => {
+      const s = String(v ?? '');
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+
+    let items = [];
+
+    if (!DashboardLog) {
+      let filtered = logsCache.slice();
+      if (guildId) filtered = filtered.filter(l => l?.guild?.id === guildId);
+      if (type) filtered = filtered.filter(l => (l.title || '').toLowerCase().includes(type));
+      if (search) {
+        const s = search.toLowerCase();
+        filtered = filtered.filter(l =>
+          (l.title || '').toLowerCase().includes(s) ||
+          (l.description || '').toLowerCase().includes(s) ||
+          (l.user?.tag || '').toLowerCase().includes(s) ||
+          (l.executor?.tag || '').toLowerCase().includes(s)
+        );
+      }
+      filtered.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+      items = filtered;
+    } else {
+      const q = {};
+      if (guildId) q['guild.id'] = guildId;
+      if (type) q.title = { $regex: type, $options: 'i' };
+      if (search) {
+        q.$or = [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { 'user.tag': { $regex: search, $options: 'i' } },
+          { 'executor.tag': { $regex: search, $options: 'i' } }
+        ];
+      }
+      items = await DashboardLog.find(q).sort({ createdAt: -1 }).lean();
+    }
+
+    const header = ['time','guildId','guildName','title','userId','userTag','executorId','executorTag','description'];
+    const rows = [header.join(',')];
+    for (const l of items) {
+      rows.push([
+        csvEscape(l.time || l.createdAt || ''),
+        csvEscape(l.guild?.id || ''),
+        csvEscape(l.guild?.name || ''),
+        csvEscape(l.title || ''),
+        csvEscape(l.user?.id || ''),
+        csvEscape(l.user?.tag || ''),
+        csvEscape(l.executor?.id || ''),
+        csvEscape(l.executor?.tag || ''),
+        csvEscape(l.description || '')
+      ].join(','));
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="ozark-logs.csv"');
+    return res.status(200).send(rows.join('\n'));
+  } catch (err) {
+    console.error('[Dashboard] /api/logs/export.csv error:', err);
+    return res.status(500).send('Internal Server Error');
+  }
+});
+
+// Cases API (Infractions with Case IDs)
+app.get('/api/cases', requireDashboardAuth, async (req, res) => {
+  try {
+    const guildId = (req.query.guildId || '').toString().trim();
+    if (!guildId) return res.status(400).json({ ok: false, error: 'guildId is required' });
+
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '25', 10) || 25, 1), 100);
+
+    const q = (req.query.q || '').toString().trim();
+    const userId = (req.query.userId || '').toString().trim();
+    const type = (req.query.type || '').toString().trim();
+
+    const result = await infractionsService.searchCases({ guildId, q, userId, type, page, limit });
+    return res.json({ ok: true, page, limit, total: result.total, items: result.items });
+  } catch (err) {
+    console.error('[Dashboard] /api/cases error:', err);
+    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
+  }
+});
+
+app.get('/api/case', requireDashboardAuth, async (req, res) => {
+  try {
+    const guildId = (req.query.guildId || '').toString().trim();
+    const caseId = (req.query.caseId || '').toString().trim();
+    if (!guildId || !caseId) {
+      return res.status(400).json({ ok: false, error: 'guildId and caseId are required' });
+    }
+
+    const item = await infractionsService.getCase(guildId, caseId);
+    if (!item) return res.status(404).json({ ok: false, error: 'Case not found' });
+
+    let userTag = null;
+    let moderatorTag = null;
+
+    if (_client) {
+      const u = await _client.users.fetch(item.userId).catch(() => null);
+      const m = await _client.users.fetch(item.moderatorId).catch(() => null);
+      userTag = u?.tag || null;
+      moderatorTag = m?.tag || null;
+    }
+
+    return res.json({
+      ok: true,
+      item: {
+        ...item,
+        userTag,
+        moderatorTag
+      }
+    });
+  } catch (err) {
+    console.error('[Dashboard] /api/case error:', err);
+    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
+  }
+});
+
 app.get('/api/gamenews-status', requireDashboardAuth, async (req, res) => {
   try {
     if (!GameNewsModel) {
