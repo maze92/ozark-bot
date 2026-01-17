@@ -1,7 +1,6 @@
 // src/commands/history.js
 
-const { PermissionsBitField } = require('discord.js');
-
+const { PermissionsBitField, EmbedBuilder } = require('discord.js');
 const config = require('../config/defaultConfig');
 const infractionsService = require('../systems/infractionsService');
 
@@ -19,20 +18,19 @@ function isStaff(member) {
 
 async function resolveTarget(message, args) {
   const guild = message.guild;
+  if (!guild) return null;
 
   const byMention = message.mentions.members.first();
   if (byMention) return byMention;
 
   const raw = (args?.[0] || '').trim();
-  if (raw) {
-    const id = raw.replace(/[<@!>]/g, ''); // suporta <@id>, <@!id> e id direto
-    if (/^\d{15,25}$/.test(id)) {
-      const byId = await guild.members.fetch(id).catch(() => null);
-      if (byId) return byId;
-    }
-  }
+  if (!raw) return null;
 
-  return null;
+  const id = raw.replace(/[<@!>]/g, '');
+  if (!/^\d{15,25}$/.test(id)) return null;
+
+  const byId = await guild.members.fetch(id).catch(() => null);
+  return byId || null;
 }
 
 function formatRelativeTime(date) {
@@ -59,14 +57,17 @@ module.exports = {
 
       const guild = message.guild;
 
-      // Segurança extra: só staff
+      // Só staff
       if (!isStaff(message.member)) {
         return message
           .reply("❌ You don't have permission to use this command.")
           .catch(() => null);
       }
 
-      const member = (await resolveTarget(message, args)) || message.member;
+      // Alvo: @user, ID ou o próprio autor se nada for passado
+      const member =
+        (await resolveTarget(message, args)) ||
+        message.member;
       if (!member) {
         return message
           .reply('❌ Usage: !history @user or !history <userId> [limit]')
@@ -76,7 +77,7 @@ module.exports = {
       const user = member.user;
 
       const limitArg = Number(args?.[1]) || 10;
-      const limit = Math.min(Math.max(limitArg, 1), 50);
+      const limit = Math.min(Math.max(limitArg, 1), 20); // 20 para não ficar gigante
 
       const infractions = await infractionsService.getRecentInfractions(
         guild.id,
@@ -93,53 +94,56 @@ module.exports = {
 
       const totalStored = Object.values(counts).reduce((a, b) => a + b, 0);
 
+      // Resumo por tipo
+      const typeSummary = Object.keys(counts)
+        .map((t) => `**${t.toUpperCase()}**: ${counts[t]}`)
+        .join(' • ');
+
+      // Montar linhas para descrição do embed (limite ~4000 chars)
       const lines = infractions.map((inf, idx) => {
-        const index = infractions.length - idx + 0; // só para ficar bonitinho
+        const index = infractions.length - idx;
         const type = String(inf.type || 'UNKNOWN').toUpperCase();
         const when = formatRelativeTime(inf.createdAt);
 
+        const durationMs = Number(inf.duration);
         const duration =
-          inf.duration != null &&
-          Number.isFinite(Number(inf.duration)) &&
-          Number(inf.duration) > 0
-            ? ` • ${Math.round(Number(inf.duration) / 60000)}m`
+          Number.isFinite(durationMs) && durationMs > 0
+            ? ` • ${Math.round(durationMs / 60000)}m`
             : '';
 
         const reason = truncate(inf.reason || 'No reason provided', 120);
 
-        return `#${index} — **${type}**${duration} — ${when}\n   └ ${reason}`;
+        return `**#${index} — ${type}**${duration} — ${when}\n> ${reason}`;
       });
 
-      const typeSummary = Object.keys(counts)
-        .map((t) => `• **${t.toUpperCase()}**: ${counts[t]}`)
-        .join('\n');
-
-      const header =
-        `🧾 Infraction history for **${user.tag}** (\`${user.id}\`) in **${guild.name}**\n` +
-        `Total stored: **${totalStored}** infractions\n` +
-        (typeSummary ? `${typeSummary}\n\n` : '');
-
-      // evitar ultrapassar limite de 2000 chars do Discord
-      const chunks = [];
-      let current = header;
-
+      // Garantir que não passa dos 4000 chars
+      let desc = '';
       for (const line of lines) {
-        if ((current + '\n' + line).length > 1900) {
-          chunks.push(current);
-          current = line;
-        } else {
-          current += '\n' + line;
-        }
+        if ((desc + '\n' + line).length > 3800) break;
+        desc += (desc ? '\n' : '') + line;
       }
-      if (current) chunks.push(current);
 
-      for (const chunk of chunks) {
-        // eslint-disable-next-line no-await-in-loop
-        await message.channel.send(chunk).catch(() => null);
+      const embed = new EmbedBuilder()
+        .setColor(0xffcc00)
+        .setAuthor({ name: `${user.tag}`, iconURL: user.displayAvatarURL({ dynamic: true }) })
+        .setTitle(`Infraction history in ${guild.name}`)
+        .setDescription(desc || 'No details.')
+        .setFooter({
+          text: `Total infractions stored: ${totalStored}`
+        })
+        .setTimestamp(new Date());
+
+      if (typeSummary) {
+        embed.addFields({
+          name: 'Summary by type',
+          value: typeSummary
+        });
       }
+
+      return message.channel.send({ embeds: [embed] }).catch(() => null);
     } catch (err) {
       console.error('[history] Error:', err);
-      await message
+      return message
         .reply('❌ An unexpected error occurred while fetching history.')
         .catch(() => null);
     }
