@@ -30,6 +30,7 @@ const config = require('./config/defaultConfig');
 require('./events/ready')(client);
 require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
+require('./events/interactionCreate')(client);
 
 client.once('clientReady', async () => {
   status.setDiscordReady(true);
