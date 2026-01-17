@@ -38,7 +38,7 @@ module.exports = {
           .catch(() => null);
       }
 
-      // Tentamos apagar também a mensagem do comando (amount + 1)
+      // tenta apagar também a mensagem do comando (amount + 1)
       const toDelete = Math.min(100, amount + 1);
 
       let deleted = null;
@@ -53,7 +53,6 @@ module.exports = {
         return message.reply(t('clear.tooOldOrNoPerm')).catch(() => null);
       }
 
-      // Ajustar para não contar a mensagem do comando
       const deletedCountRaw = deleted.size || 0;
       const removedCommandMsg = deleted.has(message.id) ? 1 : 0;
       const deletedCount = Math.max(0, deletedCountRaw - removedCommandMsg);
@@ -73,7 +72,10 @@ module.exports = {
         'Clear Messages',
         null,
         message.author,
-        `Cleared **${deletedCount}** messages in <#${message.channel.id}> (channelId: \`${message.channel.id}\`)`,
+        t('log.messages.clearLog', null, {
+          count: deletedCount,
+          channelId: message.channel.id
+        }),
         guild
       );
     } catch (err) {
