@@ -1,14 +1,15 @@
 // src/slash/unmute.js
 
-const { PermissionsBitField, MessageFlags } = require('discord.js');
+const { PermissionsBitField } = require('discord.js');
 
 const logger = require('../systems/logger');
 const warningsService = require('../systems/warningsService');
 const { t } = require('../systems/i18n');
 const { isStaff } = require('./utils');
 
+// 64 = Ephemeral flag
 function replyEphemeral(interaction, content) {
-  return interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => null);
+  return interaction.reply({ content, flags: 64 }).catch(() => null);
 }
 
 module.exports = async function unmuteSlash(client, interaction) {
@@ -69,7 +70,9 @@ module.exports = async function unmuteSlash(client, interaction) {
     await target.timeout(null, `Unmuted by ${interaction.user.tag}`);
 
     // Resposta pública (default)
-    await interaction.reply({ content: t('unmute.success', null, { tag: target.user.tag }) }).catch(() => null);
+    await interaction
+      .reply({ content: t('unmute.success', null, { tag: target.user.tag }) })
+      .catch(() => null);
 
     let dbUser = null;
     try {
@@ -92,7 +95,7 @@ module.exports = async function unmuteSlash(client, interaction) {
   } catch (err) {
     console.error('[slash/unmute] Error:', err);
 
-    const payload = { content: t('unmute.failed'), flags: MessageFlags.Ephemeral };
+    const payload = { content: t('unmute.failed'), flags: 64 };
 
     if (interaction.deferred || interaction.replied) {
       return interaction.followUp(payload).catch(() => null);
