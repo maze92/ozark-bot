@@ -6,6 +6,7 @@ const config = require('../config/defaultConfig');
 const logger = require('../systems/logger');
 const warningsService = require('../systems/warningsService');
 const infractionsService = require('../systems/infractionsService');
+const { t } = require('../systems/i18n');
 
 function stripTargetFromArgs(args, targetId) {
   if (!Array.isArray(args) || !targetId) return [];
@@ -57,30 +58,26 @@ module.exports = {
       if (!botMember) return;
 
       if (!isStaff(message.member)) {
-        return message
-          .reply("❌ You don't have permission to use this command.")
-          .catch(() => null);
+        return message.reply(t('common.noPermission')).catch(() => null);
       }
 
       const target = message.mentions.members.first();
       if (!target) {
         return message
-          .reply('❌ Usage: !warn @user [reason...]')
+          .reply(t('common.usage', null, `${config.prefix}warn @user [reason...]`))
           .catch(() => null);
       }
 
       if (target.id === message.author.id) {
-        return message.reply('❌ You cannot warn yourself.').catch(() => null);
+        return message.reply(t('warn.cannotWarnSelf')).catch(() => null);
       }
 
       if (target.id === client.user.id) {
-        return message.reply('❌ You cannot warn the bot.').catch(() => null);
+        return message.reply(t('warn.cannotWarnBot')).catch(() => null);
       }
 
       if (target.roles.highest.position >= botMember.roles.highest.position) {
-        return message
-          .reply('❌ I cannot warn this user due to role hierarchy (my role is not high enough).')
-          .catch(() => null);
+        return message.reply(t('warn.hierarchyBot')).catch(() => null);
       }
 
       const executorIsAdmin = message.member.permissions.has(
@@ -90,19 +87,15 @@ module.exports = {
         !executorIsAdmin &&
         target.roles.highest.position >= message.member.roles.highest.position
       ) {
-        return message
-          .reply('❌ You cannot warn a user with an equal or higher role than yours.')
-          .catch(() => null);
+        return message.reply(t('warn.hierarchyYou')).catch(() => null);
       }
 
       if (!executorIsAdmin && target.permissions.has(PermissionsBitField.Flags.Administrator)) {
-        return message
-          .reply('❌ You cannot warn an Administrator.')
-          .catch(() => null);
+        return message.reply(t('warn.cannotWarnAdmin')).catch(() => null);
       }
 
       const cleanedArgs = stripTargetFromArgs(args, target.id);
-      const reason = cleanedArgs.join(' ').trim() || 'No reason provided';
+      const reason = cleanedArgs.join(' ').trim() || t('common.noReason');
 
       const dbUser = await warningsService.addWarning(guild.id, target.id, 1);
 
@@ -117,39 +110,38 @@ module.exports = {
         })
         .catch(() => null);
 
-      // Mensagem pública: não mostra trust
       await message.channel
         .send(
-          `⚠️ ${target} has been warned.\n` +
-            `📌 Total warnings: **${dbUser.warnings}**\n` +
-            `📝 Reason: **${reason}**`
+          t('warn.warnedPublic', null, {
+            mention: `${target}`,
+            warnings: dbUser.warnings,
+            reason
+          })
         )
         .catch(() => null);
 
-      // DM opcional ao user: também sem trust
       if (config.notifications?.dmOnWarn) {
-        const dmText =
-          `⚠️ You received a **WARN** in **${guild.name}**.\n` +
-          `📝 Reason: **${reason}**\n` +
-          `📌 Total warnings: **${dbUser.warnings}**`;
-
-        await trySendDM(target.user, dmText);
+        await trySendDM(
+          target.user,
+          t('warn.warnedDM', null, {
+            guildName: guild.name,
+            warnings: dbUser.warnings,
+            reason
+          })
+        );
       }
 
-      // Logger interno continua a ver o trust (para staff / log-bot)
       await logger(
         client,
         'Manual Warn',
         target.user,
         message.author,
-        `Reason: **${reason}**\nTotal warnings: **${dbUser.warnings}**\nTrust: **${
-          dbUser.trust ?? 'N/A'
-        }**`,
+        `Reason: **${reason}**\nTotal warnings: **${dbUser.warnings}**\nTrust: **${dbUser.trust ?? 'N/A'}**`,
         guild
       );
     } catch (err) {
       console.error('[warn] Error:', err);
-      await message.reply('❌ An unexpected error occurred.').catch(() => null);
+      await message.reply(t('common.unexpectedError')).catch(() => null);
     }
   }
 };
