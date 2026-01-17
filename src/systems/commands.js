@@ -37,7 +37,7 @@ for (const file of commandFiles) {
   }
 }
 
-const STAFF_ONLY = new Set(['clear', 'warn', 'mute', 'unmute']);
+const STAFF_ONLY = new Set(['clear', 'warn', 'mute', 'unmute', 'history']);
 
 function isStaff(member) {
   if (!member) return false;
