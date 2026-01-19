@@ -7,6 +7,21 @@ e boas práticas inspiradas em **Keep a Changelog**.
 
 ---
 
+## [1.6.2] – 2026-01-19
+### Dashboard Tickets & Cases Filters
+
+#### Added
+- Nova tab **Tickets** no dashboard para listar tickets (`!ticket`) com paginação server-side.
+- Filtro por **status** (OPEN/CLOSED) e **User ID** nos tickets.
+- Botão **Close ticket** diretamente no painel (fecha no Mongo e tenta ajustar o canal no Discord).
+- Filtro por **source** na tab **Cases** (command / slash / dashboard / automod / antispam).
+
+#### Changed
+- Cards de cases agora mostram também o `source` como badge para debugging/auditoria mais rápida.
+
+#### Fixed
+- Pequenos ajustes de paginação e limites por página para manter o dashboard responsivo em servidores grandes.
+
 ## [1.6.1] – 2026-01-19
 ### Dashboard UX & Per-Guild Admin
 
