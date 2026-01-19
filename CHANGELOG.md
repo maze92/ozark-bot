@@ -7,6 +7,29 @@ e boas práticas inspiradas em **Keep a Changelog**.
 
 ---
 
+## [1.6.1] – 2026-01-19
+### Dashboard UX & Per-Guild Admin
+
+#### Added
+- Endpoint `/api/guilds/:guildId/meta` para o dashboard obter **canais + roles** do servidor.
+- Seletor multi-role no separador **Config** para definir `staffRoleIds` por servidor.
+- Botão **Clear** no topo para limpar rapidamente o token guardado no browser.
+
+#### Changed
+- Melhor feedback visual quando o token é inválido (badge **Auth** passa a "Token inválido").
+
+#### Fixed
+- Carregamento das opções de configuração por servidor (canais/roles) mais robusto.
+
+## [1.6.0] – 2026-01-19
+### Escalonamento de Punições, Auditoria & Tickets
+
+#### Added
+- Escalonamento automático de punições no WARN (prefix + slash), respeitando Trust.
+- Campo `source` no modelo de infrações para auditoria (slash/command/automod/antispam/dashboard).
+- Sistema de **tickets/modmail** simples (`!ticket` e `!ticketclose`) com persistência em Mongo.
+
+
 ## [1.0.2] – 2026-01-17
 ### Infrastructure, Stability & Compatibility
 
