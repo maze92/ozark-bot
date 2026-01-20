@@ -12,7 +12,7 @@ module.exports = async function ticketSlash(client, interaction) {
     if (!guild || !member) {
       return interaction.reply({
         content: t('common.guildOnly') || 'This command can only be used in a server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
@@ -20,7 +20,7 @@ module.exports = async function ticketSlash(client, interaction) {
     if (ticketsCfg.enabled === false) {
       return interaction.reply({
         content: t('tickets.disabled') || 'Ticket system is disabled.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
@@ -36,7 +36,7 @@ module.exports = async function ticketSlash(client, interaction) {
     if (!hasStaffRole) {
       return interaction.reply({
         content: t('common.noPermission') || 'You do not have permission to create tickets.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
 
@@ -98,7 +98,7 @@ module.exports = async function ticketSlash(client, interaction) {
 
     return interaction.reply({
       content: `Ticket criado: ${channel}`,
-      ephemeral: true
+      flags: MessageFlags.Ephemeral
     });
   } catch (err) {
     console.error('[slash/ticket] Error:', err);
@@ -106,12 +106,12 @@ module.exports = async function ticketSlash(client, interaction) {
       if (interaction.deferred || interaction.replied) {
         await interaction.followUp({
           content: t('common.unexpectedError') || 'Unexpected error creating ticket.',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       } else {
         await interaction.reply({
           content: t('common.unexpectedError') || 'Unexpected error creating ticket.',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
     } catch {
