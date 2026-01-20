@@ -1,6 +1,6 @@
 // src/slash/ticket.js
 
-const { ChannelType, PermissionFlagsBits } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const config = require('../config/defaultConfig');
 const { t } = require('../systems/i18n');
 
@@ -40,8 +40,12 @@ module.exports = async function ticketSlash(client, interaction) {
       });
     }
 
-    const baseName = `ticket-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9\-]/g, '');
-    const channelName = baseName.slice(0, 90) || 'ticket';
+    // Discord channel name constraints are strict; keep it safe + short.
+    const baseName = `ticket-${interaction.user.username}`
+      .toLowerCase()
+      .replace(/[^a-z0-9\-]/g, '');
+
+    const channelName = (baseName.slice(0, 32) || 'ticket');
 
     const overwrites = [
       {
@@ -60,6 +64,7 @@ module.exports = async function ticketSlash(client, interaction) {
       }
     ];
 
+    // Allow configured staff roles
     for (const roleId of staffRoleIds) {
       overwrites.push({
         id: roleId,
@@ -69,6 +74,21 @@ module.exports = async function ticketSlash(client, interaction) {
           PermissionFlagsBits.ReadMessageHistory,
           PermissionFlagsBits.AttachFiles,
           PermissionFlagsBits.EmbedLinks,
+          PermissionFlagsBits.ManageMessages
+        ]
+      });
+    }
+
+    // Ensure the bot can access/manage the channel
+    const botMember = guild.members.me || guild.members.cache.get(client.user.id);
+    if (botMember) {
+      overwrites.push({
+        id: botMember.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.ManageChannels,
           PermissionFlagsBits.ManageMessages
         ]
       });
