@@ -37,7 +37,129 @@
     };
 
     // ------------------------------
-    // Helpers
+    
+
+    // ------------------------------
+    // i18n (PT/EN)
+    // ------------------------------
+    state.lang = (localStorage.getItem('OZARK_LANG') || 'pt').toLowerCase();
+
+    const I18N = {
+      pt: {
+        login_title: 'Ozark Dashboard',
+        login_sub: 'Autentica para aceder ao painel.',
+        login_hint: 'Introduz o DASHBOARD_TOKEN. Fica guardado apenas no teu browser.',
+        login_btn: 'Entrar',
+        login_token_placeholder: 'DASHBOARD_TOKEN',
+        login_tip_badge: 'Dica',
+        login_tip: 'Se mudares o token, podes fazer logout no topo.',
+
+        btn_refresh: 'Atualizar',
+        btn_logout: 'Logout',
+        btn_change_token: 'Mudar token',
+
+        badge_bot_online: '● Bot online',
+        badge_bot_offline: '● Bot offline',
+        badge_server: 'Servidor: {name}',
+        badge_auth_ok: 'Auth: OK',
+        badge_auth_missing: 'Auth: Token em falta',
+        badge_auth_invalid: 'Auth: Token inválido',
+
+        toast_unauthorized_set_token: 'Não autorizado: define o token.',
+        toast_download_failed: 'Falha no download.',
+        toast_token_saved: 'Token guardado.',
+        toast_token_cleared: 'Token removido. Faz login novamente.',
+        toast_paste_token: 'Cola primeiro o token.',
+
+        session_title: 'Sessão',
+        session_hint: 'Autenticação do painel e ações rápidas.',
+        session_note: 'O token fica guardado apenas no teu browser. Usa Logout para remover.',
+        session_ok: 'Sessão ativa',
+
+        select_guild_top: 'Seleciona um servidor no topo.',
+        select_guild_first: 'Seleciona um servidor primeiro.',
+        no_tickets: 'Sem tickets',
+        select_a_guild: 'Seleciona um servidor',
+
+        page_x_of_y: 'Página {p} / {max}',
+        total_n: 'Total: {n}',
+      },
+      en: {
+        login_title: 'Ozark Dashboard',
+        login_sub: 'Authenticate to access the dashboard.',
+        login_hint: 'Enter the DASHBOARD_TOKEN. It is stored only in your browser.',
+        login_btn: 'Sign in',
+        login_token_placeholder: 'DASHBOARD_TOKEN',
+        login_tip_badge: 'Tip',
+        login_tip: 'If you change the token, you can logout from the top bar.',
+
+        btn_refresh: 'Refresh',
+        btn_logout: 'Logout',
+        btn_change_token: 'Change token',
+
+        badge_bot_online: '● Bot online',
+        badge_bot_offline: '● Bot offline',
+        badge_server: 'Server: {name}',
+        badge_auth_ok: 'Auth: OK',
+        badge_auth_missing: 'Auth: Missing token',
+        badge_auth_invalid: 'Auth: Invalid token',
+
+        toast_unauthorized_set_token: 'Unauthorized: set token.',
+        toast_download_failed: 'Download failed.',
+        toast_token_saved: 'Token saved.',
+        toast_token_cleared: 'Token removed. Please sign in again.',
+        toast_paste_token: 'Paste the token first.',
+
+        session_title: 'Session',
+        session_hint: 'Dashboard authentication and quick actions.',
+        session_note: 'The token is stored only in your browser. Use Logout to remove it.',
+        session_ok: 'Session active',
+
+        select_guild_top: 'Select a server at the top.',
+        select_guild_first: 'Select a server first.',
+        no_tickets: 'No tickets',
+        select_a_guild: 'Select a server',
+
+        page_x_of_y: 'Page {p} / {max}',
+        total_n: 'Total: {n}',
+      }
+    };
+
+    function t(key, vars) {
+      const lang = I18N[state.lang] ? state.lang : 'pt';
+      let s = I18N[lang][key] || I18N.pt[key] || key;
+      if (vars) {
+        for (const [k,v] of Object.entries(vars)) {
+          s = s.replaceAll('{' + k + '}', String(v));
+        }
+      }
+      return s;
+    }
+
+    function applyI18n() {
+      const lang = I18N[state.lang] ? state.lang : 'pt';
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.getAttribute('data-i18n');
+        if (!k) return;
+        el.textContent = t(k);
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const k = el.getAttribute('data-i18n-placeholder');
+        if (!k) return;
+        el.setAttribute('placeholder', t(k));
+      });
+
+      const lp = document.getElementById('langPicker');
+      if (lp) lp.value = lang;
+      const llp = document.getElementById('loginLangPicker');
+      if (llp) llp.value = lang;
+
+      // refresh badges texts
+      updateBadges();
+    }
+
+// Helpers
     // ------------------------------
     const $ = (id) => document.getElementById(id);
 
@@ -50,19 +172,19 @@
       if (bot) {
         const ok = !!state.health?.botOnline;
         bot.className = 'badge ' + (ok ? 'ok' : 'bad');
-        bot.textContent = (ok ? '● Bot online' : '● Bot offline');
+        bot.textContent = ok ? t('badge_bot_online') : t('badge_bot_offline');
       }
 
       if (g) {
         const name = state.guildMap?.[state.guildId]?.name || '—';
         g.className = 'badge';
-        g.textContent = `Servidor: ${name}`;
+        g.textContent = t('badge_server', { name });
       }
 
       if (a) {
         const has = !!state.token;
         a.className = 'badge ' + (has ? 'ok' : 'warn');
-        a.textContent = has ? 'Auth: OK' : 'Auth: Token em falta';
+        a.textContent = has ? t('badge_auth_ok') : t('badge_auth_missing');
       }
     }
 
@@ -88,7 +210,7 @@ function toast(msg, kind = 'info') {
       const a = $('badgeAuth');
       if (a) {
         a.className = 'badge bad';
-        a.textContent = state.token ? 'Auth: Token inválido' : 'Auth: Token em falta';
+        a.textContent = state.token ? t('badge_auth_invalid') : t('badge_auth_missing');
       }
     }
 
@@ -168,11 +290,11 @@ function safeDate(iso) {
     async function downloadWithAuth(url, filename) {
       const res = await fetch(url, { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         return;
       }
       if (!res.ok) {
-        toast('Download failed.', 'bad');
+        toast(t('toast_download_failed'), 'bad');
         return;
       }
       const blob = await res.blob();
@@ -220,7 +342,7 @@ function safeDate(iso) {
       }
 
       updateBadges();
-      toast('Token guardado.', 'ok');
+      toast(t('toast_token_saved'), 'ok');
 
       if (opts.reload) {
         // reload para refazer socket + boot limpo
@@ -243,7 +365,7 @@ function safeDate(iso) {
       const inp = $('tokenInput');
       if (inp) inp.value = '';
       updateBadges();
-      toast('Token limpo. Define um novo.', 'info');
+      toast(t('toast_token_cleared'), 'info');
     });
 
     // Campo de baixo: input + "Guardar token"
@@ -252,7 +374,7 @@ function safeDate(iso) {
       if (!inp) return;
       const t = (inp.value || '').trim();
       if (!t) {
-        toast('Cola primeiro o token.', 'bad');
+        toast(t('toast_paste_token'), 'bad');
         return;
       }
       setDashboardToken(t, { reload: true });
@@ -273,7 +395,7 @@ function safeDate(iso) {
     async function loadGuilds() {
       const res = await fetch('/api/guilds', { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         return;
       }
       const json = await res.json();
@@ -370,7 +492,7 @@ function safeDate(iso) {
     async function loadConfig() {
       const res = await fetch('/api/config', { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         return;
       }
       const json = await res.json();
@@ -481,7 +603,7 @@ function safeDate(iso) {
         updateBadges();
       } catch (e) {
         $('guildConfigStatus').textContent = '';
-        if (String(e.message || '').includes('UNAUTHORIZED')) return toast('Unauthorized: set token.', 'bad');
+        if (String(e.message || '').includes('UNAUTHORIZED')) return toast(t('toast_unauthorized_set_token'), 'bad');
         toast(`Erro a carregar: ${e.message || e}`, 'bad');
       }
     }
@@ -506,7 +628,7 @@ function safeDate(iso) {
         updateBadges();
       } catch (e) {
         $('guildConfigStatus').textContent = '';
-        if (String(e.message || '').includes('UNAUTHORIZED')) return toast('Unauthorized: set token.', 'bad');
+        if (String(e.message || '').includes('UNAUTHORIZED')) return toast(t('toast_unauthorized_set_token'), 'bad');
         toast(`Erro a guardar: ${e.message || e}`, 'bad');
       }
     }
@@ -550,7 +672,7 @@ function safeDate(iso) {
       } catch (e) {
         $('logChannelTestStatus').textContent = '';
         $('dashLogChannelTestStatus').textContent = '';
-        if (String(e.message || '').includes('UNAUTHORIZED')) return toast('Unauthorized: set token.', 'bad');
+        if (String(e.message || '').includes('UNAUTHORIZED')) return toast(t('toast_unauthorized_set_token'), 'bad');
         toast(`Erro no teste: ${e.message || e}`, 'bad');
       }
     }
@@ -751,7 +873,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
       const url = buildLogsUrl(page);
       const res = await fetch(url.toString(), { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         return;
       }
       const json = await res.json().catch(() => ({}));
@@ -840,7 +962,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
       if (!gid) {
         const empty = document.createElement('div');
         empty.className = 'card';
-        empty.innerHTML = `<h2>Select a guild</h2><div class="hint">Seleciona uma guild no topo para pesquisar cases.</div>`;
+        empty.innerHTML = `<h2>' + t('select_a_guild') + '</h2><div class="hint">Seleciona uma guild no topo para pesquisar cases.</div>`;
         list.appendChild(empty);
         return;
       }
@@ -897,7 +1019,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
       const url = buildCasesUrl(page);
       const res = await fetch(url.toString(), { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         return;
       }
       const json = await res.json().catch(() => ({}));
@@ -956,7 +1078,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
 
       const res = await fetch(url.toString(), { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         closeCaseModal();
         return;
       }
@@ -1101,7 +1223,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
     async function loadFeeds() {
       const res = await fetch('/api/gamenews-status', { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         return;
       }
       const json = await res.json();
@@ -1217,7 +1339,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
 
       const res = await fetch(url.toString(), { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         return;
       }
       const json = await res.json();
@@ -1420,8 +1542,8 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
       const maxPage = total > 0 ? Math.ceil(total / limit) : 1;
       const pageBadge = document.getElementById('ticketsPageBadge');
       const totalBadge = document.getElementById('ticketsTotalBadge');
-      if (pageBadge) pageBadge.textContent = `Page ${p} / ${maxPage}`;
-      if (totalBadge) totalBadge.textContent = `Total: ${total}`;
+      if (pageBadge) pageBadge.textContent = t('page_x_of_y', { p, max: maxPage });
+      if (totalBadge) totalBadge.textContent = t('total_n', { n: total });
       if (document.getElementById('btnPrevTickets')) document.getElementById('btnPrevTickets').disabled = p <= 1;
       if (document.getElementById('btnNextTickets')) document.getElementById('btnNextTickets').disabled = p >= maxPage;
     }
@@ -1453,7 +1575,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
       if (!gid) {
         const empty = document.createElement('div');
         empty.className = 'card';
-        empty.innerHTML = '<h2>Select a guild</h2><div class="hint">Seleciona uma guild no topo para ver tickets.</div>';
+        empty.innerHTML = '<h2>' + t('select_a_guild') + '</h2><div class="hint">Seleciona uma guild no topo para ver tickets.</div>';
         list.appendChild(empty);
         return;
       }
@@ -1461,7 +1583,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
       if (!items.length) {
         const empty = document.createElement('div');
         empty.className = 'card';
-        empty.innerHTML = '<h2>No tickets</h2><div class="hint">Sem tickets para o filtro atual.</div>';
+        empty.innerHTML = '<h2>' + t('no_tickets') + '</h2><div class="hint">Sem tickets para o filtro atual.</div>';
         list.appendChild(empty);
         return;
       }
@@ -1550,7 +1672,7 @@ $('btnLoadGuildConfig')?.addEventListener('click', loadGuildConfigUI);
       const url = buildTicketsUrl(page);
       const res = await fetch(url.toString(), { headers: headers() });
       if (res.status === 401) {
-        toast('Unauthorized: set token.', 'bad');
+        toast(t('toast_unauthorized_set_token'), 'bad');
         return;
       }
       const json = await res.json().catch(() => ({}));
