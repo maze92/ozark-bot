@@ -1443,6 +1443,7 @@ id="tab-overview">
       return s;
     }
 
+    window.__i18nT = t;
     function applyI18n() {
       const lang = I18N[state.lang] ? state.lang : 'pt';
       document.documentElement.lang = lang;
@@ -1715,7 +1716,7 @@ function setTab(name) {
       if (!tabEl) return;
       if (!state.guildId && tabEl.dataset.tab !== 'overview') {
         toast(t('select_guild_top'), 'bad');
-        return;
+        toast((window.__i18nT || t)('select_guild_top'), 'bad');
       }
       setTab(tabEl.dataset.tab);
 
@@ -1802,7 +1803,7 @@ function setTab(name) {
       setDashboardToken(tkn, { reload: false });
       showApp();
       initSocket();
-      await boot().catch(() => null);
+      await bootAfterLogin().catch(() => null);
     }
 
 // ------------------------------
@@ -3321,6 +3322,21 @@ async function validateToken(token) {
   return res.ok;
 }
 
+
+async function bootAfterLogin() {
+  try {
+    await loadGuilds().catch(() => null);
+    await refreshHealth().catch(() => null);
+    await loadKpis().catch(() => null);
+    await loadTimeline({ showLoader: false }).catch(() => null);
+    if (document.getElementById('feedsConfigBody') && typeof window.loadFeedsConfig === 'function') {
+      await window.loadFeedsConfig().catch(() => null);
+    }
+    updateBadges();
+  } catch (e) {
+    console.error('[Dashboard] bootAfterLogin error:', e);
+  }
+}
 async function doLoginWithCredentials() {
   const userInp = document.getElementById('loginUserInput');
   const passInp = document.getElementById('loginPassInput');
@@ -3360,7 +3376,7 @@ async function doLoginWithCredentials() {
     setDashboardToken(json.token, { reload: false });
     showApp();
     initSocket();
-    await boot().catch(() => null);
+    await bootAfterLogin().catch(() => null);
   } catch (err) {
     console.error('[Dashboard] login error', err);
     if (out) {
