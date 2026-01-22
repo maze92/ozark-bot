@@ -1719,11 +1719,13 @@ function setTab(name) {
     $('tabs').addEventListener('click', (e) => {
       const tabEl = e.target.closest('.tab');
       if (!tabEl) return;
-      if (!state.guildId && tabEl.dataset.tab !== 'overview') {
+
+      const name = tabEl.dataset.tab;
+      if (!state.guildId && name !== 'overview') {
         toast((window.__i18nT || t)('select_guild_top'), 'bad');
-        return;
       }
-      setTab(tabEl.dataset.tab);
+
+      setTab(name);
 
       // lazy load
       if (tabEl.dataset.tab === 'logs') loadLogsPage(1).catch(() => null);
