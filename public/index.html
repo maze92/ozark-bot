@@ -3539,6 +3539,7 @@ async function validateToken(token) {
 
 
 async function bootAfterLogin() {
+async function bootAfterLogin() {
   try {
     await loadGuilds().catch(() => null);
     await refreshHealth().catch(() => null);
@@ -3548,6 +3549,7 @@ async function bootAfterLogin() {
       await window.loadFeedsConfig().catch(() => null);
     }
     updateBadges();
+    state.guildId = $('guildPicker').value || '';
   } catch (e) {
     console.error('[Dashboard] bootAfterLogin error:', e);
   }
