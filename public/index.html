@@ -1974,7 +1974,19 @@ const lp = document.getElementById('langPicker');
       applyI18n();
     }
 
-
+    // Ligar os dropdowns de idioma à função setLang
+    ['langPicker', 'loginLangPicker'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('change', (ev) => {
+        setLang(ev.target.value);
+        try {
+          toast(t('language_changed') || 'Idioma alterado.', 'ok');
+        } catch {
+          // se o toast ainda não existir nesta fase do boot, ignoramos
+        }
+      });
+    });
 
     // If anything crashes during bootstrap, ensure the user still sees the login screen
     // instead of a blank grey page.
@@ -2190,26 +2202,27 @@ function safeDate(iso) {
         setTab('overview');
       }
     }
-function setTab(name) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-      document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === `tab-${name}`));
-      try { localStorage.setItem('ozark.activeTab', name); } catch {}
-    }
-    $('tabs').addEventListener('click', (e) => {
-      const tabEl = e.target.closest('.tab');
-      if (!tabEl) return;
+	function setTab(name) {
+	  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+	  document.querySelectorAll('.section').forEach(s => s.classList.toggle('active', s.id === `tab-${name}`));
+	  try { localStorage.setItem('ozark.activeTab', name); } catch {}
+	}
+	$('tabs').addEventListener('click', (e) => {
+	  const tabEl = e.target.closest('.tab');
+	  if (!tabEl) return;
 
-      const name = tabEl.dataset.tab;
-      if (!state.guildId && name !== 'overview') {
-        toast((window.__i18nT || t)('select_guild_top'), 'bad');
-      }
+	  const name = tabEl.dataset.tab;
+	  if (!state.guildId && name !== 'overview') {
+		toast((window.__i18nT || t)('select_guild_top'), 'bad');
+		return; // 👈 IMPORTANTÍSSIMO: não muda de tab nem carrega dados
+	  }
 
-      setTab(name);
+	  setTab(name);
 
-      // lazy load
-      if (tabEl.dataset.tab === 'logs') loadLogsPage(1).catch(() => null);
-      if (tabEl.dataset.tab === 'cases') loadCasesPage(1).catch(() => null);
-    });
+	  // lazy load
+	  if (tabEl.dataset.tab === 'logs') loadLogsPage(1).catch(() => null);
+	  if (tabEl.dataset.tab === 'cases') loadCasesPage(1).catch(() => null);
+	});
 
     // ------------------------------
     // Token
@@ -2884,9 +2897,25 @@ function setTab(name) {
           apiGet(`/api/guilds/${state.guildId}/config`)
         ]);
 
-        fillChannelSelect($('selLogChannel'), meta.channels, cfg?.config?.logChannelId, '— Usa default (log-bot) —');
-        fillChannelSelect($('selDashboardLogChannel'), meta.channels, cfg?.config?.dashboardLogChannelId, '— Usa automático (dashboard-logs) —');
-        fillRoleMultiSelect($('selStaffRoles'), meta.roles, cfg?.config?.staffRoleIds || []);
+        fillChannelSelect(
+          $('selLogChannel'),
+          meta.channels,
+          cfg?.config?.logChannelId,
+          '— Usa default (log-bot) —'
+        );
+
+        fillChannelSelect(
+          $('selDashboardLogChannel'),
+          meta.channels,
+          cfg?.config?.dashboardLogChannelId,
+          '— Usa automático (dashboard-logs) —'
+        );
+
+        fillRoleMultiSelect(
+          $('selStaffRoles'),
+          meta.roles,
+          cfg?.config?.staffRoleIds || []
+        );
 
         $('guildConfigStatus').textContent = 'Definições carregadas.';
         // Refresh GameNews feed channel selectors (needs guild channels)
