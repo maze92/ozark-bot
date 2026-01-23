@@ -138,6 +138,25 @@ const I18N = {
   },
 };
 
+// Pede e guarda o token da dashboard, se ainda não existir
+function ensureDashToken() {
+  let jwt = localStorage.getItem('OZARK_DASH_JWT');
+  if (!jwt) {
+    const msgPt = 'Introduz o token OZARK_DASH_JWT (o mesmo que tens no .env do bot):';
+    const msgEn = 'Enter the OZARK_DASH_JWT token (same as in the bot .env):';
+    const ask = state.lang === 'en' ? msgEn : msgPt;
+
+    jwt = window.prompt(ask, '');
+    if (jwt) {
+      jwt = jwt.trim();
+      if (jwt) {
+        localStorage.setItem('OZARK_DASH_JWT', jwt);
+      }
+    }
+  }
+  return jwt || null;
+}
+
 // Helpers
 function t(key) {
   const lang = I18N[state.lang] ? state.lang : 'pt';
@@ -261,8 +280,8 @@ async function loadLogs(page = 1) {
   if (search) params.set('search', search);
 
   const headers = {};
-  // Compatível com o backend antigo que usava OZARK_DASH_JWT
-  const jwt = localStorage.getItem('OZARK_DASH_JWT');
+  // Garante que temos token da dashboard
+  const jwt = ensureDashToken();
   if (jwt) {
     headers['Authorization'] = `Bearer ${jwt}`;
   }
@@ -278,7 +297,20 @@ async function loadLogs(page = 1) {
 
   if (!resp.ok) {
     console.error('HTTP error /api/logs:', resp.status);
-    listEl.innerHTML = `<div class="empty">${escapeHtml(t('logs_error_http'))} (${resp.status})</div>`;
+
+    if (resp.status === 401) {
+      listEl.innerHTML = `<div class="empty">
+        ${escapeHtml(t('logs_error_http'))} (401)<br>
+        <br>
+        ${
+          state.lang === 'en'
+            ? 'Check if the dashboard token (OZARK_DASH_JWT) is correct.'
+            : 'Verifica se o token da dashboard (OZARK_DASH_JWT) está correto.'
+        }
+      </div>`;
+    } else {
+      listEl.innerHTML = `<div class="empty">${escapeHtml(t('logs_error_http'))} (${resp.status})</div>`;
+    }
     return;
   }
 
