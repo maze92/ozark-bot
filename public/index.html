@@ -1044,6 +1044,14 @@ input:disabled + .slider {
   visibility: visible !important;
 }
 
+
+/* === HARSH OVERRIDE: ensure sections show correctly === */
+.section { display:none; }
+.section.active {
+  display:block !important;
+  opacity:1 !important;
+}
+
 </style>
 </head>
 <body>
@@ -1202,6 +1210,7 @@ id="tab-overview">
       <!-- Populado via loadTimeline() -->
     </div>
   </div>
+</div>
 </div>
   <div class="section" id="tab-logs">
 <div class="card" style="margin-bottom: 10px;">
