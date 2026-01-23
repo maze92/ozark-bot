@@ -284,6 +284,7 @@ async function loadLogs(page = 1) {
   const jwt = ensureDashToken();
   if (jwt) {
     headers['Authorization'] = `Bearer ${jwt}`;
+    headers['x-dashboard-token'] = jwt; // redundância: backend também pode aceitar este header
   }
 
   let resp;
@@ -365,6 +366,9 @@ function initTabs() {
   const tabsEl = document.getElementById('tabs');
   if (!tabsEl) return;
 
+  const needsGuild = ['logs', 'cases', 'tickets', 'gamenews', 'user', 'config'];
+  const protectedTabs = ['logs', 'cases', 'tickets', 'gamenews', 'user', 'config'];
+
   tabsEl.addEventListener('click', (e) => {
     const tabEl = e.target.closest('.tab');
     if (!tabEl) return;
@@ -374,17 +378,27 @@ function initTabs() {
 
     const guildPicker = document.getElementById('guildPicker');
     const currentGuild = guildPicker?.value || '';
-    const needsGuild = ['logs', 'cases', 'tickets', 'gamenews', 'user', 'config'];
 
-    // ⚠️ BLOQUEIO: se tentar abrir tab que precisa de servidor e não há servidor → não muda
+    // 1) Bloqueio por servidor
     if (!currentGuild && needsGuild.includes(name)) {
-      updateTabAccess(); // garante que o aviso está visível e overview ativa
+      updateTabAccess(); // garante aviso + volta à Overview se for preciso
       return;
     }
 
+    // 2) Bloqueio por token (auth)
+    if (protectedTabs.includes(name)) {
+      const existing = localStorage.getItem('OZARK_DASH_JWT');
+      const jwt = existing || ensureDashToken();
+      if (!jwt) {
+        // Utilizador cancelou o prompt ou não guardou token: não muda de tab
+        return;
+      }
+    }
+
+    // 3) Ativar tab
     setTab(name);
 
-    // Lazy load de logs quando se entra na tab
+    // 4) Lazy load de logs quando se entra na tab
     if (name === 'logs') {
       loadLogs().catch((err) => console.error('Erro loadLogs:', err));
     }
