@@ -80,22 +80,12 @@ const I18N = {
     // Users
     users_title: 'Utilizadores',
     users_hint: 'Consulta rápida de métricas e histórico de casos de cada utilizador.',
-    users_empty: 'Ainda não existem utilizadores visíveis para este servidor.',
-    users_loading: 'A carregar utilizadores…',
-    users_error_generic: 'Não foi possível carregar os utilizadores.',
-    users_error_http: 'Erro ao carregar utilizadores.',
+    users_empty: 'Selecione um servidor para ver utilizadores.',
 
     // Config
     config_title: 'Configuração do servidor',
     config_hint: 'Defina canais, cargos de staff e preferências de registo para este servidor.',
-    config_log_channel: 'Canal de logs principal',
-    config_dashboard_log_channel: 'Canal de logs da dashboard',
-    config_staff_roles: 'Cargos de staff',
-    config_staff_roles_hint: 'Se vazio, são usadas as roles de staff globais definidas no ficheiro de configuração.',
-    config_reload: 'Recarregar',
-    config_save: 'Guardar configuração',
-    config_save_ok: 'Configuração guardada com sucesso.',
-    config_save_error: 'Erro ao guardar configuração.',
+    config_empty: 'Em breve: integração direta com a API do OzarkBot para guardar estas definições.',
 
     // Mensagens auxiliares
     warn_select_guild: 'Selecione um servidor para aceder às restantes secções.',
@@ -300,60 +290,6 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-
-// Drawer global (lateral) para edições detalhadas
-let drawerInitialized = false;
-
-function initDrawer() {
-  if (drawerInitialized) return;
-  drawerInitialized = true;
-
-  const overlay = document.getElementById('drawerOverlay');
-  const panel = document.getElementById('drawerPanel');
-  const closeBtn = document.getElementById('drawerCloseBtn');
-
-  if (!overlay || !panel) return;
-
-  function handleClose() {
-    overlay.style.display = 'none';
-    const content = document.getElementById('drawerContent');
-    if (content) content.innerHTML = '';
-  }
-
-  if (closeBtn) {
-    closeBtn.addEventListener('click', handleClose);
-  }
-
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      handleClose();
-    }
-  });
-
-  // ESC para fechar
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay.style.display === 'block') {
-      handleClose();
-    }
-  });
-}
-
-function openDrawer(innerHtml) {
-  initDrawer();
-  const overlay = document.getElementById('drawerOverlay');
-  const content = document.getElementById('drawerContent');
-  if (!overlay || !content) return;
-  content.innerHTML = innerHtml || '';
-  overlay.style.display = 'block';
-}
-
-function closeDrawer() {
-  const overlay = document.getElementById('drawerOverlay');
-  const content = document.getElementById('drawerContent');
-  if (!overlay || !content) return;
-  overlay.style.display = 'none';
-  content.innerHTML = '';
-}
 // Tabs
 function setTab(name) {
   document.querySelectorAll('.tab').forEach((tab) => {
@@ -455,55 +391,6 @@ async function loadGuilds() {
 }
 
 // ==== LOGS: ligação à API /api/logs ====
-
-async 
-async function loadOverview() {
-  const gEl = document.getElementById('kpiGuilds');
-  const uEl = document.getElementById('kpiUsers');
-  const aEl = document.getElementById('kpiActions24h');
-
-  if (!gEl || !uEl || !aEl) return;
-
-  gEl.textContent = '…';
-  uEl.textContent = '…';
-  aEl.textContent = '…';
-
-  const headers = getAuthHeaders();
-
-  let resp;
-  try {
-    resp = await fetch('/api/overview', { headers });
-  } catch (err) {
-    console.error('Erro a chamar /api/overview:', err);
-    gEl.textContent = '0';
-    uEl.textContent = '0';
-    aEl.textContent = '0';
-    return;
-  }
-
-  if (!resp.ok) {
-    console.error('HTTP error /api/overview:', resp.status);
-    gEl.textContent = '0';
-    uEl.textContent = '0';
-    aEl.textContent = '0';
-    return;
-  }
-
-  let data;
-  try {
-    data = await resp.json();
-  } catch (err) {
-    console.error('Erro a ler JSON de /api/overview:', err);
-    gEl.textContent = '0';
-    uEl.textContent = '0';
-    aEl.textContent = '0';
-    return;
-  }
-
-  gEl.textContent = String(data.guilds ?? 0);
-  uEl.textContent = String(data.users ?? 0);
-  aEl.textContent = String(data.actions24h ?? 0);
-}
 
 async function loadLogs(page = 1) {
   const guildPicker = document.getElementById('guildPicker');
@@ -709,83 +596,6 @@ async function loadCases(page = 1) {
 
 // ==== TICKETS: ligação a /api/tickets ====
 
-async 
-async function loadUsers() {
-  const listEl = document.querySelector('#tab-user .list');
-  const guildPicker = document.getElementById('guildPicker');
-  if (!listEl) return;
-
-  const guildId = guildPicker?.value || '';
-  if (!guildId) {
-    listEl.innerHTML = `<div class="empty">${escapeHtml(t('warn_select_guild'))}</div>`;
-    return;
-  }
-
-  listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_loading'))}</div>`;
-
-  const headers = getAuthHeaders();
-
-  let resp;
-  try {
-    resp = await fetch(`/api/guilds/${encodeURIComponent(guildId)}/users`, { headers });
-  } catch (err) {
-    console.error('Erro a chamar /api/guilds/:guildId/users:', err);
-    listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_error_generic'))}</div>`;
-    return;
-  }
-
-  if (!resp.ok) {
-    console.error('HTTP error /api/guilds/:guildId/users:', resp.status);
-    listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_error_http'))}</div>`;
-    return;
-  }
-
-  let data;
-  try {
-    data = await resp.json();
-  } catch (err) {
-    console.error('Erro a ler JSON de /api/guilds/:guildId/users:', err);
-    listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_error_generic'))}</div>`;
-    return;
-  }
-
-  const items = Array.isArray(data.items) ? data.items : [];
-
-  if (!items.length) {
-    listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_empty'))}</div>`;
-    return;
-  }
-
-  const html = items
-    .map((u) => {
-      const tag = u.tag || `${u.username || 'User'}#${u.discriminator || '0000'}`;
-      const roles = (u.roles || []).map((r) => r.name).join(', ');
-      const joined = u.joinedAt || '';
-
-      return `
-        <div class="card user-row" data-user-id="${escapeHtml(u.id || '')}">
-          <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
-            <div>
-              <strong>${escapeHtml(tag)}</strong>
-              <div class="hint">
-                ${u.bot ? 'Bot • ' : ''}
-                ${roles ? `${escapeHtml(roles)}` : (state.lang === 'en' ? 'No special roles' : 'Sem cargos especiais')}
-              </div>
-            </div>
-            <div style="text-align:right; font-size:11px; color:var(--text-muted);">
-              ${joined ? `<div>${state.lang === 'en' ? 'Joined:' : 'Entrou em:'} ${escapeHtml(String(joined))}</div>` : ''}
-            </div>
-          </div>
-        </div>
-      `;
-    })
-    .join('');
-
-  listEl.innerHTML = html;
-
-  // Futuro: aqui podemos ligar clique para abrir drawer com histórico/casos
-}
-
 async function loadTickets(page = 1) {
   const guildPicker = document.getElementById('guildPicker');
   const listEl = document.querySelector('#tab-tickets .list');
@@ -862,7 +672,7 @@ async function loadTickets(page = 1) {
       const lastMsgAt = tkt.lastMessageAt || '';
 
       return `
-        <div class="card ticket-row" data-ticket-id="${escapeHtml(tkt._id || '')}">
+        <div class="card">
           <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
             <div>
               <strong>${escapeHtml(subject || `Ticket de ${userId}`)}</strong>
@@ -878,96 +688,13 @@ async function loadTickets(page = 1) {
               ${lastMsgAt ? `<div>Última msg: ${escapeHtml(lastMsgAt)}</div>` : ''}
             </div>
           </div>
-          <div class="row gap" style="margin-top:8px; justify-content:flex-end;">
-            <button type="button" class="btn btn-small ticket-reply">${escapeHtml(state.lang === 'en' ? 'Reply' : 'Responder')}</button>
-            <button type="button" class="btn btn-small danger ticket-close">${escapeHtml(state.lang === 'en' ? 'Close' : 'Fechar')}</button>
           </div>
-        </div>
       `;
     })
     .join('');
 
-
   listEl.innerHTML = html;
-
-  // Liga ações de reply/close
-  listEl.querySelectorAll('.ticket-row').forEach((row) => {
-    const ticketId = row.getAttribute('data-ticket-id');
-    const replyBtn = row.querySelector('.ticket-reply');
-    const closeBtn = row.querySelector('.ticket-close');
-
-    if (replyBtn && ticketId) {
-      replyBtn.addEventListener('click', async () => {
-        const guildPicker = document.getElementById('guildPicker');
-        const guildId = guildPicker?.value || '';
-        if (!guildId) return;
-
-        const msg = window.prompt(state.lang === 'en' ? 'Message to send in the ticket:' : 'Mensagem a enviar no ticket:');
-        if (!msg) return;
-
-        const headers = getAuthHeaders();
-        headers['Content-Type'] = 'application/json';
-
-        try {
-          const resp = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/reply`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ guildId, content: msg })
-          });
-          if (!resp.ok) {
-            alert(
-              (state.lang === 'en' ? 'Error sending ticket reply: ' : 'Erro ao enviar resposta do ticket: ') +
-                String(resp.status)
-            );
-          }
-        } catch (err) {
-          console.error('Erro ao responder ticket:', err);
-          alert(state.lang === 'en' ? 'Failed to send ticket reply.' : 'Falha ao enviar resposta do ticket.');
-        }
-      });
-    }
-
-    if (closeBtn && ticketId) {
-      closeBtn.addEventListener('click', async () => {
-        const guildPicker = document.getElementById('guildPicker');
-        const guildId = guildPicker?.value || '';
-        if (!guildId) return;
-        if (
-          !window.confirm(
-            state.lang === 'en'
-              ? 'Are you sure you want to close this ticket?'
-              : 'Tens a certeza que queres fechar este ticket?'
-          )
-        ) {
-          return;
-        }
-
-        const headers = getAuthHeaders();
-        headers['Content-Type'] = 'application/json';
-
-        try {
-          const resp = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/close`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ guildId })
-          });
-          if (!resp.ok) {
-            alert(
-              (state.lang === 'en' ? 'Error closing ticket: ' : 'Erro ao fechar ticket: ') +
-                String(resp.status)
-            );
-          } else {
-            // reload list
-            loadTickets(page).catch((err) => console.error('Erro loadTickets (after close):', err));
-          }
-        } catch (err) {
-          console.error('Erro ao fechar ticket:', err);
-          alert(state.lang === 'en' ? 'Failed to close ticket.' : 'Falha ao fechar ticket.');
-        }
-      });
-    }
-  });
-
+}
 
 // ==== GAMENEWS: estado (/api/gamenews-status) ====
 
@@ -1056,87 +783,8 @@ async function loadGameNewsStatus() {
     })
     .join('');
 
-
   listEl.innerHTML = html;
-
-  // Liga ações de reply/close
-  listEl.querySelectorAll('.ticket-row').forEach((row) => {
-    const ticketId = row.getAttribute('data-ticket-id');
-    const replyBtn = row.querySelector('.ticket-reply');
-    const closeBtn = row.querySelector('.ticket-close');
-
-    if (replyBtn && ticketId) {
-      replyBtn.addEventListener('click', async () => {
-        const guildPicker = document.getElementById('guildPicker');
-        const guildId = guildPicker?.value || '';
-        if (!guildId) return;
-
-        const msg = window.prompt(state.lang === 'en' ? 'Message to send in the ticket:' : 'Mensagem a enviar no ticket:');
-        if (!msg) return;
-
-        const headers = getAuthHeaders();
-        headers['Content-Type'] = 'application/json';
-
-        try {
-          const resp = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/reply`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ guildId, content: msg })
-          });
-          if (!resp.ok) {
-            alert(
-              (state.lang === 'en' ? 'Error sending ticket reply: ' : 'Erro ao enviar resposta do ticket: ') +
-                String(resp.status)
-            );
-          }
-        } catch (err) {
-          console.error('Erro ao responder ticket:', err);
-          alert(state.lang === 'en' ? 'Failed to send ticket reply.' : 'Falha ao enviar resposta do ticket.');
-        }
-      });
-    }
-
-    if (closeBtn && ticketId) {
-      closeBtn.addEventListener('click', async () => {
-        const guildPicker = document.getElementById('guildPicker');
-        const guildId = guildPicker?.value || '';
-        if (!guildId) return;
-        if (
-          !window.confirm(
-            state.lang === 'en'
-              ? 'Are you sure you want to close this ticket?'
-              : 'Tens a certeza que queres fechar este ticket?'
-          )
-        ) {
-          return;
-        }
-
-        const headers = getAuthHeaders();
-        headers['Content-Type'] = 'application/json';
-
-        try {
-          const resp = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/close`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ guildId })
-          });
-          if (!resp.ok) {
-            alert(
-              (state.lang === 'en' ? 'Error closing ticket: ' : 'Erro ao fechar ticket: ') +
-                String(resp.status)
-            );
-          } else {
-            // reload list
-            loadTickets(page).catch((err) => console.error('Erro loadTickets (after close):', err));
-          }
-        } catch (err) {
-          console.error('Erro ao fechar ticket:', err);
-          alert(state.lang === 'en' ? 'Failed to close ticket.' : 'Falha ao fechar ticket.');
-        }
-      });
-    }
-  });
-
+}
 
 // ==== GAMENEWS: editor de feeds (/api/gamenews/feeds) ====
 
@@ -1394,6 +1042,9 @@ function initTabs() {
     setTab(name);
 
     // 4) Lazy load consoante a tab
+    if (name === 'overview') {
+      loadOverview().catch((err) => console.error('Erro loadOverview:', err));
+    }
     if (name === 'logs') {
       loadLogs().catch((err) => console.error('Erro loadLogs:', err));
     }
@@ -1407,7 +1058,281 @@ function initTabs() {
       loadGameNewsStatus().catch((err) => console.error('Erro loadGameNewsStatus:', err));
       loadGameNewsFeedsEditor().catch((err) => console.error('Erro loadGameNewsFeedsEditor:', err));
     }
+    if (name === 'user') {
+      loadUsers().catch((err) => console.error('Erro loadUsers:', err));
+    }
+    if (name === 'config') {
+      loadGuildConfig().catch((err) => console.error('Erro loadGuildConfig:', err));
+    }
   });
+}
+
+
+
+// ==== OVERVIEW METRICS (/api/overview) ====
+
+async function loadOverview() {
+  const gEl = document.getElementById('kpiGuilds');
+  const uEl = document.getElementById('kpiUsers');
+  const aEl = document.getElementById('kpiActions24h');
+
+  if (!gEl || !uEl || !aEl) return;
+
+  gEl.textContent = '…';
+  uEl.textContent = '…';
+  aEl.textContent = '…';
+
+  const headers = getAuthHeaders();
+
+  let resp;
+  try {
+    resp = await fetch('/api/overview', { headers });
+  } catch (err) {
+    console.error('Erro a chamar /api/overview:', err);
+    gEl.textContent = '0';
+    uEl.textContent = '0';
+    aEl.textContent = '0';
+    return;
+  }
+
+  if (!resp.ok) {
+    console.error('HTTP error /api/overview:', resp.status);
+    gEl.textContent = '0';
+    uEl.textContent = '0';
+    aEl.textContent = '0';
+    return;
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    console.error('Erro a ler JSON de /api/overview:', err);
+    gEl.textContent = '0';
+    uEl.textContent = '0';
+    aEl.textContent = '0';
+    return;
+  }
+
+  gEl.textContent = String(data.guilds ?? 0);
+  uEl.textContent = String(data.users ?? 0);
+  aEl.textContent = String(data.actions24h ?? 0);
+}
+
+// ==== USERS TAB (/api/guilds/:guildId/users) ====
+
+async function loadUsers() {
+  const listEl = document.querySelector('#tab-user .list');
+  const guildPicker = document.getElementById('guildPicker');
+  if (!listEl) return;
+
+  const guildId = guildPicker?.value || '';
+  if (!guildId) {
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('warn_select_guild'))}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_loading') || 'A carregar utilizadores…')}</div>`;
+
+  const headers = getAuthHeaders();
+
+  let resp;
+  try {
+    resp = await fetch(`/api/guilds/${encodeURIComponent(guildId)}/users`, { headers });
+  } catch (err) {
+    console.error('Erro a chamar /api/guilds/:guildId/users:', err);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_error_generic') || 'Não foi possível carregar os utilizadores.')}</div>`;
+    return;
+  }
+
+  if (!resp.ok) {
+    console.error('HTTP error /api/guilds/:guildId/users:', resp.status);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_error_http') || 'Erro ao carregar utilizadores.')} (${resp.status})</div>`;
+    return;
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    console.error('Erro a ler JSON de /api/guilds/:guildId/users:', err);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_error_generic') || 'Não foi possível carregar os utilizadores.')}</div>`;
+    return;
+  }
+
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  if (!items.length) {
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_empty'))}</div>`;
+    return;
+  }
+
+  const html = items
+    .map((u) => {
+      const tag = u.tag || `${u.username || 'User'}#${u.discriminator || '0000'}`;
+      const roles = (u.roles || []).map((r) => r.name).join(', ');
+      const joined = u.joinedAt || '';
+
+      return `
+        <div class="card user-row" data-user-id="${escapeHtml(u.id || '')}">
+          <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
+            <div>
+              <strong>${escapeHtml(tag)}</strong>
+              <div class="hint">
+                ${u.bot ? 'Bot • ' : ''}
+                ${
+                  roles
+                    ? escapeHtml(roles)
+                    : escapeHtml(state.lang === 'en' ? 'No special roles' : 'Sem cargos especiais')
+                }
+              </div>
+            </div>
+            <div style="text-align:right; font-size:11px; color:var(--text-muted);">
+              ${
+                joined
+                  ? `<div>${
+                      state.lang === 'en' ? 'Joined:' : 'Entrou em:'
+                    } ${escapeHtml(String(joined))}</div>`
+                  : ''
+              }
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  listEl.innerHTML = html;
+}
+
+// ==== CONFIG TAB (/api/guilds/:guildId/meta + /config) ====
+
+async function loadGuildConfig() {
+  const guildPicker = document.getElementById('guildPicker');
+  const statusEl = document.getElementById('configStatus');
+  const logSelect = document.getElementById('configLogChannel');
+  const dashLogSelect = document.getElementById('configDashboardLogChannel');
+  const staffSelect = document.getElementById('configStaffRoles');
+
+  if (!guildPicker || !logSelect || !dashLogSelect || !staffSelect) return;
+
+  const guildId = guildPicker.value || '';
+  if (!guildId) {
+    if (statusEl) statusEl.textContent = t('warn_select_guild');
+    return;
+  }
+
+  const headers = getAuthHeaders();
+
+  // Metadados (canais + roles)
+  let meta;
+  try {
+    const metaResp = await fetch(`/api/guilds/${encodeURIComponent(guildId)}/meta`, { headers });
+    if (!metaResp.ok) throw new Error('HTTP ' + metaResp.status);
+    meta = await metaResp.json();
+  } catch (err) {
+    console.error('Erro a carregar meta do servidor:', err);
+    if (statusEl) {
+      statusEl.textContent =
+        t('config_save_error') || 'Erro ao carregar metadados do servidor.';
+    }
+    return;
+  }
+
+  const channels = Array.isArray(meta.channels) ? meta.channels : [];
+  const roles = Array.isArray(meta.roles) ? meta.roles : [];
+
+  logSelect.innerHTML =
+    '<option value="">(nenhum)</option>' +
+    channels
+      .map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`)
+      .join('');
+
+  dashLogSelect.innerHTML =
+    '<option value="">(nenhum)</option>' +
+    channels
+      .map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`)
+      .join('');
+
+  staffSelect.innerHTML = roles
+    .map((r) => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`)
+    .join('');
+
+  // Config atual
+  try {
+    const cfgResp = await fetch(`/api/guilds/${encodeURIComponent(guildId)}/config`, { headers });
+    if (!cfgResp.ok) throw new Error('HTTP ' + cfgResp.status);
+    const cfgData = await cfgResp.json();
+    const cfg = (cfgData && cfgData.config) || {};
+
+    if (cfg.logChannelId) logSelect.value = cfg.logChannelId;
+    if (cfg.dashboardLogChannelId) dashLogSelect.value = cfg.dashboardLogChannelId;
+
+    if (Array.isArray(cfg.staffRoleIds)) {
+      Array.from(staffSelect.options).forEach((opt) => {
+        opt.selected = cfg.staffRoleIds.includes(opt.value);
+      });
+    }
+    if (statusEl) statusEl.textContent = '';
+  } catch (err) {
+    console.error('Erro a carregar config do servidor:', err);
+    if (statusEl) {
+      statusEl.textContent =
+        t('config_save_error') || 'Erro ao carregar configuração do servidor.';
+    }
+  }
+}
+
+async function saveGuildConfig() {
+  const guildPicker = document.getElementById('guildPicker');
+  const statusEl = document.getElementById('configStatus');
+  const logSelect = document.getElementById('configLogChannel');
+  const dashLogSelect = document.getElementById('configDashboardLogChannel');
+  const staffSelect = document.getElementById('configStaffRoles');
+
+  const guildId = guildPicker?.value || '';
+  if (!guildId) {
+    if (statusEl) statusEl.textContent = t('warn_select_guild');
+    return;
+  }
+
+  const headers = getAuthHeaders();
+  headers['Content-Type'] = 'application/json';
+
+  const staffRoleIds = Array.from(staffSelect.selectedOptions).map((o) => o.value);
+
+  const body = {
+    logChannelId: logSelect.value || null,
+    dashboardLogChannelId: dashLogSelect.value || null,
+    staffRoleIds
+  };
+
+  try {
+    const resp = await fetch(`/api/guilds/${encodeURIComponent(guildId)}/config`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+
+    if (!resp.ok) {
+      if (statusEl) {
+        statusEl.textContent =
+          t('config_save_error') || 'Erro ao guardar configuração.';
+      }
+      return;
+    }
+
+    if (statusEl) {
+      statusEl.textContent =
+        t('config_save_ok') || 'Configuração guardada com sucesso.';
+    }
+  } catch (err) {
+    console.error('Erro a guardar config do servidor:', err);
+    if (statusEl) {
+      statusEl.textContent =
+        t('config_save_error') || 'Erro ao guardar configuração.';
+    }
+  }
 }
 
 // Boot
@@ -1562,124 +1487,20 @@ document.addEventListener('DOMContentLoaded', () => {
       saveGameNewsFeeds().catch((err) => console.error('Erro saveGameNewsFeeds:', err));
     });
   }
-});
 
-async function loadGuildConfig() {
-  const guildPicker = document.getElementById('guildPicker');
-  const statusEl = document.getElementById('configStatus');
-  const logSelect = document.getElementById('configLogChannel');
-  const dashLogSelect = document.getElementById('configDashboardLogChannel');
-  const staffSelect = document.getElementById('configStaffRoles');
 
-  if (!guildPicker || !logSelect || !dashLogSelect || !staffSelect) return;
-
-  const guildId = guildPicker.value || '';
-  if (!guildId) {
-    if (statusEl) statusEl.textContent = t('warn_select_guild');
-    return;
-  }
-
-  const headers = getAuthHeaders();
-
-  // Metadados (canais + roles)
-  let meta;
-  try {
-    const metaResp = await fetch(`/api/guilds/${encodeURIComponent(guildId)}/meta`, { headers });
-    if (!metaResp.ok) throw new Error('HTTP ' + metaResp.status);
-    meta = await metaResp.json();
-  } catch (err) {
-    console.error('Erro a carregar meta do servidor:', err);
-    if (statusEl) statusEl.textContent =
-      t('config_save_error') || 'Erro ao carregar metadados do servidor.';
-    return;
-  }
-
-  const channels = Array.isArray(meta.channels) ? meta.channels : [];
-  const roles = Array.isArray(meta.roles) ? meta.roles : [];
-
-  logSelect.innerHTML =
-    '<option value="">(nenhum)</option>' +
-    channels
-      .map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`)
-      .join('');
-
-  dashLogSelect.innerHTML =
-    '<option value="">(nenhum)</option>' +
-    channels
-      .map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`)
-      .join('');
-
-  staffSelect.innerHTML = roles
-    .map((r) => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`)
-    .join('');
-
-  // Config atual
-  try {
-    const cfgResp = await fetch(`/api/guilds/${encodeURIComponent(guildId)}/config`, { headers });
-    if (!cfgResp.ok) throw new Error('HTTP ' + cfgResp.status);
-    const cfgData = await cfgResp.json();
-    const cfg = cfgData?.config || {};
-
-    if (cfg.logChannelId) logSelect.value = cfg.logChannelId;
-    if (cfg.dashboardLogChannelId) dashLogSelect.value = cfg.dashboardLogChannelId;
-
-    if (Array.isArray(cfg.staffRoleIds)) {
-      Array.from(staffSelect.options).forEach((opt) => {
-        opt.selected = cfg.staffRoleIds.includes(opt.value);
-      });
-    }
-    if (statusEl) statusEl.textContent = '';
-  } catch (err) {
-    console.error('Erro a carregar config do servidor:', err);
-    if (statusEl) statusEl.textContent =
-      t('config_save_error') || 'Erro ao carregar configuração do servidor.';
-  }
-}
-
-async function saveGuildConfig() {
-  const guildPicker = document.getElementById('guildPicker');
-  const statusEl = document.getElementById('configStatus');
-  const logSelect = document.getElementById('configLogChannel');
-  const dashLogSelect = document.getElementById('configDashboardLogChannel');
-  const staffSelect = document.getElementById('configStaffRoles');
-
-  const guildId = guildPicker?.value || '';
-  if (!guildId) {
-    if (statusEl) statusEl.textContent = t('warn_select_guild');
-    return;
-  }
-
-  const headers = getAuthHeaders();
-  headers['Content-Type'] = 'application/json';
-
-  const staffRoleIds = Array.from(staffSelect.selectedOptions).map((o) => o.value);
-
-  const body = {
-    logChannelId: logSelect.value || null,
-    dashboardLogChannelId: dashLogSelect.value || null,
-    staffRoleIds
-  };
-
-  try {
-    const resp = await fetch(`/api/guilds/${encodeURIComponent(guildId)}/config`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body)
+  // Botões de configuração do servidor
+  const btnReloadCfg = document.getElementById('btnReloadGuildConfig');
+  if (btnReloadCfg) {
+    btnReloadCfg.addEventListener('click', () => {
+      loadGuildConfig().catch((err) => console.error('Erro loadGuildConfig (reload):', err));
     });
-
-    if (!resp.ok) {
-      if (statusEl) statusEl.textContent =
-        t('config_save_error') || 'Erro ao guardar configuração.';
-      return;
-    }
-
-    if (statusEl) statusEl.textContent =
-      t('config_save_ok') || 'Configuração guardada com sucesso.';
-  } catch (err) {
-    console.error('Erro a guardar config do servidor:', err);
-    if (statusEl) statusEl.textContent =
-      t('config_save_error') || 'Erro ao guardar configuração.';
   }
-}
 
-
+  const btnSaveCfg = document.getElementById('btnSaveGuildConfig');
+  if (btnSaveCfg) {
+    btnSaveCfg.addEventListener('click', () => {
+      saveGuildConfig().catch((err) => console.error('Erro saveGuildConfig:', err));
+    });
+  }
+});
