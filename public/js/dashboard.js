@@ -3,6 +3,8 @@ const state = {
   lang: 'pt',
 };
 
+const DASH_TOKEN_KEY = 'DASHBOARD_TOKEN';
+
 // Traduções
 const I18N = {
   pt: {
@@ -45,6 +47,9 @@ const I18N = {
     cases_title: 'Casos',
     cases_hint: 'Visão consolidada das infrações de cada utilizador ao longo do tempo.',
     cases_empty: 'Ainda não existem casos registados para este servidor.',
+    cases_loading: 'A carregar casos…',
+    cases_error_generic: 'Não foi possível carregar os casos.',
+    cases_error_http: 'Erro ao carregar casos.',
 
     // Tickets
     tickets_title: 'Tickets',
@@ -111,6 +116,9 @@ const I18N = {
     cases_title: 'Cases',
     cases_hint: 'Consolidated view of each user’s infractions over time.',
     cases_empty: 'No cases have been registered for this server yet.',
+    cases_loading: 'Loading cases…',
+    cases_error_generic: 'Could not load cases.',
+    cases_error_http: 'Error loading cases.',
 
     // Tickets
     tickets_title: 'Tickets',
@@ -175,19 +183,54 @@ function setLang(newLang) {
   applyI18n();
 }
 
+// ==== TOKEN DASHBOARD (DASHBOARD_TOKEN) ====
+
+// Lê token, migrando da key antiga se existir
+function getStoredToken() {
+  let jwt = null;
+
+  try {
+    jwt = localStorage.getItem(DASH_TOKEN_KEY);
+    if (!jwt) {
+      const legacy = localStorage.getItem('OZARK_DASH_JWT');
+      if (legacy) {
+        jwt = legacy;
+        localStorage.setItem(DASH_TOKEN_KEY, legacy);
+        localStorage.removeItem('OZARK_DASH_JWT');
+      }
+    }
+  } catch {
+    jwt = null;
+  }
+
+  return jwt || null;
+}
+
+function setStoredToken(jwt) {
+  try {
+    if (!jwt) {
+      localStorage.removeItem(DASH_TOKEN_KEY);
+    } else {
+      localStorage.setItem(DASH_TOKEN_KEY, jwt);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 // Pede e guarda o token da dashboard (DASHBOARD_TOKEN)
 function ensureDashToken() {
-  let jwt = localStorage.getItem('OZARK_DASH_JWT');
+  let jwt = getStoredToken();
   if (!jwt) {
     const msgPt = 'Introduz o token da dashboard (DASHBOARD_TOKEN do .env):';
     const msgEn = 'Enter the dashboard token (DASHBOARD_TOKEN from .env):';
     const ask = state.lang === 'en' ? msgEn : msgPt;
 
-    jwt = window.prompt(ask, '');
-    if (jwt) {
-      jwt = jwt.trim();
+    const input = window.prompt(ask, '');
+    if (input) {
+      jwt = input.trim();
       if (jwt) {
-        localStorage.setItem('OZARK_DASH_JWT', jwt);
+        setStoredToken(jwt);
       }
     }
   }
@@ -239,7 +282,7 @@ function updateTabAccess() {
   if (!hasGuild) {
     if (warning) warning.classList.add('visible');
 
-    // se por algum motivo estivermos numa tab que exige guild, volta para overview
+    // se estivermos numa tab que exige guild, volta para overview
     const active = document.querySelector('.tab.active');
     const activeName = active?.dataset.tab;
     if (activeName && needsGuild.includes(activeName)) {
@@ -280,11 +323,10 @@ async function loadLogs(page = 1) {
   if (search) params.set('search', search);
 
   const headers = {};
-  // Garante que temos token da dashboard
   const jwt = ensureDashToken();
   if (jwt) {
     headers['Authorization'] = `Bearer ${jwt}`;
-    headers['x-dashboard-token'] = jwt; // redundância: backend também pode aceitar este header
+    headers['x-dashboard-token'] = jwt;
   }
 
   let resp;
@@ -362,6 +404,110 @@ async function loadLogs(page = 1) {
   listEl.innerHTML = html;
 }
 
+// ==== CASES: esqueleto de ligação a /api/cases ====
+
+async function loadCases(page = 1) {
+  const guildPicker = document.getElementById('guildPicker');
+  const listEl = document.getElementById('casesList') || document.querySelector('#tab-cases .list');
+
+  if (!listEl) return;
+
+  const guildId = guildPicker?.value || '';
+  if (!guildId) {
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('warn_select_guild'))}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = `<div class="empty">${escapeHtml(t('cases_loading'))}</div>`;
+
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('limit', '20');
+  params.set('guildId', guildId);
+
+  const headers = {};
+  const jwt = ensureDashToken();
+  if (jwt) {
+    headers['Authorization'] = `Bearer ${jwt}`;
+    headers['x-dashboard-token'] = jwt;
+  }
+
+  let resp;
+  try {
+    resp = await fetch(`/api/cases?${params.toString()}`, { headers });
+  } catch (err) {
+    console.error('Erro ao chamar /api/cases:', err);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('cases_error_generic'))}</div>`;
+    return;
+  }
+
+  if (!resp.ok) {
+    console.error('HTTP error /api/cases:', resp.status);
+
+    if (resp.status === 401) {
+      listEl.innerHTML = `<div class="empty">
+        ${escapeHtml(t('cases_error_http'))} (401)<br><br>
+        ${
+          state.lang === 'en'
+            ? 'Check if the dashboard token (DASHBOARD_TOKEN) is configured and correct.'
+            : 'Verifica se o token da dashboard (DASHBOARD_TOKEN) está configurado e correto.'
+        }
+      </div>`;
+    } else {
+      listEl.innerHTML = `<div class="empty">${escapeHtml(t('cases_error_http'))} (${resp.status})</div>`;
+    }
+    return;
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    console.error('Erro a ler JSON de /api/cases:', err);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('cases_error_generic'))}</div>`;
+    return;
+  }
+
+  const items = data.items || [];
+
+  if (!items.length) {
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('cases_empty'))}</div>`;
+    return;
+  }
+
+  const html = items
+    .map((c) => {
+      const userTag = c.user?.tag || c.user?.id || '—';
+      const total = c.totalInfractions ?? c.count ?? '—';
+      const lastType = c.lastAction?.type || c.lastType || '';
+      const lastAt = c.lastAction?.at || c.lastAt || '';
+      const summary = c.summary || '';
+      return `
+        <div class="card">
+          <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
+            <div>
+              <strong>${escapeHtml(userTag)}</strong>
+              ${
+                summary
+                  ? `<div class="hint">${escapeHtml(summary)}</div>`
+                  : ''
+              }
+            </div>
+            <div style="text-align:right; font-size:11px; color:var(--text-muted);">
+              <div>Total: ${escapeHtml(total)}</div>
+              ${lastType ? `<div>Última ação: ${escapeHtml(lastType)}</div>` : ''}
+              ${lastAt ? `<div>Atualizado em: ${escapeHtml(lastAt)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  listEl.innerHTML = html;
+}
+
+// Tabs & navegação
 function initTabs() {
   const tabsEl = document.getElementById('tabs');
   if (!tabsEl) return;
@@ -381,16 +527,16 @@ function initTabs() {
 
     // 1) Bloqueio por servidor
     if (!currentGuild && needsGuild.includes(name)) {
-      updateTabAccess(); // garante aviso + volta à Overview se for preciso
+      updateTabAccess();
       return;
     }
 
     // 2) Bloqueio por token (auth)
     if (protectedTabs.includes(name)) {
-      const existing = localStorage.getItem('OZARK_DASH_JWT');
+      const existing = getStoredToken();
       const jwt = existing || ensureDashToken();
       if (!jwt) {
-        // Utilizador cancelou o prompt ou não guardou token: não muda de tab
+        // Cancelou o prompt → não muda de tab
         return;
       }
     }
@@ -398,9 +544,12 @@ function initTabs() {
     // 3) Ativar tab
     setTab(name);
 
-    // 4) Lazy load de logs quando se entra na tab
+    // 4) Lazy load consoante a tab
     if (name === 'logs') {
       loadLogs().catch((err) => console.error('Erro loadLogs:', err));
+    }
+    if (name === 'cases') {
+      loadCases().catch((err) => console.error('Erro loadCases:', err));
     }
   });
 }
@@ -424,10 +573,12 @@ document.addEventListener('DOMContentLoaded', () => {
     guildPicker.addEventListener('change', () => {
       updateTabAccess();
 
-      // se estivermos na tab de logs quando mudas de servidor, recarrega logs
       const activeName = document.querySelector('.tab.active')?.dataset.tab;
       if (activeName === 'logs') {
         loadLogs().catch((err) => console.error('Erro loadLogs (guild change):', err));
+      }
+      if (activeName === 'cases') {
+        loadCases().catch((err) => console.error('Erro loadCases (guild change):', err));
       }
     });
   } else {
