@@ -505,7 +505,7 @@ async function loadOverview() {
   aEl.textContent = String(data.actions24h ?? 0);
 }
 
-function loadLogs(page = 1) {
+async function loadLogs(page = 1) {
   const guildPicker = document.getElementById('guildPicker');
   const listEl = document.getElementById('logsList');
   const typeEl = document.getElementById('logType');
