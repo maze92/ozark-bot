@@ -1,6 +1,7 @@
 // Estado simples
 const state = {
   lang: 'pt',
+  guildId: '',
 };
 
 // Traduções
@@ -51,6 +52,7 @@ const I18N = {
     config_hint: 'Ajuste canais, cargos de staff e preferências de registo.',
     config_empty: 'Em breve: integração com a API do OzarkBot para guardar definições.',
 
+    warn_select_guild: 'Selecione um servidor para aceder às restantes secções.',
     language_changed: 'Idioma alterado.',
   },
   en: {
@@ -99,6 +101,7 @@ const I18N = {
     config_hint: 'Adjust channels, staff roles and logging preferences.',
     config_empty: 'Coming soon: direct integration with OzarkBot API.',
 
+    warn_select_guild: 'Select a server to access the other sections.',
     language_changed: 'Language updated.',
   },
 };
@@ -148,6 +151,32 @@ function setTab(name) {
   });
 }
 
+// Bloqueio de tabs sem servidor
+function updateTabAccess() {
+  const needsGuild = ['logs', 'cases', 'tickets', 'gamenews', 'user', 'config'];
+  const hasGuild = !!state.guildId;
+  const warning = document.getElementById('tabWarning');
+
+  document.querySelectorAll('.tab').forEach((tab) => {
+    const name = tab.dataset.tab;
+    if (!name) return;
+    if (needsGuild.includes(name)) {
+      tab.classList.toggle('disabled', !hasGuild);
+    }
+  });
+
+  if (!hasGuild) {
+    const active = document.querySelector('.tab.active');
+    const activeName = active?.dataset.tab;
+    if (activeName && needsGuild.includes(activeName)) {
+      setTab('overview');
+    }
+    if (warning) warning.classList.add('visible');
+  } else {
+    if (warning) warning.classList.remove('visible');
+  }
+}
+
 function initTabs() {
   const tabsEl = document.getElementById('tabs');
   if (!tabsEl) return;
@@ -157,6 +186,12 @@ function initTabs() {
     if (!tabEl) return;
     const name = tabEl.dataset.tab;
     if (!name) return;
+
+    if (tabEl.classList.contains('disabled')) {
+      updateTabAccess();
+      return;
+    }
+
     setTab(name);
   });
 }
@@ -172,12 +207,25 @@ document.addEventListener('DOMContentLoaded', () => {
   applyI18n();
   initTabs();
 
+  // Guild picker
+  const guildPicker = document.getElementById('guildPicker');
+  if (guildPicker) {
+    state.guildId = guildPicker.value || '';
+    updateTabAccess();
+
+    guildPicker.addEventListener('change', (e) => {
+      state.guildId = e.target.value || '';
+      updateTabAccess();
+    });
+  } else {
+    updateTabAccess();
+  }
+
   // Listener de idioma
   const langPicker = document.getElementById('langPicker');
   if (langPicker) {
     langPicker.addEventListener('change', (e) => {
       setLang(e.target.value);
-      // opcional: pequeno aviso visual
       console.log(t('language_changed'));
     });
   }
