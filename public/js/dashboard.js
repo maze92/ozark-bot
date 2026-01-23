@@ -55,11 +55,17 @@ const I18N = {
     tickets_title: 'Tickets',
     tickets_hint: 'Gestão de pedidos de suporte e tickets abertos nos servidores configurados.',
     tickets_empty: 'Não foram encontrados tickets para o período selecionado.',
+    tickets_loading: 'A carregar tickets…',
+    tickets_error_generic: 'Não foi possível carregar os tickets.',
+    tickets_error_http: 'Erro ao carregar tickets.',
 
     // GameNews
     gamenews_title: 'GameNews',
     gamenews_hint: 'Estado dos feeds de notícias, últimos envios e potenciais falhas na publicação.',
     gamenews_empty: 'Nenhum feed de GameNews se encontra configurado neste momento.',
+    gamenews_loading: 'A carregar estado dos feeds…',
+    gamenews_error_generic: 'Não foi possível carregar o estado dos feeds.',
+    gamenews_error_http: 'Erro ao carregar GameNews.',
 
     // Users
     users_title: 'Utilizadores',
@@ -124,11 +130,17 @@ const I18N = {
     tickets_title: 'Tickets',
     tickets_hint: 'Manage support requests and open tickets across your configured guilds.',
     tickets_empty: 'No tickets were found for the selected period.',
+    tickets_loading: 'Loading tickets…',
+    tickets_error_generic: 'Could not load tickets.',
+    tickets_error_http: 'Error loading tickets.',
 
     // GameNews
     gamenews_title: 'GameNews',
     gamenews_hint: 'Status of news feeds, recent posts and any delivery failures.',
     gamenews_empty: 'No GameNews feeds are configured at the moment.',
+    gamenews_loading: 'Loading feed status…',
+    gamenews_error_generic: 'Could not load feed status.',
+    gamenews_error_http: 'Error loading GameNews.',
 
     // Users
     users_title: 'Users',
@@ -374,11 +386,11 @@ async function loadLogs(page = 1) {
 
   const html = items
     .map((item) => {
-      const title = item.title || '';
-      const userTag = item.user?.tag || item.user?.id || '—';
-      const execTag = item.executor?.tag || item.executor?.id || '—';
+      const title = item.title || item.type || '';
+      const userTag = item.user?.tag || item.userId || '—';
+      const execTag = item.executor?.tag || item.moderatorId || '—';
       const time = item.time || item.createdAt || '';
-      const description = item.description || '';
+      const description = item.description || item.reason || '';
       return `
         <div class="card">
           <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
@@ -404,7 +416,7 @@ async function loadLogs(page = 1) {
   listEl.innerHTML = html;
 }
 
-// ==== CASES: esqueleto de ligação a /api/cases ====
+// ==== CASES: ligação a /api/cases ====
 
 async function loadCases(page = 1) {
   const guildPicker = document.getElementById('guildPicker');
@@ -477,26 +489,228 @@ async function loadCases(page = 1) {
 
   const html = items
     .map((c) => {
-      const userTag = c.user?.tag || c.user?.id || '—';
-      const total = c.totalInfractions ?? c.count ?? '—';
-      const lastType = c.lastAction?.type || c.lastType || '';
-      const lastAt = c.lastAction?.at || c.lastAt || '';
-      const summary = c.summary || '';
+      const user = c.userId || '—';
+      const type = c.type || '';
+      const caseId = c.caseId != null ? `#${c.caseId}` : '';
+      const reason = c.reason || '';
+      const createdAt = c.createdAt || '';
       return `
         <div class="card">
           <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
             <div>
-              <strong>${escapeHtml(userTag)}</strong>
+              <strong>${escapeHtml(user)}</strong>
               ${
-                summary
-                  ? `<div class="hint">${escapeHtml(summary)}</div>`
+                reason
+                  ? `<div class="hint">${escapeHtml(reason)}</div>`
                   : ''
               }
             </div>
             <div style="text-align:right; font-size:11px; color:var(--text-muted);">
-              <div>Total: ${escapeHtml(total)}</div>
-              ${lastType ? `<div>Última ação: ${escapeHtml(lastType)}</div>` : ''}
-              ${lastAt ? `<div>Atualizado em: ${escapeHtml(lastAt)}</div>` : ''}
+              ${caseId ? `<div>Case: ${escapeHtml(caseId)}</div>` : ''}
+              ${type ? `<div>Tipo: ${escapeHtml(type)}</div>` : ''}
+              ${createdAt ? `<div>Criado em: ${escapeHtml(createdAt)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  listEl.innerHTML = html;
+}
+
+// ==== TICKETS: ligação a /api/tickets ====
+
+async function loadTickets(page = 1) {
+  const guildPicker = document.getElementById('guildPicker');
+  const listEl = document.querySelector('#tab-tickets .list');
+
+  if (!listEl) return;
+
+  const guildId = guildPicker?.value || '';
+  if (!guildId) {
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('warn_select_guild'))}</div>`;
+    return;
+  }
+
+  listEl.innerHTML = `<div class="empty">${escapeHtml(t('tickets_loading'))}</div>`;
+
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('limit', '20');
+  params.set('guildId', guildId);
+  // Opcionalmente poderíamos passar status/userId no futuro
+
+  const headers = {};
+  const jwt = ensureDashToken();
+  if (jwt) {
+    headers['Authorization'] = `Bearer ${jwt}`;
+    headers['x-dashboard-token'] = jwt;
+  }
+
+  let resp;
+  try {
+    resp = await fetch(`/api/tickets?${params.toString()}`, { headers });
+  } catch (err) {
+    console.error('Erro ao chamar /api/tickets:', err);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('tickets_error_generic'))}</div>`;
+    return;
+  }
+
+  if (!resp.ok) {
+    console.error('HTTP error /api/tickets:', resp.status);
+
+    if (resp.status === 401) {
+      listEl.innerHTML = `<div class="empty">
+        ${escapeHtml(t('tickets_error_http'))} (401)<br><br>
+        ${
+          state.lang === 'en'
+            ? 'Check if the dashboard token (DASHBOARD_TOKEN) is configured and correct.'
+            : 'Verifica se o token da dashboard (DASHBOARD_TOKEN) está configurado e correto.'
+        }
+      </div>`;
+    } else {
+      listEl.innerHTML = `<div class="empty">${escapeHtml(t('tickets_error_http'))} (${resp.status})</div>`;
+    }
+    return;
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    console.error('Erro a ler JSON de /api/tickets:', err);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('tickets_error_generic'))}</div>`;
+    return;
+  }
+
+  const items = data.items || [];
+
+  if (!items.length) {
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('tickets_empty'))}</div>`;
+    return;
+  }
+
+  const html = items
+    .map((tkt) => {
+      const userId = tkt.userId || tkt.createdById || '—';
+      const channelId = tkt.channelId || '—';
+      const status = tkt.status || 'OPEN';
+      const createdAt = tkt.createdAt || '';
+      const closedAt = tkt.closedAt || null;
+      const subject = tkt.subject || tkt.topic || '';
+      const lastMsgAt = tkt.lastMessageAt || '';
+
+      return `
+        <div class="card">
+          <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
+            <div>
+              <strong>${escapeHtml(subject || `Ticket de ${userId}`)}</strong>
+              <div class="hint">
+                Utilizador: ${escapeHtml(userId)}<br>
+                Canal: ${escapeHtml(channelId)}
+              </div>
+            </div>
+            <div style="text-align:right; font-size:11px; color:var(--text-muted);">
+              <div>Status: ${escapeHtml(status)}</div>
+              ${createdAt ? `<div>Criado em: ${escapeHtml(createdAt)}</div>` : ''}
+              ${closedAt ? `<div>Fechado em: ${escapeHtml(closedAt)}</div>` : ''}
+              ${lastMsgAt ? `<div>Última msg: ${escapeHtml(lastMsgAt)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  listEl.innerHTML = html;
+}
+
+// ==== GAMENEWS: ligação a /api/gamenews-status ====
+
+async function loadGameNewsStatus() {
+  const listEl = document.querySelector('#tab-gamenews .list');
+  if (!listEl) return;
+
+  listEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_loading'))}</div>`;
+
+  const headers = {};
+  const jwt = ensureDashToken();
+  if (jwt) {
+    headers['Authorization'] = `Bearer ${jwt}`;
+    headers['x-dashboard-token'] = jwt;
+  }
+
+  let resp;
+  try {
+    resp = await fetch('/api/gamenews-status', { headers });
+  } catch (err) {
+    console.error('Erro ao chamar /api/gamenews-status:', err);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_error_generic'))}</div>`;
+    return;
+  }
+
+  if (!resp.ok) {
+    console.error('HTTP error /api/gamenews-status:', resp.status);
+
+    if (resp.status === 401) {
+      listEl.innerHTML = `<div class="empty">
+        ${escapeHtml(t('gamenews_error_http'))} (401)<br><br>
+        ${
+          state.lang === 'en'
+            ? 'Check if the dashboard token (DASHBOARD_TOKEN) is configured and correct.'
+            : 'Verifica se o token da dashboard (DASHBOARD_TOKEN) está configurado e correto.'
+        }
+      </div>`;
+    } else {
+      listEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_error_http'))} (${resp.status})</div>`;
+    }
+    return;
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    console.error('Erro a ler JSON de /api/gamenews-status:', err);
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_error_generic'))}</div>`;
+    return;
+  }
+
+  const items = data.items || [];
+
+  if (!items.length) {
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_empty'))}</div>`;
+    return;
+  }
+
+  const html = items
+    .map((feed) => {
+      const name = feed.feedName || feed.source || 'Feed';
+      const url = feed.feedUrl || '';
+      const channelId = feed.channelId || '—';
+      const enabled = feed.enabled !== false;
+      const failCount = feed.failCount ?? 0;
+      const lastSentAt = feed.lastSentAt || '';
+      const lastHashesCount = feed.lastHashesCount ?? 0;
+      const pausedUntil = feed.pausedUntil || null;
+
+      return `
+        <div class="card">
+          <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
+            <div>
+              <strong>${escapeHtml(name)}</strong>
+              <div class="hint">
+                ${url ? `Feed: ${escapeHtml(url)}<br>` : ''}
+                Canal: ${escapeHtml(channelId)}
+              </div>
+            </div>
+            <div style="text-align:right; font-size:11px; color:var(--text-muted);">
+              <div>Ativo: ${enabled ? 'Sim' : 'Não'}</div>
+              <div>Falhas: ${escapeHtml(failCount)}</div>
+              <div>Último envio: ${escapeHtml(lastSentAt || '—')}</div>
+              <div>Hashes recentes: ${escapeHtml(lastHashesCount)}</div>
+              ${pausedUntil ? `<div>Pausado até: ${escapeHtml(pausedUntil)}</div>` : ''}
             </div>
           </div>
         </div>
@@ -551,6 +765,12 @@ function initTabs() {
     if (name === 'cases') {
       loadCases().catch((err) => console.error('Erro loadCases:', err));
     }
+    if (name === 'tickets') {
+      loadTickets().catch((err) => console.error('Erro loadTickets:', err));
+    }
+    if (name === 'gamenews') {
+      loadGameNewsStatus().catch((err) => console.error('Erro loadGameNewsStatus:', err));
+    }
   });
 }
 
@@ -579,6 +799,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (activeName === 'cases') {
         loadCases().catch((err) => console.error('Erro loadCases (guild change):', err));
+      }
+      if (activeName === 'tickets') {
+        loadTickets().catch((err) => console.error('Erro loadTickets (guild change):', err));
+      }
+      if (activeName === 'gamenews') {
+        loadGameNewsStatus().catch((err) => console.error('Erro loadGameNewsStatus (guild change):', err));
       }
     });
   } else {
