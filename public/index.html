@@ -20,6 +20,7 @@
       <div class="topbar-right">
         <select id="guildPicker" class="select">
           <option value="" data-i18n="select_guild">Selecione um servidor</option>
+          <!-- estes são apenas exemplos, depois trocamos pelos reais via API -->
           <option value="dummy-1">Servidor de exemplo #1</option>
           <option value="dummy-2">Servidor de exemplo #2</option>
         </select>
@@ -42,6 +43,11 @@
       <button class="tab" data-tab="gamenews" data-i18n="tab_gamenews">GameNews</button>
       <button class="tab" data-tab="user" data-i18n="tab_user">Utilizadores</button>
       <button class="tab" data-tab="config" data-i18n="tab_config">Configuração</button>
+    </div>
+
+    <!-- Aviso quando não há servidor selecionado -->
+    <div id="tabWarning" class="tab-warning" data-i18n="warn_select_guild">
+      Selecione um servidor para aceder às restantes secções.
     </div>
 
     <!-- Sections -->
