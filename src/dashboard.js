@@ -26,7 +26,6 @@ let UserModel = null;
 let GuildConfig = null;
 let DashboardAudit = null;
 let TicketModel = null;
-let Infraction = null;
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -148,12 +147,6 @@ try {
   TicketModel = require('./database/models/Ticket');
 } catch (e) {
   console.warn('[Dashboard] Ticket model not loaded (did you create src/database/models/Ticket.js?)');
-}
-
-try {
-  Infraction = require('./database/models/Infraction');
-} catch (e) {
-  console.warn('[Dashboard] Infraction model not loaded (did you create src/database/models/Infraction.js?)');
 }
 
 const app = express();
@@ -331,6 +324,19 @@ app.use('/api', rateLimit({ windowMs: 60_000, max: 100, keyPrefix: 'rl:api:' }))
 app.get('/api/guilds', requireDashboardAuth, async (req, res) => {
   try {
     if (!_client) return res.json({ ok: true, items: [] });
+    const items = _client.guilds.cache.map((g) => ({
+      id: g.id,
+      name: g.name
+    }));
+    items.sort((a, b) => a.name.localeCompare(b.name));
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error('[Dashboard] /api/guilds error:', err);
+    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
+  }
+});
+
+
 // Overview metrics for dashboard
 app.get('/api/overview', requireDashboardAuth, async (req, res) => {
   try {
@@ -366,17 +372,8 @@ app.get('/api/overview', requireDashboardAuth, async (req, res) => {
   }
 });
 
-    const items = _client.guilds.cache.map((g) => ({
-      id: g.id,
-      name: g.name
-    }));
-    items.sort((a, b) => a.name.localeCompare(b.name));
-    return res.json({ ok: true, items });
-  } catch (err) {
-    console.error('[Dashboard] /api/guilds error:', err);
-    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
-  }
-});
+
+
 
 // Guild metadata for dashboard UI (channels + roles)
 app.get('/api/guilds/:guildId/meta', requireDashboardAuth, async (req, res) => {
@@ -408,6 +405,26 @@ app.get('/api/guilds/:guildId/meta', requireDashboardAuth, async (req, res) => {
 app.get('/api/guilds/:guildId/channels', requireDashboardAuth, async (req, res) => {
   try {
     if (!_client) return res.json({ ok: true, items: [] });
+
+    const guildId = sanitizeId(req.params.guildId);
+    if (!guildId) return res.status(400).json({ ok: false, error: 'guildId is required' });
+
+    const guild = _client.guilds.cache.get(guildId) || null;
+    if (!guild) return res.status(404).json({ ok: false, error: 'Guild not found' });
+
+    const items = guild.channels.cache
+      .filter((ch) => ch && ch.isTextBased?.() && !ch.isDMBased?.())
+      .map((ch) => ({ id: ch.id, name: ch.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error('[Dashboard] /api/guilds/:guildId/channels error:', err);
+    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
+  }
+});
+
+
 // Guild members (for Users tab)
 app.get('/api/guilds/:guildId/users', requireDashboardAuth, async (req, res) => {
   try {
@@ -452,23 +469,7 @@ app.get('/api/guilds/:guildId/users', requireDashboardAuth, async (req, res) => 
 });
 
 
-    const guildId = sanitizeId(req.params.guildId);
-    if (!guildId) return res.status(400).json({ ok: false, error: 'guildId is required' });
 
-    const guild = _client.guilds.cache.get(guildId) || null;
-    if (!guild) return res.status(404).json({ ok: false, error: 'Guild not found' });
-
-    const items = guild.channels.cache
-      .filter((ch) => ch && ch.isTextBased?.() && !ch.isDMBased?.())
-      .map((ch) => ({ id: ch.id, name: ch.name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    return res.json({ ok: true, items });
-  } catch (err) {
-    console.error('[Dashboard] /api/guilds/:guildId/channels error:', err);
-    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
-  }
-});
 
 app.get('/api/config', requireDashboardAuth, (req, res) => {
   try {
@@ -1933,6 +1934,29 @@ app.post('/api/tickets/clear', requireDashboardAuth, rateLimit({ windowMs: 60_00
   try {
     if (!TicketModel) {
       return res.status(503).json({ ok: false, error: 'Ticket model not available' });
+    }
+
+    const guildId = (req.body?.guildId || '').toString().trim();
+    if (!guildId) {
+      return res.status(400).json({ ok: false, error: 'guildId is required' });
+    }
+
+    await recordAudit({
+      req,
+      action: 'tickets.clear',
+      guildId,
+      targetUserId: null,
+      actor: getActorFromRequest(req),
+      payload: null
+    });
+
+    const result = await TicketModel.deleteMany({ guildId });
+    return res.json({ ok: true, deleted: result?.deletedCount || 0 });
+  } catch (err) {
+    console.error('[Dashboard] /api/tickets/clear error:', err);
+    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
+  }
+});
 // Reply to a ticket from the dashboard
 app.post('/api/tickets/:ticketId/reply', requireDashboardAuth, async (req, res) => {
   try {
@@ -1973,14 +1997,10 @@ app.post('/api/tickets/:ticketId/reply', requireDashboardAuth, async (req, res) 
     }
 
     const actor = getActorFromRequest(req) || 'dashboard';
-    const prefix =
-      state && state.lang === 'en'
-        ? '[Dashboard reply]'
-        : '[Resposta via dashboard]';
+    const prefix = '[Dashboard reply]';
 
     await channel.send(`${prefix} ${content}`);
 
-    // No need to update Ticket document besides lastMessageAt (best-effort)
     try {
       await TicketModel.updateOne({ _id: ticketId }, { $set: { lastMessageAt: new Date() } });
     } catch (e) {
@@ -2003,29 +2023,6 @@ app.post('/api/tickets/:ticketId/reply', requireDashboardAuth, async (req, res) 
   }
 });
 
-    }
-
-    const guildId = (req.body?.guildId || '').toString().trim();
-    if (!guildId) {
-      return res.status(400).json({ ok: false, error: 'guildId is required' });
-    }
-
-    await recordAudit({
-      req,
-      action: 'tickets.clear',
-      guildId,
-      targetUserId: null,
-      actor: getActorFromRequest(req),
-      payload: null
-    });
-
-    const result = await TicketModel.deleteMany({ guildId });
-    return res.json({ ok: true, deleted: result?.deletedCount || 0 });
-  } catch (err) {
-    console.error('[Dashboard] /api/tickets/clear error:', err);
-    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
-  }
-});
 
 // Histórico de alterações de configuração (auditoria)
 app.get('/api/audit/config', requireDashboardAuth, async (req, res) => {
