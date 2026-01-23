@@ -1563,6 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
 async function loadGuildConfig() {
   const guildPicker = document.getElementById('guildPicker');
   const statusEl = document.getElementById('configStatus');
@@ -1588,18 +1589,25 @@ async function loadGuildConfig() {
     meta = await metaResp.json();
   } catch (err) {
     console.error('Erro a carregar meta do servidor:', err);
-    if (statusEl) statusEl.textContent = t('config_save_error') || 'Erro ao carregar metadados do servidor.';
+    if (statusEl) statusEl.textContent =
+      t('config_save_error') || 'Erro ao carregar metadados do servidor.';
     return;
   }
 
   const channels = Array.isArray(meta.channels) ? meta.channels : [];
   const roles = Array.isArray(meta.roles) ? meta.roles : [];
 
-  logSelect.innerHTML = '<option value="">(nenhum)</option>' +
-    channels.map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`).join('');
+  logSelect.innerHTML =
+    '<option value="">(nenhum)</option>' +
+    channels
+      .map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`)
+      .join('');
 
-  dashLogSelect.innerHTML = '<option value="">(nenhum)</option>' +
-    channels.map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`).join('');
+  dashLogSelect.innerHTML =
+    '<option value="">(nenhum)</option>' +
+    channels
+      .map((c) => `<option value="${escapeHtml(c.id)}">#${escapeHtml(c.name)}</option>`)
+      .join('');
 
   staffSelect.innerHTML = roles
     .map((r) => `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`)
@@ -1623,7 +1631,8 @@ async function loadGuildConfig() {
     if (statusEl) statusEl.textContent = '';
   } catch (err) {
     console.error('Erro a carregar config do servidor:', err);
-    if (statusEl) statusEl.textContent = t('config_save_error') || 'Erro ao carregar configuração do servidor.';
+    if (statusEl) statusEl.textContent =
+      t('config_save_error') || 'Erro ao carregar configuração do servidor.';
   }
 }
 
@@ -1656,32 +1665,20 @@ async function saveGuildConfig() {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
-    
-  const btnReloadCfg = document.getElementById('btnReloadGuildConfig');
-  if (btnReloadCfg) {
-    btnReloadCfg.addEventListener('click', () => {
-      loadGuildConfig().catch((err) => console.error('Erro loadGuildConfig (reload):', err));
     });
-  }
-
-  const btnSaveCfg = document.getElementById('btnSaveGuildConfig');
-  if (btnSaveCfg) {
-    btnSaveCfg.addEventListener('click', () => {
-      saveGuildConfig().catch((err) => console.error('Erro saveGuildConfig:', err));
-    });
-  }
-
-});
 
     if (!resp.ok) {
-      if (statusEl) statusEl.textContent = t('config_save_error') || 'Erro ao guardar configuração.';
+      if (statusEl) statusEl.textContent =
+        t('config_save_error') || 'Erro ao guardar configuração.';
       return;
     }
 
-    if (statusEl) statusEl.textContent = t('config_save_ok') || 'Configuração guardada com sucesso.';
+    if (statusEl) statusEl.textContent =
+      t('config_save_ok') || 'Configuração guardada com sucesso.';
   } catch (err) {
     console.error('Erro a guardar config do servidor:', err);
-    if (statusEl) statusEl.textContent = t('config_save_error') || 'Erro ao guardar configuração.';
+    if (statusEl) statusEl.textContent =
+      t('config_save_error') || 'Erro ao guardar configuração.';
   }
 }
 
