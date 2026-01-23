@@ -727,7 +727,7 @@ async function loadTickets(page = 1) {
       const lastMsgAt = tkt.lastMessageAt || '';
 
       return `
-        <div class="card ticket-row" data-ticket-id="${"${escapeHtml(ticketId)}"}">
+        <div class="card ticket-row" data-ticket-id="${ticketId}">
           <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
             <div>
               <strong>${"${escapeHtml(subject || `Ticket de ${userId}`)}"}</strong>
