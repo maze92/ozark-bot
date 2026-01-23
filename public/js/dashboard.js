@@ -58,8 +58,8 @@ const I18N = {
 
     // Users
     users_title: 'Utilizadores',
-    users_hint: 'Consulta rápida de métricas, histórico de casos e ações aplicadas a cada utilizador.',
-    users_empty: 'Selecione um servidor para listar e analisar os respetivos utilizadores.',
+    users_hint: 'Consulta rápida de métricas e histórico de casos de cada utilizador.',
+    users_empty: 'Selecione um servidor para ver utilizadores.',
 
     // Config
     config_title: 'Configuração do servidor',
@@ -138,25 +138,6 @@ const I18N = {
   },
 };
 
-// Pede e guarda o token da dashboard, se ainda não existir
-function ensureDashToken() {
-  let jwt = localStorage.getItem('OZARK_DASH_JWT');
-  if (!jwt) {
-    const msgPt = 'Introduz o token OZARK_DASH_JWT (o mesmo que tens no .env do bot):';
-    const msgEn = 'Enter the OZARK_DASH_JWT token (same as in the bot .env):';
-    const ask = state.lang === 'en' ? msgEn : msgPt;
-
-    jwt = window.prompt(ask, '');
-    if (jwt) {
-      jwt = jwt.trim();
-      if (jwt) {
-        localStorage.setItem('OZARK_DASH_JWT', jwt);
-      }
-    }
-  }
-  return jwt || null;
-}
-
 // Helpers
 function t(key) {
   const lang = I18N[state.lang] ? state.lang : 'pt';
@@ -192,6 +173,25 @@ function setLang(newLang) {
   if (lp) lp.value = state.lang;
 
   applyI18n();
+}
+
+// Pede e guarda o token da dashboard (DASHBOARD_TOKEN)
+function ensureDashToken() {
+  let jwt = localStorage.getItem('OZARK_DASH_JWT');
+  if (!jwt) {
+    const msgPt = 'Introduz o token da dashboard (DASHBOARD_TOKEN do .env):';
+    const msgEn = 'Enter the dashboard token (DASHBOARD_TOKEN from .env):';
+    const ask = state.lang === 'en' ? msgEn : msgPt;
+
+    jwt = window.prompt(ask, '');
+    if (jwt) {
+      jwt = jwt.trim();
+      if (jwt) {
+        localStorage.setItem('OZARK_DASH_JWT', jwt);
+      }
+    }
+  }
+  return jwt || null;
 }
 
 // Sanitização simples de texto para evitar XSS
@@ -300,12 +300,11 @@ async function loadLogs(page = 1) {
 
     if (resp.status === 401) {
       listEl.innerHTML = `<div class="empty">
-        ${escapeHtml(t('logs_error_http'))} (401)<br>
-        <br>
+        ${escapeHtml(t('logs_error_http'))} (401)<br><br>
         ${
           state.lang === 'en'
-            ? 'Check if the dashboard token (OZARK_DASH_JWT) is correct.'
-            : 'Verifica se o token da dashboard (OZARK_DASH_JWT) está correto.'
+            ? 'Check if the dashboard token (DASHBOARD_TOKEN) is configured and correct.'
+            : 'Verifica se o token da dashboard (DASHBOARD_TOKEN) está configurado e correto.'
         }
       </div>`;
     } else {
