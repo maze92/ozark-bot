@@ -84,7 +84,7 @@ module.exports = async function ticketSlash(client, interaction) {
     ];
 
     // Allow configured staff roles
-    for (const roleId of staffRoleIds) {
+    for (const roleId of // staffRoleIds (removed)) {
       overwrites.push({
         id: roleId,
         allow: [
@@ -147,13 +147,13 @@ module.exports = async function ticketSlash(client, interaction) {
       'Um membro da equipa irá responder assim que possível.'
     ];
 
-    if (staffRoleIds.length) {
-      introLines.push('', staffRoleIds.map((id) => `<@&${id}>`).join(' '));
+    if (// staffRoleIds (removed).length) {
+      introLines.push('', // staffRoleIds (removed).map((id) => `<@&${id}>`).join(' '));
     }
 
     await channel.send({
       content: introLines.join('\n'),
-      allowedMentions: { users: [interaction.user.id], roles: staffRoleIds }
+      allowedMentions: { users: [interaction.user.id], roles: // staffRoleIds (removed) }
     });
 
     return interaction.reply({
