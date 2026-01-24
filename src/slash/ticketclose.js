@@ -37,8 +37,7 @@ module.exports = async (client, interaction) => {
 
     const ticket = await Ticket.findOne({
       guildId: guild.id,
-      channelId: channel.id,
-      status: 'OPEN'
+      channelId: channel.id
     });
 
     if (!ticket) {

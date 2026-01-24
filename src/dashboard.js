@@ -1910,12 +1910,6 @@ app.post('/api/tickets/:ticketId/close', requireDashboardAuth, async (req, res) 
         if (guild) {
           const channel = guild.channels.cache.get(ticket.channelId);
           if (channel && channel.isTextBased?.()) {
-            try {
-              await channel.send('✅ Ticket fechado. Obrigado por entrares em contacto!');
-            } catch (err) {
-              console.warn('[Dashboard] Failed to send ticket close message:', err?.message || err);
-            }
-
             const rawUserId = ticket.userId;
             const userIdStr = rawUserId ? String(rawUserId).trim() : '';
             const isLikelyId = /^[0-9]{10,20}$/.test(userIdStr);
@@ -2050,12 +2044,6 @@ app.post('/api/tickets/:ticketId/reopen', requireDashboardAuth, async (req, res)
         if (guild) {
           const channel = guild.channels.cache.get(ticket.channelId);
           if (channel && channel.isTextBased?.()) {
-            try {
-              await channel.send('✅ Ticket fechado. Obrigado por entrares em contacto!');
-            } catch (err) {
-              console.warn('[Dashboard] Failed to send ticket close message:', err?.message || err);
-            }
-
             const rawUserId = ticket.userId;
             const userIdStr = rawUserId ? String(rawUserId).trim() : '';
             const isLikelyId = /^[0-9]{10,20}$/.test(userIdStr);
