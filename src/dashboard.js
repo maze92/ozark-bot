@@ -1845,7 +1845,9 @@ app.get('/api/tickets', requireDashboardAuth, async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit || '25', 10) || 25, 1), 100);
 
     const statusRaw = (req.query.status || '').toString().trim().toUpperCase();
-    const userId = (req    const query = { guildId };
+    const userId = (req.query.userId || '').toString().trim();
+
+    const query = { guildId };
     if (statusRaw === 'OPEN' || statusRaw === 'CLOSED') {
       query.status = statusRaw;
     }
@@ -1867,8 +1869,11 @@ app.get('/api/tickets', requireDashboardAuth, async (req, res) => {
   }
 });
 
+app.post('/api/tickets/:ticketId/close', requireDashboardAuth, async (req, res) => {
+  try {
+    if (!TicketModel) return res.status(503).json({ ok: false, error: 'Ticket model not available' });
 
- ticketId = (req.params.ticketId || '').toString().trim();
+    const ticketId = (req.params.ticketId || '').toString().trim();
     const rawGuildId = (req.body?.guildId || '').toString().trim();
 
     if (!ticketId) {
@@ -1946,7 +1951,6 @@ app.get('/api/tickets', requireDashboardAuth, async (req, res) => {
   }
 });
 
-// Clear tickets for a guild (dashboard action)
 app.post('/api/tickets/clear', requireDashboardAuth, rateLimit({ windowMs: 60_000, max: 3, keyPrefix: 'rl:tickets:clear:' }), async (req, res) => {
   try {
     if (!TicketModel) {
