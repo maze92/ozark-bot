@@ -3,12 +3,13 @@
 const Ticket = require('../database/models/Ticket');
 const { t } = require('../systems/i18n');
 const { isStaff } = require('../utils/staff');
+const { MessageFlags } = require('discord.js');
 
 module.exports = async (client, interaction) => {
   try {
     if (!interaction?.guild) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const guild = interaction.guild;
     const member = interaction.member;
