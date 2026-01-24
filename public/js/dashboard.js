@@ -715,6 +715,7 @@ async function loadTickets(page = 1) {
   }
 
   
+
   const html = items
     .map((tkt) => {
       const ticketId = tkt._id || tkt.id || '';
@@ -722,33 +723,43 @@ async function loadTickets(page = 1) {
       const channelId = tkt.channelId || '-';
       const status = tkt.status || 'OPEN';
       const createdAt = tkt.createdAt || '';
-      const closedAt = tkt.closedAt || null;
+      const closedAt = tkt.closedAt || '';
       const subject = tkt.subject || tkt.topic || '';
       const lastMsgAt = tkt.lastMessageAt || '';
+
+      const createdLabel = createdAt
+        ? `${state.lang === 'en' ? 'Created at' : 'Criado em'}: ${escapeHtml(createdAt)}`
+        : '';
+      const closedLabel = closedAt
+        ? `${state.lang === 'en' ? 'Closed at' : 'Fechado em'}: ${escapeHtml(closedAt)}`
+        : '';
+      const lastMsgLabel = lastMsgAt
+        ? `${state.lang === 'en' ? 'Last message' : 'Ultima msg'}: ${escapeHtml(lastMsgAt)}`
+        : '';
 
       return `
         <div class="card ticket-row" data-ticket-id="${ticketId}" data-channel-id="${channelId}" data-guild-id="${guildId}">
           <div class="row gap" style="justify-content: space-between; align-items:flex-start;">
             <div>
-              <strong>${"${escapeHtml(subject || `Ticket de ${userId}`)}"}</strong>
+              <strong>${escapeHtml(subject || (state.lang === 'en' ? `Ticket from ${userId}` : `Ticket de ${userId}`))}</strong>
               <div class="hint">
-                ${"${state.lang === 'en' ? 'User' : 'Utilizador'}"}: ${"${escapeHtml(userId)}"}<br>
-                ${"${state.lang === 'en' ? 'Channel' : 'Canal'}"}: ${"${escapeHtml(channelId)}"}
+                ${state.lang === 'en' ? 'User' : 'Utilizador'}: ${escapeHtml(userId)}<br>
+                ${state.lang === 'en' ? 'Channel' : 'Canal'}: ${escapeHtml(channelId)}
               </div>
             </div>
             <div style="text-align:right; font-size:11px; color:var(--text-muted);">
-              <div>Status: ${"${escapeHtml(status)}"}</div>
-              ${"${createdAt ? `<div>${state.lang === 'en' ? 'Created at' : 'Criado em'}: ${escapeHtml(createdAt)}</div>` : ''}"}
-              ${"${closedAt ? `<div>${state.lang === 'en' ? 'Closed at' : 'Fechado em'}: ${escapeHtml(closedAt)}</div>` : ''}"}
-              ${"${lastMsgAt ? `<div>${state.lang === 'en' ? 'Last message' : 'Ultima msg'}: ${escapeHtml(lastMsgAt)}</div>` : ''}"}
+              <div>Status: ${escapeHtml(status)}</div>
+              ${createdLabel ? `<div>${createdLabel}</div>` : ''}
+              ${closedLabel ? `<div>${closedLabel}</div>` : ''}
+              ${lastMsgLabel ? `<div>${lastMsgLabel}</div>` : ''}
             </div>
           </div>
           <div class="row gap" style="margin-top:8px; justify-content:flex-end;">
             <button type="button" class="btn small" data-action="reply">
-              ${"${escapeHtml(t('tickets_btn_reply') || (state.lang === 'en' ? 'Reply' : 'Responder'))}"}
+              ${escapeHtml(t('tickets_btn_reply') || (state.lang === 'en' ? 'Reply' : 'Responder'))}
             </button>
             <button type="button" class="btn small danger" data-action="close">
-              ${"${escapeHtml(t('tickets_btn_close') || (state.lang === 'en' ? 'Close ticket' : 'Fechar ticket'))}"}
+              ${escapeHtml(t('tickets_btn_close') || (state.lang === 'en' ? 'Close ticket' : 'Fechar ticket'))}
             </button>
           </div>
         </div>
@@ -764,15 +775,14 @@ async function loadTickets(page = 1) {
     if (!ticketId) return;
 
     const replyBtn = row.querySelector('button[data-action="reply"]');
-    const closeBtn = row.querySelector('button[data-action="clos    if (replyBtn) {
-      replyBtn.addEventListener('click', async () => {
-        const guildId = guildPicker?.value || '';
-        if (!guildId) return;
+    const closeBtn = row.querySelector('button[data-action="close"]');
 
-        const channelId = row.getAttribute('data-channel-id') || '';
-        if (!channelId) {
-          console.warn('Ticket row without channelId, cannot reply via dashboard.');
-        }
+    if (replyBtn) {
+      replyBtn.addEventListener('click', async () => {
+        const guildIdCurrent = guildPicker?.value || '';
+        if (!guildIdCurrent) return;
+
+        const channelIdCurrent = row.getAttribute('data-channel-id') || '';
 
         const promptMsg = state.lang === 'en'
           ? 'Reply to this ticket:'
@@ -788,46 +798,29 @@ async function loadTickets(page = 1) {
           const resp = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/reply`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ guildId, channelId, content: content.trim() })
+            body: JSON.stringify({ guildId: guildIdCurrent, channelId: channelIdCurrent, content: content.trim() })
           });
 
           if (!resp.ok) {
             console.error('HTTP error /api/tickets/:ticketId/reply:', resp.status);
-            toast(
-              state.lang === 'en'
-                ? 'Failed to send reply.'
-                : 'Falha ao enviar resposta.'
-            );
+            toast(state.lang === 'en' ? 'Failed to send reply.' : 'Falha ao enviar resposta.');
             return;
           }
 
-          toast(
-            state.lang === 'en'
-              ? 'Reply sent.'
-              : 'Resposta enviada.'
-          );
-
-          // opcional: podes fazer reload parcial da lista de tickets
-          // loadTickets(1);
+          toast(state.lang === 'en' ? 'Reply sent.' : 'Resposta enviada.');
         } catch (err) {
           console.error('Erro /api/tickets/:ticketId/reply:', err);
-          toast(
-            state.lang === 'en'
-              ? 'Unexpected error sending reply.'
-              : 'Erro inesperado ao enviar resposta.'
-          );
+          toast(state.lang === 'en' ? 'Unexpected error sending reply.' : 'Erro inesperado ao enviar resposta.');
         }
       });
     }
-if (closeBtn) {
-      closeBtn.addEventListener('click', async () => {
-        const guildId = guildPicker?.value || '';
-        if (!guildId) return;
 
-        const channelId = row.getAttribute('data-channel-id') || '';
-        if (!channelId) {
-          console.warn('Ticket row without channelId, cannot fully sync close to Discord.');
-        }
+    if (closeBtn) {
+      closeBtn.addEventListener('click', async () => {
+        const guildIdCurrent = guildPicker?.value || '';
+        if (!guildIdCurrent) return;
+
+        const channelIdCurrent = row.getAttribute('data-channel-id') || '';
 
         const confirmMsg = state.lang === 'en'
           ? 'Close this ticket? The channel will be updated on Discord.'
@@ -843,67 +836,24 @@ if (closeBtn) {
           const resp = await fetch(`/api/tickets/${encodeURIComponent(ticketId)}/close`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ guildId, channelId })
+            body: JSON.stringify({ guildId: guildIdCurrent, channelId: channelIdCurrent })
           });
 
           if (!resp.ok) {
             console.error('HTTP error /api/tickets/:ticketId/close:', resp.status);
-            toast(
-              state.lang === 'en'
-                ? 'Failed to close ticket.'
-                : 'Falha ao fechar o ticket.'
-            );
+            toast(state.lang === 'en' ? 'Failed to close ticket.' : 'Falha ao fechar o ticket.');
             return;
           }
 
-          toast(
-            state.lang === 'en'
-              ? 'Ticket closed.'
-              : 'Ticket fechado.'
-          );
-
-          // Atualiza a UI: remove o card ou recarrega a lista
+          toast(state.lang === 'en' ? 'Ticket closed.' : 'Ticket fechado.');
           row.remove();
-          // loadTickets(1);
         } catch (err) {
           console.error('Erro /api/tickets/:ticketId/close:', err);
-          toast(
-            state.lang === 'en'
-              ? 'Unexpected error closing ticket.'
-              : 'Erro inesperado ao fechar ticket.'
-          );
-        }
-      });
-    }
- error /api/tickets/:ticketId/close:', resp.status);
-            toast(
-              state.lang === 'en'
-                ? 'Failed to close ticket.'
-                : 'Falha ao fechar o ticket.'
-            );
-            return;
-          }
-
-          toast(
-            state.lang === 'en'
-              ? 'Ticket closed.'
-              : 'Ticket fechado.'
-          );
-          loadTickets().catch((err) => console.error('Erro loadTickets (after close):', err));
-        } catch (err) {
-          console.error('Erro /api/tickets/:ticketId/close:', err);
-          toast(
-            state.lang === 'en'
-              ? 'Failed to close ticket.'
-              : 'Falha ao fechar o ticket.'
-          );
+          toast(state.lang === 'en' ? 'Unexpected error closing ticket.' : 'Erro inesperado ao fechar ticket.');
         }
       });
     }
   });
-
-}
-
 // ==== GAMENEWS: estado (/api/gamenews-status) ====
 
 async function loadGameNewsStatus() {
