@@ -3,13 +3,10 @@
 const Ticket = require('../database/models/Ticket');
 const { t } = require('../systems/i18n');
 const { isStaff } = require('../utils/staff');
-const { MessageFlags } = require('discord.js');
 
 module.exports = async (client, interaction) => {
   try {
     if (!interaction?.guild) return;
-
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const guild = interaction.guild;
     const member = interaction.member;
@@ -25,7 +22,7 @@ module.exports = async (client, interaction) => {
     const channelOpt = interaction.options?.getChannel?.('channel');
     let channel = channelOpt || interaction.channel;
     if (!channel) {
-      return interaction.editReply({ content: t('common.unexpectedError'), }).catch(() => null);
+      return interaction.reply({ content: t('common.unexpectedError'), }).catch(() => null);
     }
 
     // If used inside a thread (or a thread is provided), resolve to the parent ticket channel
@@ -47,12 +44,12 @@ module.exports = async (client, interaction) => {
       const msg = staff
         ? '❓ Este canal não está associado a um ticket aberto. (Podes usar /ticketclose channel:#canal)'
         : '❓ Este canal não está associado a um ticket aberto.';
-      return interaction.editReply({ content: msg, }).catch(() => null);
+      return interaction.reply({ content: msg, }).catch(() => null);
     }
 
     const isOwner = ticket.userId === interaction.user.id;
     if (!isOwner && !staff) {
-      return interaction.editReply({ content: t('common.noPermission'), }).catch(() => null);
+      return interaction.reply({ content: t('common.noPermission'), }).catch(() => null);
     }
 
     ticket.status = 'CLOSED';
@@ -77,7 +74,7 @@ module.exports = async (client, interaction) => {
     }
 
     // Envia apenas uma confirmação (ephemeral) ao utilizador que executou o comando
-    return interaction.editReply({ content: '✅ Ticket fechado. Obrigado por entrares em contacto!', }).catch(() => null);
+    return interaction.reply({ content: '✅ Ticket fechado. Obrigado por entrares em contacto!', }).catch(() => null);
   } catch (err) {
     console.error('[slash/ticketclose] Error:', err);
     try {
