@@ -26,13 +26,6 @@ module.exports = async (client, interaction) => {
       });
     }
 
-    // Se já estiver fechado, respondemos mas não tentamos renomear outra vez
-    if (ticket.status === 'CLOSED') {
-      return interaction.reply({
-        content: '✅ Ticket fechado. Obrigado por entrares em contacto!'
-      });
-    }
-
     // Responder logo ao comando para não dar "O aplicativo não respondeu"
     await interaction.reply({
       content: '✅ Ticket fechado. Obrigado por entrares em contacto!'
