@@ -52,7 +52,16 @@ module.exports = async (client, interaction) => {
       }).catch(() => null);
     }
 
-    // Atualizar documento do ticket
+    // Primeiro responde ao comando para evitar "O aplicativo não respondeu"
+    await interaction.reply({
+      content: t(
+        'tickets.closedByCommandEphemeral',
+        '✅ Ticket fechado. Obrigado por entrares em contacto!'
+      ),
+      flags: 64
+    }).catch(() => null);
+
+    // Atualizar documento do ticket (best-effort, após resposta)
     try {
       await Ticket.updateOne(
         { _id: ticket._id },
@@ -111,10 +120,8 @@ module.exports = async (client, interaction) => {
       // não é crítico
     }
 
-    // Confirmação ephemera para quem executou o comando
-    return interaction.reply({
-      content: t(
-        'tickets.closedByCommandEphemeral',
+    return;
+losedByCommandEphemeral',
         '✅ Ticket fechado. Obrigado por entrares em contacto!'
       ),
       flags: 64
