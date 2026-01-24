@@ -1223,7 +1223,6 @@ function initTabs() {
       loadGuildConfig().catch((err) => console.error('Erro loadGuildConfig:', err));
     }
   });
-}
 
 
 
