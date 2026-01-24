@@ -1493,171 +1493,166 @@ async function saveGuildConfig() {
 }
 
 // Boot
-document.addEventListener('DOMContentLoaded', () => {
-  // idioma inicial
-  const saved = (localStorage.getItem('OZARK_LANG_SIMPLE') || 'pt').toLowerCase();
-  state.lang = saved;
-  const lp = document.getElementById('langPicker');
-  if (lp) lp.value = saved;
 
-  applyI18n();
-  initTabs();
-  loadOverview().catch((err) => console.error('Erro loadOverview:', err));
+// ==============================
+// Boot simples da dashboard
+// ==============================
+document.addEventListener('DOMContentLoaded', function () {
+  try {
+    // Idioma
+    try {
+      var storedLang = localStorage.getItem('OZARK_LANG_SIMPLE');
+      if (storedLang) {
+        state.lang = storedLang.toLowerCase() === 'en' ? 'en' : 'pt';
+      }
+    } catch (e) {}
 
-  // Guild picker + carregamento de servidores reais
-  const guildPicker = document.getElementById('guildPicker');
-  if (guildPicker) {
-    updateTabAccess();
+    applyI18n();
 
-    guildPicker.addEventListener('change', () => {
-      updateTabAccess();
+    var langPicker = document.getElementById('langPicker');
+    if (langPicker) {
+      langPicker.value = state.lang;
+      langPicker.addEventListener('change', function () {
+        setLang(this.value);
+      });
+    }
 
-      const activeName = document.querySelector('.tab.active')?.dataset.tab;
+    // Token
+    var tokenInput = document.getElementById('tokenInput');
+    var btnSaveToken = document.getElementById('btnSaveToken');
+    if (btnSaveToken && tokenInput) {
+      btnSaveToken.addEventListener('click', function () {
+        var v = tokenInput.value || '';
+        try {
+          if (v) {
+            localStorage.setItem('OZARK_DASH_TOKEN_SIMPLE', v.trim());
+          } else {
+            localStorage.removeItem('OZARK_DASH_TOKEN_SIMPLE');
+          }
+        } catch (e) {}
+        toast(t('token_saved'));
+        loadGuilds().catch(function (err) {
+          console.error('Erro loadGuilds apos guardar token:', err);
+        });
+      });
+    }
 
-      if (activeName === 'overview') {
-        loadOverview().catch((err) => console.error('Erro loadOverview (guild change):', err));
-      }
-      if (activeName === 'logs') {
-        loadLogs().catch((err) => console.error('Erro loadLogs (guild change):', err));
-      }
-      if (activeName === 'cases') {
-        loadCases().catch((err) => console.error('Erro loadCases (guild change):', err));
-      }
-      if (activeName === 'tickets') {
-        loadTickets().catch((err) => console.error('Erro loadTickets (guild change):', err));
-      }
-      if (activeName === 'gamenews') {
-        loadGameNewsStatus().catch((err) => console.error('Erro loadGameNewsStatus (guild change):', err));
-        loadGameNewsFeedsEditor().catch((err) => console.error('Erro loadGameNewsFeedsEditor (guild change):', err));
-      }
-      if (activeName === 'user') {
-        loadUsers().catch((err) => console.error('Erro loadUsers (guild change):', err));
-      }
-      if (activeName === 'config') {
-        loadGuildConfig().catch((err) => console.error('Erro loadGuildConfig (guild change):', err));
-      }
+    // Tabs
+    document.querySelectorAll('[data-tab-target]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var name = btn.getAttribute('data-tab-target');
+        if (!name) return;
+        setTab(name);
+
+        // Quando muda de tab, atualiza conteudo chave
+        if (name === 'overview') {
+          loadOverview().catch(function (err) { console.error('Erro loadOverview:', err); });
+        } else if (name === 'logs') {
+          loadLogs().catch(function (err) { console.error('Erro loadLogs:', err); });
+        } else if (name === 'cases') {
+          loadCases().catch(function (err) { console.error('Erro loadCases:', err); });
+        } else if (name === 'users') {
+          loadGuildUsers().catch(function (err) { console.error('Erro loadGuildUsers:', err); });
+        } else if (name === 'gamenews') {
+          loadGameNewsStatus().catch(function (err) { console.error('Erro loadGameNewsStatus:', err); });
+          loadGameNewsFeedsEditor().catch(function (err) { console.error('Erro loadGameNewsFeedsEditor:', err); });
+        } else if (name === 'tickets') {
+          loadTickets().catch(function (err) { console.error('Erro loadTickets:', err); });
+        } else if (name === 'config') {
+          loadGuildConfig().catch(function (err) { console.error('Erro loadGuildConfig:', err); });
+        }
+      });
     });
 
-    // Carrega lista de servidores apos DOM estar pronto
-    loadGuilds().catch((err) => console.error('Erro loadGuilds:', err));
-  } else {
-    updateTabAccess();
-  }
+    // Guilds
+    var guildPicker = document.getElementById('guildPicker');
+    if (guildPicker) {
+      guildPicker.addEventListener('change', function () {
+        var gid = guildPicker.value || '';
+        state.selectedGuildId = gid || null;
+        updateTabAccess();
 
-  // Listener de idioma
-  const langPicker = document.getElementById('langPicker');
-  if (langPicker) {
-    langPicker.addEventListener('change', (e) => {
-      setLang(e.target.value);
-      console.log(t('language_changed'));
-    });
-  }
+        if (!gid) return;
 
-  // Botao "Recarregar" nos logs
-  const reloadBtn = document.getElementById('btnReloadLogs');
-  if (reloadBtn) {
-    reloadBtn.addEventListener('click', () => {
-      loadLogs().catch((err) => console.error('Erro loadLogs (reload):', err));
-    });
-  }
+        loadOverview().catch(function (err) { console.error('Erro loadOverview:', err); });
+        loadGuildUsers().catch(function (err) { console.error('Erro loadGuildUsers:', err); });
+        loadLogs().catch(function (err) { console.error('Erro loadLogs:', err); });
+        loadCases().catch(function (err) { console.error('Erro loadCases:', err); });
+        loadGameNewsStatus().catch(function (err) { console.error('Erro loadGameNewsStatus:', err); });
+        loadGameNewsFeedsEditor().catch(function (err) { console.error('Erro loadGameNewsFeedsEditor:', err); });
+        loadTickets().catch(function (err) { console.error('Erro loadTickets:', err); });
+        loadGuildConfig().catch(function (err) { console.error('Erro loadGuildConfig:', err); });
+      });
+    }
 
-  // Enter no campo de pesquisa dispara reload
-  const searchEl = document.getElementById('logSearch');
-  if (searchEl) {
-    searchEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        loadLogs().catch((err) => console.error('Erro loadLogs (enter search):', err));
-      }
-    });
-  }
+    // Botoes de reload rapido
+    var btnReloadLogs = document.getElementById('btnReloadLogs');
+    if (btnReloadLogs) {
+      btnReloadLogs.addEventListener('click', function () {
+        loadLogs().catch(function (err) { console.error('Erro loadLogs (reload):', err); });
+      });
+    }
 
-  // Botoes do editor de GameNews
-  const btnAddFeed = document.getElementById('btnAddGameNewsFeed');
-  if (btnAddFeed) {
-    btnAddFeed.addEventListener('click', async () => {
-      const listEl = document.getElementById('gamenewsFeedsList');
-      if (!listEl) return;
+    var btnReloadCases = document.getElementById('btnReloadCases');
+    if (btnReloadCases) {
+      btnReloadCases.addEventListener('click', function () {
+        loadCases().catch(function (err) { console.error('Erro loadCases (reload):', err); });
+      });
+    }
 
-      // Garante que ja temos pelo menos uma lista carregada
-      if (!listEl.querySelector('.gamenews-feed-row')) {
-        await loadGameNewsFeedsEditor().catch((err) => console.error('Erro loadGameNewsFeedsEditor (add):', err));
-      }
+    var btnReloadTickets = document.getElementById('btnReloadTickets');
+    if (btnReloadTickets) {
+      btnReloadTickets.addEventListener('click', function () {
+        loadTickets().catch(function (err) { console.error('Erro loadTickets (reload):', err); });
+      });
+    }
 
-      const guildPicker = document.getElementById('guildPicker');
-      const guildId = guildPicker?.value || '';
-      const channels = guildId ? state.guildChannelsCache[guildId] || [] : [];
+    var btnReloadGameNews = document.getElementById('btnReloadGameNewsStatus');
+    if (btnReloadGameNews) {
+      btnReloadGameNews.addEventListener('click', function () {
+        loadGameNewsStatus().catch(function (err) { console.error('Erro loadGameNewsStatus (reload):', err); });
+      });
+    }
 
-      const channelOptions = [
-        `<option value="">${escapeHtml(state.lang === 'en' ? 'Select a channel' : 'Selecione um canal')}</option>`,
-        ...channels.map(
-          (ch) => `<option value="${escapeHtml(ch.id)}"># ${escapeHtml(ch.name)}</option>`
-        ),
-      ].join('');
+    var btnSaveGameNewsFeeds = document.getElementById('btnSaveGameNewsFeeds');
+    if (btnSaveGameNewsFeeds) {
+      btnSaveGameNewsFeeds.addEventListener('click', function () {
+        saveGameNewsFeeds().catch(function (err) { console.error('Erro saveGameNewsFeeds:', err); });
+      });
+    }
 
-      const div = document.createElement('div');
-      div.className = 'card gamenews-feed-row';
-      div.innerHTML = `
-        <div class="row gap">
-          <div class="col">
-            <label>${escapeHtml(state.lang === 'en' ? 'Name' : 'Nome')}</label>
-            <input class="input gn-name" value="" />
-          </div>
-          <div class="col">
-            <label>Feed URL</label>
-            <input class="input gn-url" value="" placeholder="https://" />
-          </div>
-        </div>
-        <div class="row gap" style="margin-top:8px; align-items:flex-end;">
-          <div class="col">
-            <label>${escapeHtml(state.lang === 'en' ? 'Channel' : 'Canal')}</label>
-            <select class="select gn-channel">
-              ${channelOptions}
-            </select>
-          </div>
-          <div class="col">
-            <label>${escapeHtml(state.lang === 'en' ? 'Interval (minutes, optional)' : 'Intervalo (minutos, opcional)')}</label>
-            <input class="input gn-interval" type="number" min="0" step="1" value="" />
-          </div>
-          <div class="col" style="text-align:right;">
-            <label style="display:block; margin-bottom:4px;">
-              <input type="checkbox" class="gn-enabled" checked />
-              ${escapeHtml(state.lang === 'en' ? 'Enabled' : 'Ativo')}
-            </label>
-            <button type="button" class="btn danger gn-remove">${escapeHtml(state.lang === 'en' ? 'Remove' : 'Remover')}</button>
-          </div>
-        </div>
-      `;
+    var btnAddGameNewsFeed = document.getElementById('btnAddGameNewsFeed');
+    if (btnAddGameNewsFeed) {
+      btnAddGameNewsFeed.addEventListener('click', function () {
+        addEmptyGameNewsFeedRow();
+      });
+    }
 
-      listEl.appendChild(div);
+    // Config do servidor
+    var btnReloadCfg = document.getElementById('btnReloadGuildConfig');
+    if (btnReloadCfg) {
+      btnReloadCfg.addEventListener('click', function () {
+        loadGuildConfig().catch(function (err) { console.error('Erro loadGuildConfig (reload):', err); });
+      });
+    }
 
-      const removeBtn = div.querySelector('.gn-remove');
-      if (removeBtn) {
-        removeBtn.addEventListener('click', () => div.remove());
-      }
-    });
-  }
+    var btnSaveCfg = document.getElementById('btnSaveGuildConfig');
+    if (btnSaveCfg) {
+      btnSaveCfg.addEventListener('click', function () {
+        saveGuildConfig().catch(function (err) { console.error('Erro saveGuildConfig:', err); });
+      });
+    }
 
-  const btnSaveFeeds = document.getElementById('btnSaveGameNewsFeeds');
-  if (btnSaveFeeds) {
-    btnSaveFeeds.addEventListener('click', () => {
-      saveGameNewsFeeds().catch((err) => console.error('Erro saveGameNewsFeeds:', err));
-    });
-  }
-
-
-  // Botoes de configuracao do servidor
-  const btnReloadCfg = document.getElementById('btnReloadGuildConfig');
-  if (btnReloadCfg) {
-    btnReloadCfg.addEventListener('click', () => {
-      loadGuildConfig().catch((err) => console.error('Erro loadGuildConfig (reload):', err));
-    });
-  }
-
-  const btnSaveCfg = document.getElementById('btnSaveGuildConfig');
-  if (btnSaveCfg) {
-    btnSaveCfg.addEventListener('click', () => {
-      saveGuildConfig().catch((err) => console.error('Erro saveGuildConfig:', err));
-    });
+    // Carregamento inicial: guilds + overview
+    loadGuilds()
+      .then(function () {
+        updateTabAccess();
+        loadOverview().catch(function (err) { console.error('Erro loadOverview inicial:', err); });
+      })
+      .catch(function (err) {
+        console.error('Erro loadGuilds inicial:', err);
+      });
+  } catch (err) {
+    console.error('Erro no boot da dashboard:', err);
   }
 });
