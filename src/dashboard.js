@@ -2050,13 +2050,7 @@ app.post('/api/tickets/:ticketId/reopen', requireDashboardAuth, async (req, res)
 
             if (isLikelyId) {
               try {
-                // Só tentamos editar permissões se o utilizador ainda existir na guild
-                const member = guild.members.cache.get(userIdStr) || await guild.members.fetch(userIdStr).catch(() => null);
-                if (member) {
-                  await channel.permissionOverwrites.edit(member, { SendMessages: true });
-                } else {
-                  console.warn('[Dashboard] Ticket reopen: user not found in guild, skipping overwrites.');
-                }
+                await channel.permissionOverwrites.edit(userIdStr, { SendMessages: true });
               } catch (err) {
                 console.warn('[Dashboard] Failed to update ticket channel overwrites (reopen):', err?.message || err);
               }

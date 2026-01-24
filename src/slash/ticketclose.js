@@ -13,7 +13,7 @@ module.exports = async (client, interaction) => {
     const ticket = await Ticket.findOne({ guildId: guild.id, channelId: channel.id });
     if (!ticket) {
       return interaction.reply({
-        content: t('tickets.notFound', '❌ Não foi encontrado nenhum ticket associado a este canal.'),
+        content: t('tickets.notFound', '❌ Não foi encontrado nenhum ticket associado a este canal.')
       });
     }
 
@@ -22,54 +22,63 @@ module.exports = async (client, interaction) => {
 
     if (!staff && !isTicketOwner) {
       return interaction.reply({
-        content: t('tickets.noPermissionClose', '❌ Apenas staff ou o autor do ticket podem fechá-lo.'),
+        content: t('tickets.noPermissionClose', '❌ Apenas staff ou o autor do ticket podem fechá-lo.')
       });
     }
 
+    // Se já estiver fechado, respondemos mas não tentamos renomear outra vez
     if (ticket.status === 'CLOSED') {
       return interaction.reply({
-        content: '✅ Ticket fechado. Obrigado por entrares em contacto!',
+        content: '✅ Ticket fechado. Obrigado por entrares em contacto!'
       });
     }
 
-    // Respond immediately
+    // Responder logo ao comando para não dar "O aplicativo não respondeu"
     await interaction.reply({
-      content: '✅ Ticket fechado. Obrigado por entrares em contacto!',
+      content: '✅ Ticket fechado. Obrigado por entrares em contacto!'
     });
 
-    // Update ticket state
+    // Atualizar estado na BD
     ticket.status = 'CLOSED';
     ticket.closedById = member.id;
     ticket.closedAt = new Date();
     await ticket.save().catch(() => null);
 
-    // Update permissions
+    // Melhor esforço: remover permissão de falar ao autor do ticket
     try {
-      const targetMember =
-        guild.members.cache.get(ticket.userId) ||
-        await guild.members.fetch(ticket.userId).catch(() => null);
-      if (targetMember) {
+      const userIdStr = String(ticket.userId || '').trim();
+      if (/^[0-9]{10,20}$/.test(userIdStr)) {
         await channel.permissionOverwrites
-          .edit(targetMember, { SendMessages: false })
+          .edit(userIdStr, { SendMessages: false })
           .catch(() => null);
       }
-    } catch {}
+    } catch (err) {
+      console.warn('[slash/ticketclose] Failed to update overwrites on close:', err?.message || err);
+    }
 
-    // Rename channel safely
+    // Renomear canal para o formato canónico closed-ticket-<username/id>
     try {
-      let baseName = channel.name || '';
-      baseName = baseName.replace(/^closed-ticket-/i, '');
-      baseName = baseName.replace(/^ticket-/i, '');
-      baseName = baseName.replace(/^closed-/i, '');
+      let baseName =
+        ticket.username ||
+        ticket.userTag ||
+        ticket.userId ||
+        '';
 
-      if (!baseName || !baseName.trim()) {
-        baseName = ticket.username || ticket.userTag || ticket.userId || 'ticket';
+      if (!baseName || !String(baseName).trim()) {
+        // fallback: limpar o nome atual do canal
+        const current = channel.name || '';
+        baseName = current
+          .replace(/^closed-ticket-/i, '')
+          .replace(/^ticket-/i, '')
+          .replace(/^closed-/i, '') || 'ticket';
       }
 
+      baseName = String(baseName).replace(/\s+/g, '-');
       const newName = `closed-ticket-${baseName}`.slice(0, 95);
       await channel.setName(newName).catch(() => null);
-    } catch {}
-
+    } catch (err) {
+      console.warn('[slash/ticketclose] Failed to rename channel on close:', err?.message || err);
+    }
   } catch (err) {
     console.error('[slash/ticketclose] Fatal error:', err);
     try {
