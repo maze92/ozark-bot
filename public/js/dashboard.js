@@ -183,7 +183,7 @@ const I18N = {
 
     // Cases
     cases_title: 'Cases',
-    cases_hint: 'Consolidated view of each user's infractions over time.',
+    cases_hint: 'Consolidated view of each user\'s infractions over time.',
     cases_empty: 'No cases have been registered for this server yet.',
     cases_loading: 'Loading cases...',
     cases_error_generic: 'Could not load cases.',
