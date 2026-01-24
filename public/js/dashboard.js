@@ -810,7 +810,7 @@
     }
   }
 
-  async function replyTicket(ticketId) {
+    async function replyTicket(ticketId) {
     if (!state.guildId) return;
     const placeholder = t('tickets_reply_placeholder');
     const content = window.prompt(placeholder, '');
@@ -826,6 +826,7 @@
       console.error('Failed to reply ticket', err);
       toast('Erro ao responder ao ticket / error replying ticket.');
     }
+  }
 
   async function deleteTicket(ticketId) {
     if (!state.guildId) return;
@@ -845,9 +846,7 @@
     }
   }
 
-  }
-
-  // -----------------------------
+// -----------------------------
   // Guild Config
   // -----------------------------
 
