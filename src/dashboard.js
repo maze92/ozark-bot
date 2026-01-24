@@ -433,12 +433,6 @@ app.get('/api/guilds/:guildId/users', requireDashboardAuth, async (req, res) => 
     const guild = _client.guilds.cache.get(guildId);
     if (!guild) return res.status(404).json({ ok: false, error: 'Guild not found' });
 
-    try {
-      await guild.members.fetch();
-    } catch (e) {
-      console.warn('[Dashboard] Failed to fetch guild members (using cache only):', e?.message || e);
-    }
-
     const items = guild.members.cache.map((m) => ({
       id: m.id,
       username: m.user?.username || null,
@@ -1886,6 +1880,86 @@ app.post('/api/tickets/:ticketId/close', requireDashboardAuth, async (req, res) 
       return res.status(404).json({ ok: false, error: 'Ticket not found' });
     }
 
+    // Tentar obter guildId do body ou do próprio ticket; se não existir, continuamos
+    let guildId = rawGuildId || (ticket.guildId || '');
+    if (!guildId) {
+      guildId = null;
+    }
+
+    if (ticket.status === 'CLOSED') {
+      return res.status(400).json({ ok: false, error: 'Ticket already closed' });
+    }
+
+    const actor = getActorFromRequest(req) || 'dashboard';
+
+    ticket.status = 'CLOSED';
+    ticket.closedAt = new Date();
+    ticket.closedById = actor;
+    await ticket.save();
+
+    // Best-effort: sincronizar com o Discord (só se tivermos guildId)
+    try {
+      if (_client && guildId) {
+        const guild = _client.guilds.cache.get(guildId);
+        const channelId = ticket.channelId;
+        const userId = ticket.userId;
+
+        if (guild && channelId) {
+          const channel = guild.channels.cache.get(channelId);
+          if (channel) {
+            try {
+              // Só tenta editar permissões se o userId parecer um ID de utilizador válido
+              if (userId && /^[0-9]{10,20}$/.test(String(userId))) {
+                await channel.permissionOverwrites.edit(String(userId), { SendMessages: false });
+              }
+            } catch (err) {
+              console.warn('[Dashboard] Failed to update ticket channel overwrites:', err?.message || err);
+            }
+
+            try {
+              if (!channel.name.startsWith('closed-')) {
+                await channel.setName(`closed-${channel.name.substring(0, 80)}`);
+              }
+            } catch (err) {
+              console.warn('[Dashboard] Failed to rename ticket channel:', err?.message || err);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Dashboard] Failed to sync ticket close to Discord:', err?.message || err);
+    }
+
+    await recordAudit({
+      req,
+      action: 'ticket.close',
+      guildId: guildId || undefined,
+      targetUserId: ticket.userId,
+      actor,
+      payload: { ticketId: ticket._id }
+    });
+
+    return res.json({ ok: true, item: ticket });
+  } catch (err) {
+    console.error('[Dashboard] /api/tickets/:ticketId/close error:', err);
+    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
+  }
+});
+
+
+    const ticketId = (req.params.ticketId || '').toString().trim();
+    const rawGuildId = (req.body?.guildId || '').toString().trim();
+
+    if (!ticketId) {
+      return res.status(400).json({ ok: false, error: 'ticketId is required' });
+    }
+
+    // Resolve ticket por ID
+    const ticket = await TicketModel.findById(ticketId);
+    if (!ticket) {
+      return res.status(404).json({ ok: false, error: 'Ticket not found' });
+    }
+
     const guildId = rawGuildId || (ticket.guildId || '');
     if (!guildId) {
       return res.status(400).json({ ok: false, error: 'guildId is required' });
@@ -1947,6 +2021,47 @@ app.post('/api/tickets/:ticketId/close', requireDashboardAuth, async (req, res) 
     return res.json({ ok: true, item: ticket });
   } catch (err) {
     console.error('[Dashboard] /api/tickets/:ticketId/close error:', err);
+    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
+  }
+});
+
+app.post('/api/tickets/:ticketId/delete', requireDashboardAuth, async (req, res) => {
+  try {
+    if (!TicketModel) {
+      return res.status(503).json({ ok: false, error: 'Ticket model not available' });
+    }
+
+    const ticketId = (req.params.ticketId || '').toString().trim();
+    if (!ticketId) {
+      return res.status(400).json({ ok: false, error: 'ticketId is required' });
+    }
+
+    const ticket = await TicketModel.findById(ticketId);
+    if (!ticket) {
+      return res.status(404).json({ ok: false, error: 'Ticket not found' });
+    }
+
+    if (ticket.status !== 'CLOSED') {
+      return res.status(400).json({ ok: false, error: 'Only closed tickets can be deleted' });
+    }
+
+    const guildId = (ticket.guildId || '').toString().trim() || null;
+    const actor = getActorFromRequest(req) || 'dashboard';
+
+    await TicketModel.deleteOne({ _id: ticketId });
+
+    await recordAudit({
+      req,
+      action: 'ticket.delete',
+      guildId: guildId || undefined,
+      targetUserId: ticket.userId,
+      actor,
+      payload: { ticketId }
+    });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[Dashboard] /api/tickets/:ticketId/delete error:', err);
     return res.status(500).json({ ok: false, error: 'Internal Server Error' });
   }
 });

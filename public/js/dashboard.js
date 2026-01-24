@@ -282,6 +282,27 @@
   // -----------------------------
 
   function setTab(name) {
+    const tabsRequiringGuild = ['logs', 'cases', 'tickets', 'gamenews', 'user', 'config'];
+    if (!state.guildId && tabsRequiringGuild.indexOf(name) !== -1) {
+      // Em vez de mudar tab, certifica-nos que overview está ativo
+      state.currentTab = 'overview';
+      const warn = document.getElementById('tabWarning');
+      if (warn) {
+        warn.style.display = 'block';
+      }
+      // Reforçar botões ativos
+      document.querySelectorAll('.section').forEach(function (sec) {
+        sec.classList.remove('active');
+      });
+      document.querySelectorAll('.tabs button[data-tab]').forEach(function (btn) {
+        btn.classList.remove('active');
+      });
+      const section = document.getElementById('tab-overview');
+      const button = document.querySelector('.topnav button[data-tab="overview"]');
+      if (section) section.classList.add('active');
+      if (button) button.classList.add('active');
+      return;
+    }
     state.currentTab = name;
 
     document.querySelectorAll('.section').forEach(function (sec) {
@@ -1012,7 +1033,7 @@
       });
     }
 
-    // Tickets: delegação para responder / fechar
+    // Tickets: delegação para responder / fechar / apagar
     var ticketsList = document.getElementById('ticketsList');
     if (ticketsList) {
       ticketsList.addEventListener('click', function (ev) {
@@ -1027,8 +1048,11 @@
           replyTicket(ticketId).catch(function () {});
         } else if (target.classList.contains('btn-ticket-close')) {
           closeTicket(ticketId).catch(function () {});
+        } else if (target.classList.contains('btn-ticket-delete')) {
+          deleteTicket(ticketId).catch(function () {});
         }
       });
+
     }
 
     // Config buttons
