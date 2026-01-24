@@ -8,6 +8,10 @@ const ticketSchema = new Schema(
     channelId: { type: String, required: true, unique: true },
     userId: { type: String, required: true, index: true },
 
+    // Snapshot de identificação do utilizador no momento da criação
+    username: { type: String, default: null },
+    userTag: { type: String, default: null },
+
     // Utilizador que abriu o ticket (normalmente igual a userId)
     createdById: { type: String, required: true },
 

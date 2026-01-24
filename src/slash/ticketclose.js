@@ -51,6 +51,25 @@ module.exports = async (client, interaction) => {
 
     // Renomear canal para o formato canónico closed-ticket-<algo>
     try {
+      let liveUsername = null;
+
+      // Tenta obter o username atual do dono do ticket a partir do Discord
+      try {
+        if (client && ticket.userId && guild) {
+          const mem = guild.members.cache.get(ticket.userId) || await guild.members.fetch(ticket.userId).catch(() => null);
+          if (mem && mem.user) {
+            liveUsername = mem.user.username || null;
+          } else {
+            const u = await client.users.fetch(ticket.userId).catch(() => null);
+            if (u) {
+              liveUsername = u.username || null;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[slash/ticketclose] Failed to resolve live username:', e?.message || e);
+      }
+
       const current = channel.name || '';
       let baseName = current
         .replace(/^closed-ticket-/i, '')
@@ -60,6 +79,7 @@ module.exports = async (client, interaction) => {
 
       if (!baseName) {
         baseName =
+          liveUsername ||
           ticket.username ||
           ticket.userTag ||
           ticket.userId ||

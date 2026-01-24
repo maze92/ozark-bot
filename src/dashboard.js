@@ -2077,7 +2077,37 @@ app.post('/api/tickets/:ticketId/reopen', requireDashboardAuth, async (req, res)
 
             try {
               // Nome canónico ao reabrir: ticket-<username/id>
+              let liveUsername = null;
+
+              // Tenta obter o username atual a partir do Discord
+              try {
+                if (_client && ticket.userId) {
+                  const guild = _client.guilds.cache.get(ticket.guildId || '') || null;
+                  if (guild) {
+                    const mem = guild.members.cache.get(ticket.userId) || await guild.members.fetch(ticket.userId).catch(() => null);
+                    if (mem && mem.user) {
+                      liveUsername = mem.user.username || null;
+                      ticket.username = liveUsername;
+                      ticket.userTag = mem.user.tag || null;
+                      await ticket.save().catch(() => null);
+                    }
+                  }
+                  if (!liveUsername) {
+                    const u = await _client.users.fetch(ticket.userId).catch(() => null);
+                    if (u) {
+                      liveUsername = u.username || null;
+                      ticket.username = liveUsername;
+                      ticket.userTag = u.tag || null;
+                      await ticket.save().catch(() => null);
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn('[Dashboard] ticket reopen: failed to resolve live username:', e?.message || e);
+              }
+
               let baseName =
+                liveUsername ||
                 ticket.username ||
                 ticket.userTag ||
                 ticket.userId ||

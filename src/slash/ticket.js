@@ -122,6 +122,8 @@ module.exports = async function ticketSlash(client, interaction) {
         guildId: guild.id,
         channelId: channel.id,
         userId: interaction.user.id,
+        username: interaction.user.username || null,
+        userTag: interaction.user.tag || null,
         createdById: interaction.user.id,
         status: 'OPEN',
         topic
