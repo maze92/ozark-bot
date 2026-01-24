@@ -25,7 +25,7 @@ module.exports = async (client, interaction) => {
     const channelOpt = interaction.options?.getChannel?.('channel');
     let channel = channelOpt || interaction.channel;
     if (!channel) {
-      return interaction.editReply({ content: t('common.unexpectedError'), flags: 64 }).catch(() => null);
+      return interaction.editReply({ content: t('common.unexpectedError'), }).catch(() => null);
     }
 
     // If used inside a thread (or a thread is provided), resolve to the parent ticket channel
@@ -47,12 +47,12 @@ module.exports = async (client, interaction) => {
       const msg = staff
         ? '❓ Este canal não está associado a um ticket aberto. (Podes usar /ticketclose channel:#canal)'
         : '❓ Este canal não está associado a um ticket aberto.';
-      return interaction.editReply({ content: msg, flags: 64 }).catch(() => null);
+      return interaction.editReply({ content: msg, }).catch(() => null);
     }
 
     const isOwner = ticket.userId === interaction.user.id;
     if (!isOwner && !staff) {
-      return interaction.editReply({ content: t('common.noPermission'), flags: 64 }).catch(() => null);
+      return interaction.editReply({ content: t('common.noPermission'), }).catch(() => null);
     }
 
     ticket.status = 'CLOSED';
@@ -77,11 +77,11 @@ module.exports = async (client, interaction) => {
     }
 
     // Envia apenas uma confirmação (ephemeral) ao utilizador que executou o comando
-    return interaction.editReply({ content: '✅ Ticket fechado. Obrigado por entrares em contacto!', flags: 64 }).catch(() => null);
+    return interaction.editReply({ content: '✅ Ticket fechado. Obrigado por entrares em contacto!', }).catch(() => null);
   } catch (err) {
     console.error('[slash/ticketclose] Error:', err);
     try {
-      const payload = { content: t('common.unexpectedError'), flags: 64 };
+      const payload = { content: t('common.unexpectedError'), };
       if (interaction.deferred || interaction.replied) await interaction.followUp(payload);
       else await interaction.reply(payload);
     } catch {
