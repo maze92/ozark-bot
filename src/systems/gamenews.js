@@ -110,7 +110,7 @@ async function registerFeedFailure(record, config, client, feed) {
   const maxFails = Number(config?.gameNews?.backoff?.maxFails ?? 3);
   const pauseMs = Number(config?.gameNews?.backoff?.pauseMs ?? 30 * 60 * 1000);
 
-  record\.failCount = \(record\.failCount \|\| 0\) \+ 1;
+  record.failCount = (record.failCount || 0) + 1;
 
   // Optional per-feed log channel
   await sendFeedLog(client, feed, `⚠️ GameNews: falha no feed **${feed?.name || 'Feed'}** (tentativas: ${record.failCount})`).catch(() => null);
@@ -531,5 +531,4 @@ async function sendFeedLog(client, feed, message) {
     // silent
   }
 }
-
 
