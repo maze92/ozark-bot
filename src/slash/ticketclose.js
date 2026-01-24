@@ -14,7 +14,6 @@ module.exports = async (client, interaction) => {
     if (!ticket) {
       return interaction.reply({
         content: t('tickets.notFound', '❌ Não foi encontrado nenhum ticket associado a este canal.'),
-        flags: 64
       }).catch(() => null);
     }
 
@@ -24,73 +23,70 @@ module.exports = async (client, interaction) => {
     if (!staff && !isTicketOwner) {
       return interaction.reply({
         content: t('tickets.noPermissionClose', '❌ Apenas staff ou o autor do ticket podem fechá-lo.'),
-        flags: 64
       }).catch(() => null);
     }
 
     if (ticket.status === 'CLOSED') {
       return interaction.reply({
-        content: t('tickets.alreadyClosed', 'Este ticket já se encontra fechado.'),
-        flags: 64
+        content: t('tickets.alreadyClosed', '✅ Ticket fechado. Obrigado por entrares em contacto!'),
       }).catch(() => null);
     }
 
+    // ✅ Resposta imediata ao comando (uma única mensagem)
     await interaction.reply({
-      content: t('tickets.closedByCommandEphemeral', '✅ Ticket fechado. Obrigado por entrares em contacto!'),
-      flags: 64
+      content: '✅ Ticket fechado. Obrigado por entrares em contacto!',
     }).catch(() => null);
 
-    (async () => {
-      try {
-        await Ticket.updateOne(
-          { _id: ticket._id },
-          { $set: { status: 'CLOSED', closedById: member.id, closedAt: new Date() } }
-        ).catch(() => null);
-
-        try {
-          const userId = ticket.userId;
-          if (userId) {
-            const targetMember =
-              guild.members.cache.get(userId) ||
-              await guild.members.fetch(userId).catch(() => null);
-            if (targetMember) {
-              await channel.permissionOverwrites.edit(targetMember, { SendMessages: false }).catch(() => null);
-            }
+    // Resto da lógica em best-effort (não afeta a resposta do slash)
+    try {
+      await Ticket.updateOne(
+        { _id: ticket._id },
+        {
+          $set: {
+            status: 'CLOSED',
+            closedById: member.id,
+            closedAt: new Date()
           }
-        } catch (err) {
-          console.warn('[slash/ticketclose] Failed to update overwrites:', err?.message || err);
         }
+      ).catch(() => null);
 
-        try {
-          const currentName = channel.name || '';
-          const baseName = currentName
-            .replace(/^closed-/, '')
-            .replace(/^ticket-/, '');
-          const newName = `closed-ticket-${baseName}`.slice(0, 95);
-          await channel.setName(newName).catch(() => null);
-        } catch (err) {
-          console.warn('[slash/ticketclose] Failed to rename ticket channel:', err?.message || err);
-        }
-
-        try {
-          await channel.send(
-            t('tickets.closedByCommand', '✅ Ticket fechado. Obrigado por entrares em contacto!')
-          ).catch(() => null);
-        } catch {
+      try {
+        const userId = ticket.userId;
+        if (userId) {
+          const targetMember =
+            guild.members.cache.get(userId) ||
+            await guild.members.fetch(userId).catch(() => null);
+          if (targetMember) {
+            await channel.permissionOverwrites
+              .edit(targetMember, { SendMessages: false })
+              .catch(() => null);
+          }
         }
       } catch (err) {
-        console.error('[slash/ticketclose] Error after reply:', err);
+        console.warn('[slash/ticketclose] Failed to update overwrites:', err?.message || err);
       }
-    })();
 
+      try {
+        const currentName = channel.name || '';
+        const baseName = currentName
+          .replace(/^closed-/, '')
+          .replace(/^ticket-/, '');
+        const newName = `closed-ticket-${baseName}`.slice(0, 95);
+        await channel.setName(newName).catch(() => null);
+      } catch (err) {
+        console.warn('[slash/ticketclose] Failed to rename ticket channel:', err?.message || err);
+      }
+    } catch (err) {
+      console.error('[slash/ticketclose] Error after reply:', err);
+    }
   } catch (err) {
     console.error('[slash/ticketclose] Error:', err);
     try {
       const msg = t('common.unexpectedError', 'Ocorreu um erro inesperado.');
       if (interaction && (interaction.replied || interaction.deferred)) {
-        await interaction.followUp({ content: msg, flags: 64 });
+        await interaction.followUp({ content: msg });
       } else if (interaction) {
-        await interaction.reply({ content: msg, flags: 64 });
+        await interaction.reply({ content: msg });
       }
     } catch {
     }
