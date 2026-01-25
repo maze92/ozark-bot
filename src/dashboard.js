@@ -1176,9 +1176,6 @@ app.get('/health', (req, res) => {
   }
 });
 
-  }
-});
-
 
 // ==============================
 // Guild configuration (per-server)
