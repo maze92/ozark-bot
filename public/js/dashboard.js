@@ -185,6 +185,13 @@
       gamenews_feed_url_label: 'URL do feed',
       gamenews_feed_channel_label: 'Canal',
       gamenews_feed_enabled_label: 'Ativo',
+      gamenews_feed_url_label: 'URL do feed',
+      gamenews_feed_channel_label: 'Canal ID',
+      gamenews_feed_remove_label: 'Remover',
+      gamenews_status_last_label: 'Último envio',
+      gamenews_status_state_ok: 'Ativo',
+      gamenews_status_state_paused: 'Em pausa',
+      gamenews_status_state_error: 'Em erro',
 
       users_title: 'Utilizadores',
       users_hint: 'Lista de utilizadores e acesso rápido ao histórico de moderação.',
@@ -284,6 +291,13 @@
       gamenews_feed_url_label: 'Feed URL',
       gamenews_feed_channel_label: 'Channel',
       gamenews_feed_enabled_label: 'Enabled',
+      gamenews_feed_url_label: 'Feed URL',
+      gamenews_feed_channel_label: 'Channel ID',
+      gamenews_feed_remove_label: 'Remove',
+      gamenews_status_last_label: 'Last sent',
+      gamenews_status_state_ok: 'Active',
+      gamenews_status_state_paused: 'Paused',
+      gamenews_status_state_error: 'Error',
 
       users_title: 'Users',
       users_hint: 'Users list with quick access to their moderation history.',
@@ -845,10 +859,19 @@
 
       const lastSent = s.lastSentAt ? new Date(s.lastSentAt).toLocaleString() : '—';
       const fails = s.failCount != null ? String(s.failCount) : '0';
-      const statusText =
-        (s.enabled === false ? 'Desativado / Disabled' : 'Ativo / Active') +
-        ' • Falhas: ' +
-        fails;
+
+      let stateLabel;
+      if (s.enabled === false) {
+        stateLabel = t('gamenews_status_state_paused');
+      } else if (s.paused) {
+        stateLabel = t('gamenews_status_state_paused');
+      } else if (s.failCount && s.failCount > 0) {
+        stateLabel = t('gamenews_status_state_error');
+      } else {
+        stateLabel = t('gamenews_status_state_ok');
+      }
+
+      const statusText = stateLabel + ' • ' + 'Fails: ' + fails;
 
       row.innerHTML =
         '<div class="title">' +
@@ -859,7 +882,7 @@
         '</div>' +
         '<div class="meta">' +
         escapeHtml(statusText) +
-        ' • Último envio / last: ' +
+        ' • ' + escapeHtml(t('gamenews_status_last_label')) + ': ' +
         escapeHtml(lastSent) +
         '</div>';
 
@@ -892,20 +915,20 @@
         '    <input type="text" class="input feed-name" value="' + escapeHtml(f.name || '') + '" />' +
         '  </div>' +
         '  <div class="col">' +
-        '    <label>Feed URL</label>' +
+        '    <label>' + escapeHtml(t('gamenews_feed_url_label')) + '</label>' +
         '    <input type="text" class="input feed-url" value="' + escapeHtml(f.feedUrl || '') + '" />' +
         '  </div>' +
         '</div>' +
         '<div class="row gap" style="margin-top:6px;">' +
         '  <div class="col">' +
-        '    <label>Canal ID</label>' +
+        '    <label>' + escapeHtml(t('gamenews_feed_channel_label')) + '</label>' +
         '    <input type="text" class="input feed-channel" value="' + escapeHtml(f.channelId || '') + '" />' +
         '  </div>' +
         '  <div class="col" style="display:flex;align-items:center;gap:8px;">' +
         '    <label><input type="checkbox" class="feed-enabled"' +
         (f.enabled === false ? '' : ' checked') +
-        '> Ativo</label>' +
-        '    <button type="button" class="btn btn-small btn-remove-feed">Remover</button>' +
+        '> ' + escapeHtml(t('gamenews_feed_enabled_label')) + '</label>' +
+        '    <button type="button" class="btn btn-small btn-remove-feed">' + escapeHtml(t('gamenews_feed_remove_label')) + '</button>' +
         '  </div>' +
         '</div>';
 
