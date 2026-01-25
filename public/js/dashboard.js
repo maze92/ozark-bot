@@ -717,10 +717,15 @@
           '</div>';
 
         if (trustLabel) {
+          var trustIcon = '';
+          if (trustLevelClass === 'high') trustIcon = '🟢 ';
+          else if (trustLevelClass === 'medium') trustIcon = '🟡 ';
+          else if (trustLevelClass === 'low') trustIcon = '🔴 ';
           html +=
             '<span class="trust-badge trust-badge-' +
             trustLevelClass +
             '">' +
+            trustIcon +
             escapeHtml(trustLabel) +
             '</span>';
         }
@@ -906,7 +911,17 @@
 
       detailEl.innerHTML = html;
 
-            // Bind quick moderation actions
+                  // Helpers for history loading overlay
+      function setHistoryLoading(isLoading) {
+        if (!detailEl) return;
+        if (isLoading) {
+          detailEl.classList.add('history-loading');
+        } else {
+          detailEl.classList.remove('history-loading');
+        }
+      }
+
+      // Bind quick moderation actions
       try {
         const container = detailEl.querySelector('.user-actions');
         if (container) {
@@ -922,12 +937,14 @@
               const reason = reasonRaw.trim() || null;
 
               if (action === 'warn') {
+                setHistoryLoading(true);
                 apiPost('/mod/warn', {
                   guildId: state.guildId,
                   userId: user.id,
                   reason: reason
                 })
                   .then(function (res) {
+                    setHistoryLoading(false);
                     if (!res || res.ok === false) {
                       console.error('Warn failed', res && res.error);
                       toast(res && res.error ? String(res.error) : t('cases_error_generic'));
@@ -938,16 +955,19 @@
                     loadUserHistory(user).catch(function () {});
                   })
                   .catch(function (err) {
+                    setHistoryLoading(false);
                     console.error('Warn error', err);
                     toast(t('cases_error_generic'));
                   });
               } else if (action === 'unmute') {
+                setHistoryLoading(true);
                 apiPost('/mod/unmute', {
                   guildId: state.guildId,
                   userId: user.id,
                   reason: reason
                 })
                   .then(function (res) {
+                    setHistoryLoading(false);
                     if (!res || res.ok === false) {
                       console.error('Unmute failed', res && res.error);
                       toast(res && res.error ? String(res.error) : t('cases_error_generic'));
@@ -957,16 +977,19 @@
                     loadUserHistory(user).catch(function () {});
                   })
                   .catch(function (err) {
+                    setHistoryLoading(false);
                     console.error('Unmute error', err);
                     toast(t('cases_error_generic'));
                   });
               } else if (action === 'reset') {
+                setHistoryLoading(true);
                 apiPost('/mod/reset-trust', {
                   guildId: state.guildId,
                   userId: user.id,
                   reason: reason
                 })
                   .then(function (res) {
+                    setHistoryLoading(false);
                     if (!res || res.ok === false) {
                       console.error('Reset trust failed', res && res.error);
                       toast(res && res.error ? String(res.error) : t('cases_error_generic'));
@@ -976,6 +999,7 @@
                     loadUserHistory(user).catch(function () {});
                   })
                   .catch(function (err) {
+                    setHistoryLoading(false);
                     console.error('Reset trust error', err);
                     toast(t('cases_error_generic'));
                   });
@@ -994,12 +1018,15 @@
 
               if (!window.confirm(t('users_history_remove_confirm'))) return;
 
+              setHistoryLoading(true);
+
               apiPost('/mod/remove-infraction', {
                 guildId: state.guildId,
                 userId: user.id,
                 infractionId: id
               })
                 .then(function (res) {
+                  setHistoryLoading(false);
                   if (!res || res.ok === false) {
                     console.error('Remove infraction failed', res && res.error);
                     toast(res && res.error ? String(res.error) : t('cases_error_generic'));
@@ -1009,6 +1036,7 @@
                   loadUserHistory(user).catch(function () {});
                 })
                 .catch(function (err) {
+                  setHistoryLoading(false);
                   console.error('Remove infraction error', err);
                   toast(t('cases_error_generic'));
                 });
@@ -1019,52 +1047,6 @@
         console.error('Failed to bind user quick actions', err);
       }
 
-  }
-
-  function renderGameNewsEditor(feeds) {
-    const listEl = document.getElementById('gamenewsFeedsList');
-    if (!listEl) return;
-    listEl.innerHTML = '';
-
-    if (!feeds || !feeds.length) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = t('gamenews_editor_empty');
-      listEl.appendChild(empty);
-      return;
-    }
-
-    feeds.forEach(function (f, idx) {
-      const row = document.createElement('div');
-      row.className = 'list-item';
-      row.dataset.index = String(idx);
-
-      row.innerHTML =
-        '<div class="row gap">' +
-        '  <div class="col">' +
-        '    <label>' + escapeHtml(t('gamenews_feed_name_label')) + '</label>' +
-        '    <input type="text" class="input feed-name" value="' + escapeHtml(f.name || '') + '" />' +
-        '  </div>' +
-        '  <div class="col">' +
-        '    <label>' + escapeHtml(t('gamenews_feed_url_label')) + '</label>' +
-        '    <input type="text" class="input feed-url" value="' + escapeHtml(f.feedUrl || '') + '" />' +
-        '  </div>' +
-        '</div>' +
-        '<div class="row gap" style="margin-top:6px;">' +
-        '  <div class="col">' +
-        '    <label>' + escapeHtml(t('gamenews_feed_channel_label')) + '</label>' +
-        '    <input type="text" class="input feed-channel" value="' + escapeHtml(f.channelId || '') + '" />' +
-        '  </div>' +
-        '  <div class="col" style="display:flex;align-items:center;gap:8px;">' +
-        '    <label><input type="checkbox" class="feed-enabled"' +
-        (f.enabled === false ? '' : ' checked') +
-        '> ' + escapeHtml(t('gamenews_feed_enabled_label')) + '</label>' +
-        '    <button type="button" class="btn btn-small btn-remove-feed">' + escapeHtml(t('gamenews_feed_remove_label')) + '</button>' +
-        '  </div>' +
-        '</div>';
-
-      listEl.appendChild(row);
-    });
   }
 
   function collectGameNewsEditorFeeds() {
@@ -1876,3 +1858,22 @@
     setTab('overview');
   });
 })();
+
+// ===== History loading overlay helpers =====
+function showHistoryLoading(container) {
+  if (!container) return;
+  let overlay = container.querySelector('.history-loading');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'history-loading';
+    overlay.innerHTML = '<div class="spinner"></div>';
+    container.style.position = 'relative';
+    container.appendChild(overlay);
+  }
+}
+
+function hideHistoryLoading(container) {
+  if (!container) return;
+  const overlay = container.querySelector('.history-loading');
+  if (overlay) overlay.remove();
+}
