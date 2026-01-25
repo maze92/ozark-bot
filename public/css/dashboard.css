@@ -361,6 +361,76 @@ h2 {
   background: rgba(88,101,242,0.12);
 }
 
+.list .list-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.list .list-item + .list-item {
+  margin-top: 4px;
+}
+
+.user-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.user-type-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.user-type-badge.bot {
+  background: rgba(250, 166, 26, 0.16);
+}
+
+.user-type-badge.human {
+  background: rgba(88, 101, 242, 0.16);
+}
+
+.history-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.infractions-list {
+  margin-top: 6px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.infractions-list .infraction-item {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.infractions-list .infraction-item:hover {
+  border-color: var(--border-soft);
+  background: rgba(255,255,255,0.02);
+}
+
+.infractions-list .infraction-line {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  display: block;
+}
+
+
 
 /* Trust config preview */
 .trust-config-card {

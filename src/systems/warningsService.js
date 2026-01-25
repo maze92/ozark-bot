@@ -144,11 +144,45 @@ async function resetWarnings(guildId, userId) {
   return u;
 }
 
+
+
+async function removeInfractionEffects(guildId, userId, type) {
+  const trustCfg = getTrustConfig();
+  const u = await getOrCreateUser(guildId, userId);
+
+  if (type === 'WARN') {
+    const currentWarnings = typeof u.warnings === 'number' ? u.warnings : 0;
+    u.warnings = currentWarnings > 0 ? currentWarnings - 1 : 0;
+
+    const penalty = trustCfg.warnPenalty || 0;
+    if (penalty > 0) {
+      u.trust = clampTrust(
+        u.trust + penalty,
+        trustCfg.min,
+        trustCfg.max
+      );
+    }
+  } else if (type === 'MUTE') {
+    const penalty = trustCfg.mutePenalty || 0;
+    if (penalty > 0) {
+      u.trust = clampTrust(
+        u.trust + penalty,
+        trustCfg.min,
+        trustCfg.max
+      );
+    }
+  }
+
+  await u.save();
+  return u;
+}
+
 module.exports = {
   getOrCreateUser,
   addWarning,
   resetWarnings,
   applyMutePenalty,
-  resetUser
+  resetUser,
+  removeInfractionEffects
 };
 

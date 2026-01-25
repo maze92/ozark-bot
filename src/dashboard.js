@@ -1037,7 +1037,32 @@ app.post('/api/mod/reset-trust', requireDashboardAuth, async (req, res) => {
 
     const baseTrust = typeof trustCfg.base === 'number' ? trustCfg.base : 0;
 
-    const dbUser = await warningsService.resetUser(guild.id, member.id, baseTrust, baseReason).catch(() => null);
+    const dbUser = await warningsService
+      .resetUser(guild.id, member.id, baseTrust, baseReason)
+      .catch(() => null);
+
+    // Limpar auto-mute/timeout ativo, se existir
+    try {
+      const hasTimeoutFlag =
+        typeof member.isCommunicationDisabled === 'function'
+          ? member.isCommunicationDisabled()
+          : !!member.communicationDisabledUntilTimestamp;
+
+      if (hasTimeoutFlag && typeof member.timeout === 'function') {
+        await member.timeout(null, baseReason).catch(() => null);
+      }
+    } catch (e) {
+      console.warn('[Dashboard] reset-trust: failed to clear timeout', e);
+    }
+
+    // Limpar histórico de infrações (WARN/MUTE) deste utilizador no servidor
+    if (Infraction) {
+      try {
+        await Infraction.deleteMany({ guildId: guild.id, userId: member.id }).exec();
+      } catch (e) {
+        console.warn('[Dashboard] reset-trust: failed to delete infractions', e);
+      }
+    }
 
     return res.json({
       ok: true,
@@ -1049,22 +1074,78 @@ app.post('/api/mod/reset-trust', requireDashboardAuth, async (req, res) => {
   }
 });
 
-app.get('/health', (req, res) => {
+
+
+app.post('/api/mod/remove-infraction', requireDashboardAuth, async (req, res) => {
   try {
-    const s = status.getStatus();
+    const { guildId: g0, userId: u0, infractionId: id0 } = req.body || {};
+    const guildId = sanitizeId(g0);
+    const userId = sanitizeId(u0);
+    const infractionId = sanitizeId(id0);
+    const actor = getActorFromRequest(req);
 
-    const discordReady = Boolean(s.discordReady);
-    const mongoConnected = Boolean(s.mongoConnected);
-    const gameNewsRunning = Boolean(s.gameNewsRunning);
+    await recordAudit({
+      req,
+      action: 'mod.removeInfraction',
+      guildId,
+      targetUserId: userId,
+      actor,
+      payload: { infractionId }
+    });
 
-    const payload = {
-      ok: discordReady && mongoConnected,
-      discordReady,
-      mongoConnected,
-      gameNewsRunning,
-      uptimeSeconds: Math.floor(process.uptime()),
-      metrics: {
-        totalCommandsExecuted: s.totalCommandsExecuted,
+    if (!guildId || !userId || !infractionId) {
+      return res.status(400).json({ ok: false, error: 'Missing guildId, userId or infractionId' });
+    }
+
+    if (!Infraction) {
+      return res.status(500).json({ ok: false, error: 'Infraction model not available' });
+    }
+
+    const inf = await Infraction.findOne({ _id: infractionId, guildId, userId }).lean();
+    if (!inf) {
+      return res.status(404).json({ ok: false, error: 'Infraction not found' });
+    }
+
+    const { guild, member } = await resolveGuildMember(guildId, userId);
+    if (!guild || !member) {
+      return res.status(404).json({ ok: false, error: 'User not found in guild' });
+    }
+
+    const me = guild.members.me;
+    if (!me) {
+      return res.status(500).json({ ok: false, error: 'Bot member not available' });
+    }
+
+    // Não deixar remover infração de alguém com cargo superior ao bot
+    if (member.roles.highest && me.roles.highest &&
+        member.roles.highest.comparePositionTo(me.roles.highest) >= 0) {
+      return res.status(403).json({ ok: false, error: 'User has higher or equal role' });
+    }
+
+    let warningsService = null;
+    try {
+      warningsService = require('./systems/warningsService');
+    } catch (_) {}
+
+    if (warningsService && typeof warningsService.removeInfractionEffects === 'function') {
+      try {
+        await warningsService.removeInfractionEffects(guild.id, member.id, inf.type || '');
+      } catch (e) {
+        console.warn('[Dashboard] remove-infraction: failed to adjust trust/warnings', e);
+      }
+    }
+
+    await Infraction.deleteOne({ _id: inf._id }).exec();
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[Dashboard] /api/mod/remove-infraction error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Internal Server Error' });
+  }
+});
+
+app.get('/health', (req, res) => {
+otalCommandsExecuted: s.totalCommandsExecuted,
         totalInfractionsCreated: s.totalInfractionsCreated,
         autoModActions: s.autoModActions,
         antiSpamActions: s.antiSpamActions

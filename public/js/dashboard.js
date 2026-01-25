@@ -201,6 +201,8 @@
       users_history_infractions: 'Infrações recentes',
       users_history_tickets: 'Tickets recentes',
       users_history_none: 'Sem histórico de moderação para este utilizador.',
+      users_history_click_to_remove: 'Clique numa infração para a remover e ajustar o trust.',
+      users_history_remove_confirm: 'Tens a certeza que queres remover esta infração? Isto pode ajustar o trust e o número de avisos.',
       users_trust_title: 'Nível de confiança (trust)',
       users_trust_score: 'Trust',
       users_trust_next_penalty_prefix: 'Próximo auto-mute estimado após mais',
@@ -212,6 +214,7 @@
       users_actions_warn: 'Warn',
       users_actions_unmute: 'Unmute',
       users_actions_reset: 'Repor trust/avisos',
+      users_actions_reset_history: 'Limpar histórico',
       users_actions_reason_placeholder: 'Motivo (opcional)',
 
       config_title: 'Configuração do servidor',
@@ -313,6 +316,8 @@
       users_history_infractions: 'Recent infractions',
       users_history_tickets: 'Recent tickets',
       users_history_none: 'No moderation history for this user.',
+      users_history_click_to_remove: 'Click an infraction to remove it and adjust trust.',
+      users_history_remove_confirm: 'Are you sure you want to remove this infraction? This may adjust trust and warning count.',
       users_trust_title: 'Trust level',
       users_trust_score: 'Trust',
       users_trust_next_penalty_prefix: 'Next estimated auto-mute after',
@@ -324,6 +329,7 @@
       users_actions_warn: 'Warn',
       users_actions_unmute: 'Unmute',
       users_actions_reset: 'Reset trust/warnings',
+      users_actions_reset_history: 'Clear history',
       users_actions_reason_placeholder: 'Reason (optional)',
 
       config_title: 'Server configuration',
@@ -569,8 +575,15 @@
         const name = u.username || u.tag || u.id;
         const roles = (u.roles || []).map(function (r) { return r.name; }).join(', ');
 
+        const isBot = !!u.bot;
+
         row.innerHTML =
-          '<div class="title">' + escapeHtml(name) + '</div>' +
+          '<div class="user-row-header">' +
+          '  <div class="title">' + escapeHtml(name) + '</div>' +
+          '  <div class="user-type-badge ' + (isBot ? 'bot' : 'human') + '">' +
+          escapeHtml(isBot ? 'BOT' : 'USER') +
+          '  </div>' +
+          '</div>' +
           '<div class="subtitle">' +
           escapeHtml(u.id) +
           (roles ? ' • ' + escapeHtml(roles) : '') +
@@ -718,6 +731,12 @@
               ? np.estimatedMuteMinutes
               : null;
 
+          // Número atual de WARNs (para mostrar no texto de limiar)
+          var currentWarns =
+            dbInfo && typeof dbInfo.warnings === 'number'
+              ? dbInfo.warnings
+              : (counts && counts.WARN) || 0;
+
           html += '<div class="user-trust-next">';
           if (mins !== null) {
             if (remaining !== null && remaining > 0) {
@@ -738,7 +757,10 @@
                 escapeHtml(t('users_trust_next_penalty_at_threshold')) +
                 ' ~' +
                 String(mins) +
-                ' min' +
+                ' min ' +
+                '(' +
+                String(currentWarns) +
+                ' WARN(s) atuais)' +
                 '</span>';
             }
           }
@@ -810,6 +832,10 @@
       // Infrações recentes
       html += '<div class="history-section">';
       html += '<h3>' + escapeHtml(t('users_history_infractions')) + '</h3>';
+      html +=
+        '<div class="history-hint">' +
+        escapeHtml(t('users_history_click_to_remove')) +
+        '</div>';
 
       if (!infractions.length) {
         html +=
@@ -880,7 +906,26 @@
               const reasonRaw = reasonInput && reasonInput.value ? reasonInput.value : '';
               const reason = reasonRaw.trim() || null;
 
-              if (action === 'warn') {
+              if (action === 'reset-history') {
+                apiPost('/mod/reset-history', {
+                  guildId: state.guildId,
+                  userId: user.id,
+                  reason: reason
+                })
+                  .then(function (res) {
+                    if (!res || res.ok === false) {
+                      console.error('Reset history failed', res && res.error);
+                      toast(res && res.error ? String(res.error) : t('cases_error_generic'));
+                      return;
+                    }
+                    toast(t('users_actions_reset_history') + ' OK');
+                    loadUserHistory(user).catch(function () {});
+                  })
+                  .catch(function (err) {
+                    console.error('Reset history error', err);
+                    toast(t('cases_error_generic'));
+                  });
+              } else if (action === 'warn') {
                 apiPost('/mod/warn', {
                   guildId: state.guildId,
                   userId: user.id,
