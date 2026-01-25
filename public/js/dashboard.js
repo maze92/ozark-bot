@@ -643,7 +643,7 @@
 
     detailEl.innerHTML = '<div class="empty">' + escapeHtml(t('loading')) + '</div>';
 
-    try {
+        {
       const [historyRes, userRes] = await Promise.all([
         apiGet(
           '/guilds/' +
@@ -910,8 +910,7 @@
       html += '</div>';
 
       detailEl.innerHTML = html;
-
-                  // Helpers for history loading overlay
+      // Helpers for history loading overlay
       function setHistoryLoading(isLoading) {
         if (!detailEl) return;
         if (isLoading) {
@@ -921,7 +920,8 @@
         }
       }
 
-      // Bind quick moderation actions
+
+            // Bind quick moderation actions
       try {
         const container = detailEl.querySelector('.user-actions');
         if (container) {
@@ -1019,7 +1019,6 @@
               if (!window.confirm(t('users_history_remove_confirm'))) return;
 
               setHistoryLoading(true);
-
               apiPost('/mod/remove-infraction', {
                 guildId: state.guildId,
                 userId: user.id,
@@ -1047,6 +1046,52 @@
         console.error('Failed to bind user quick actions', err);
       }
 
+  }
+
+  function renderGameNewsEditor(feeds) {
+    const listEl = document.getElementById('gamenewsFeedsList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    if (!feeds || !feeds.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = t('gamenews_editor_empty');
+      listEl.appendChild(empty);
+      return;
+    }
+
+    feeds.forEach(function (f, idx) {
+      const row = document.createElement('div');
+      row.className = 'list-item';
+      row.dataset.index = String(idx);
+
+      row.innerHTML =
+        '<div class="row gap">' +
+        '  <div class="col">' +
+        '    <label>' + escapeHtml(t('gamenews_feed_name_label')) + '</label>' +
+        '    <input type="text" class="input feed-name" value="' + escapeHtml(f.name || '') + '" />' +
+        '  </div>' +
+        '  <div class="col">' +
+        '    <label>' + escapeHtml(t('gamenews_feed_url_label')) + '</label>' +
+        '    <input type="text" class="input feed-url" value="' + escapeHtml(f.feedUrl || '') + '" />' +
+        '  </div>' +
+        '</div>' +
+        '<div class="row gap" style="margin-top:6px;">' +
+        '  <div class="col">' +
+        '    <label>' + escapeHtml(t('gamenews_feed_channel_label')) + '</label>' +
+        '    <input type="text" class="input feed-channel" value="' + escapeHtml(f.channelId || '') + '" />' +
+        '  </div>' +
+        '  <div class="col" style="display:flex;align-items:center;gap:8px;">' +
+        '    <label><input type="checkbox" class="feed-enabled"' +
+        (f.enabled === false ? '' : ' checked') +
+        '> ' + escapeHtml(t('gamenews_feed_enabled_label')) + '</label>' +
+        '    <button type="button" class="btn btn-small btn-remove-feed">' + escapeHtml(t('gamenews_feed_remove_label')) + '</button>' +
+        '  </div>' +
+        '</div>';
+
+      listEl.appendChild(row);
+    });
   }
 
   function collectGameNewsEditorFeeds() {
