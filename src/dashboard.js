@@ -597,6 +597,48 @@ app.get('/api/user', requireDashboardAuth, async (req, res) => {
     const infractions = await infractionsService.getRecentInfractions(guildId, resolvedUserId, limit).catch(() => []);
     const counts = await infractionsService.countInfractionsByType(guildId, resolvedUserId).catch(() => ({}));
 
+
+    const trustCfg = getTrustConfig();
+    const autoMuteCfg = (config.automation && config.automation.autoMute) || {};
+
+    let trustLabel = null;
+    let nextPenalty = null;
+
+    if (dbUser && trustCfg && trustCfg.enabled !== false) {
+      const trustValue = typeof dbUser.trust === 'number' ? dbUser.trust : trustCfg.base;
+
+      try {
+        trustLabel = getTrustLabel(trustValue, trustCfg);
+      } catch {
+        trustLabel = null;
+      }
+
+      try {
+        const warnsCount = (counts && typeof counts.WARN === 'number') ? counts.WARN : 0;
+        const warnsToMute = typeof autoMuteCfg.warnsToMute === 'number' ? autoMuteCfg.warnsToMute : 0;
+        const baseMuteMs = typeof autoMuteCfg.muteDurationMs === 'number' ? autoMuteCfg.muteDurationMs : 10 * 60 * 1000;
+
+        if (autoMuteCfg && autoMuteCfg.enabled !== false && warnsToMute > 0) {
+          const remaining = Math.max(warnsToMute - warnsCount, 0);
+          const effectiveMuteMs = getEffectiveMuteDuration(baseMuteMs, trustCfg, trustValue);
+          const mins = Math.max(1, Math.round(effectiveMuteMs / 60000));
+
+          nextPenalty = {
+            automationEnabled: true,
+            warnsCount,
+            warnsToMute,
+            remaining,
+            estimatedMuteMinutes: mins
+          };
+        } else {
+          nextPenalty = {
+            automationEnabled: false
+          };
+        }
+      } catch {
+        nextPenalty = null;
+      }
+    }
     return res.json({
       ok: true,
       discord: {
@@ -612,8 +654,10 @@ app.get('/api/user', requireDashboardAuth, async (req, res) => {
         ? {
             warnings: dbUser.warnings ?? 0,
             trust: dbUser.trust ?? null,
+            trustLabel,
             lastInfractionAt: dbUser.lastInfractionAt ? new Date(dbUser.lastInfractionAt).toISOString() : null,
-            lastTrustUpdateAt: dbUser.lastTrustUpdateAt ? new Date(dbUser.lastTrustUpdateAt).toISOString() : null
+            lastTrustUpdateAt: dbUser.lastTrustUpdateAt ? new Date(dbUser.lastTrustUpdateAt).toISOString() : null,
+            nextPenalty
           }
         : null,
       counts,

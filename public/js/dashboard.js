@@ -201,6 +201,11 @@
       users_history_infractions: 'Infrações recentes',
       users_history_tickets: 'Tickets recentes',
       users_history_none: 'Sem histórico de moderação para este utilizador.',
+      users_trust_title: 'Nível de confiança (trust)',
+      users_trust_score: 'Trust',
+      users_trust_next_penalty: 'Próximo auto-mute estimado após mais {remaining} warn(s): ~{minutes} min',
+      users_trust_next_penalty_simple: 'Próximo auto-mute estimado: ~{minutes} min',
+      users_trust_automation_disabled: 'Automação de mute automática está desativada para este servidor.',
       users_actions_title: 'Ações rápidas de moderação',
       users_actions_warn: 'Warn',
       users_actions_unmute: 'Unmute',
@@ -306,6 +311,11 @@
       users_history_infractions: 'Recent infractions',
       users_history_tickets: 'Recent tickets',
       users_history_none: 'No moderation history for this user.',
+      users_trust_title: 'Trust level',
+      users_trust_score: 'Trust',
+      users_trust_next_penalty: 'Next estimated auto-mute after {remaining} more warn(s): ~{minutes} min',
+      users_trust_next_penalty_simple: 'Next estimated auto-mute: ~{minutes} min',
+      users_trust_automation_disabled: 'Automatic mute automation is disabled for this server.',
       users_actions_title: 'Quick moderation actions',
       users_actions_warn: 'Warn',
       users_actions_unmute: 'Unmute',
@@ -612,24 +622,34 @@
     detailEl.innerHTML = '<div class="empty">' + escapeHtml(t('loading')) + '</div>';
 
     try {
-      const res = await apiGet(
-        '/guilds/' +
-          encodeURIComponent(state.guildId) +
-          '/users/' +
-          encodeURIComponent(user.id) +
-          '/history'
-      );
+      const [historyRes, userRes] = await Promise.all([
+        apiGet(
+          '/guilds/' +
+            encodeURIComponent(state.guildId) +
+            '/users/' +
+            encodeURIComponent(user.id) +
+            '/history'
+        ),
+        apiGet(
+          '/user?guildId=' +
+            encodeURIComponent(state.guildId) +
+            '&userId=' +
+            encodeURIComponent(user.id)
+        )
+      ]);
 
-      if (!res || res.ok === false) {
-        console.error('User history error', res && res.error);
+      if (!historyRes || historyRes.ok === false) {
+        console.error('User history error', historyRes && historyRes.error);
         detailEl.innerHTML =
           '<div class="empty">' + escapeHtml(t('cases_error_generic')) + '</div>';
         return;
       }
 
-      const infractions = res.infractions || [];
-      const counts = res.counts || {};
-      const tickets = res.tickets || [];
+      const infractions = historyRes.infractions || [];
+      const counts = historyRes.counts || {};
+      const tickets = historyRes.tickets || [];
+
+      const dbInfo = userRes && userRes.db ? userRes.db : null;
 
       let html = '';
 
@@ -640,6 +660,62 @@
         ' • ' +
         escapeHtml(user.id) +
         '</div>';
+
+      // Trust e próxima penalização
+      if (dbInfo && typeof dbInfo.trust === 'number') {
+        html += '<div class="history-section user-trust">';
+        html += '<h3>' + escapeHtml(t('users_trust_title')) + '</h3>';
+
+        html += '<div class="user-trust-main">';
+        html +=
+          '<div class="user-trust-score">' +
+          escapeHtml(t('users_trust_score')) +
+          ': ' +
+          String(dbInfo.trust) +
+          (dbInfo.trustLabel ? ' (' + escapeHtml(String(dbInfo.trustLabel)) + ')' : '') +
+          '</div>';
+
+        if (dbInfo.nextPenalty && dbInfo.nextPenalty.automationEnabled) {
+          var np = dbInfo.nextPenalty;
+          var remaining =
+            typeof np.remaining === 'number' ? np.remaining : null;
+          var mins =
+            typeof np.estimatedMuteMinutes === 'number'
+              ? np.estimatedMuteMinutes
+              : null;
+
+          html += '<div class="user-trust-next">';
+          if (remaining !== null && mins !== null) {
+            html +=
+              '<span>' +
+              escapeHtml(
+                t('users_trust_next_penalty', {
+                  remaining: String(remaining),
+                  minutes: String(mins)
+                })
+              ) +
+              '</span>';
+          } else if (mins !== null) {
+            html +=
+              '<span>' +
+              escapeHtml(
+                t('users_trust_next_penalty_simple', {
+                  minutes: String(mins)
+                })
+              ) +
+              '</span>';
+          }
+          html += '</div>';
+        } else {
+          html +=
+            '<div class="user-trust-next-disabled">' +
+            escapeHtml(t('users_trust_automation_disabled')) +
+            '</div>';
+        }
+
+        html += '</div>'; // user-trust-main
+        html += '</div>'; // history-section user-trust
+      }
 
       // Badges de resumo
       html += '<div class="badge-row">';

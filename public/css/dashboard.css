@@ -437,3 +437,25 @@ h2 {
 .user-detail .user-actions-buttons {
   margin-top: 4px;
 }
+
+
+/* Trust summary in user detail panel */
+.user-trust {
+  margin-bottom: 8px;
+}
+
+.user-trust-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.user-trust-score {
+  font-weight: 600;
+}
+
+.user-trust-next,
+.user-trust-next-disabled {
+  opacity: 0.85;
+}
