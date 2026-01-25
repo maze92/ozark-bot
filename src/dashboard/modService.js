@@ -1,6 +1,7 @@
 const warningsService = require('../systems/warningsService');
 const infractionsService = require('../systems/infractionsService');
 const logger = require('../systems/logger');
+const { handleInfractionAutomation } = require('../systems/automation');
 const { getTrustConfig } = require('../utils/trust');
 
 class ModError extends Error {
@@ -79,6 +80,19 @@ async function dashboardWarn({ client, guildId, userId, reason, actor }) {
     duration: null,
     source: 'dashboard'
   }).catch(() => null);
+
+  // Automação (auto-mute / auto-kick) baseada nas infrações acumuladas, tal como nos comandos slash
+  try {
+    await handleInfractionAutomation({
+      client,
+      guild,
+      user: member.user,
+      moderator: client.user,
+      type: 'WARN'
+    });
+  } catch {
+    // ignore automation errors to not quebrar o fluxo principal de warn
+  }
 
   const trustCfg = getTrustConfig();
   const trust = dbUser?.trust;
