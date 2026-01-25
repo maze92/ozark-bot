@@ -932,7 +932,7 @@ app.post('/api/mod/mute', requireDashboardAuth, rateLimit({ windowMs: 60_000, ma
   }
 });
 
-app.post('/api/mod/unmute', requireDashboardAuth, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: 'rl:mod:unmute:' }), async (req, res) => {
+app.post('/api/mod/unmute', requireDashboardAuth, async (req, res) => {
   try {
     const { guildId: g0, userId: u0, reason: r0 } = req.body || {};
     const guildId = sanitizeId(g0);
@@ -993,7 +993,7 @@ app.post('/api/mod/unmute', requireDashboardAuth, rateLimit({ windowMs: 60_000, 
 
 
 
-app.post('/api/mod/reset-trust', requireDashboardAuth, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: 'rl:mod:reset:' }), async (req, res) => {
+app.post('/api/mod/reset-trust', requireDashboardAuth, async (req, res) => {
   try {
     const { guildId: g0, userId: u0, reason: r0 } = req.body || {};
     const guildId = sanitizeId(g0);
