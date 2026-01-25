@@ -62,9 +62,18 @@
       method: 'GET',
       headers: getAuthHeaders(),
     });
+
     if (!res.ok) {
+      // Se o token for inválido/expirado, limpa e força novo login
+      if (res.status === 401) {
+        console.error('[Dashboard] Unauthorized (401) for', path);
+        try {
+          localStorage.removeItem('OZARK_DASH_TOKEN');
+        } catch (e) {}
+      }
       throw new Error('HTTP ' + res.status + ' for ' + path);
     }
+
     return res.json();
   }
 
@@ -74,9 +83,17 @@
       headers: Object.assign({ 'Content-Type': 'application/json' }, getAuthHeaders()),
       body: JSON.stringify(body || {}),
     });
+
     if (!res.ok) {
+      if (res.status === 401) {
+        console.error('[Dashboard] Unauthorized (401) for', path);
+        try {
+          localStorage.removeItem('OZARK_DASH_TOKEN');
+        } catch (e) {}
+      }
       throw new Error('HTTP ' + res.status + ' for ' + path);
     }
+
     return res.json();
   }
 
@@ -1748,7 +1765,8 @@
   // -----------------------------
 
   document.addEventListener('DOMContentLoaded', function () {
-    // i18n inicial
+
+    console.log('[Dashboard] DOMContentLoaded init');    // i18n inicial
     applyI18n();
 
     // Lang picker
