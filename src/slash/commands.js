@@ -9,14 +9,14 @@ module.exports = function buildSlashCommands(prefix) {
     .setName('warn')
     .setDescription('Warn a member and register an infraction')
     .setDescriptionLocalizations({
-      'pt-PT': 'Aplicar um aviso a um membro e registar uma infração',
+      'pt-BR': 'Aplicar um aviso a um membro e registar uma infração',
     })
     .addUserOption((opt) =>
       opt
         .setName('user')
         .setDescription('User to warn')
         .setDescriptionLocalizations({
-          'pt-PT': 'Utilizador a avisar',
+          'pt-BR': 'Utilizador a avisar',
         })
         .setRequired(true)
     )
@@ -25,7 +25,7 @@ module.exports = function buildSlashCommands(prefix) {
         .setName('reason')
         .setDescription('Reason')
         .setDescriptionLocalizations({
-          'pt-PT': 'Motivo',
+          'pt-BR': 'Motivo',
         })
         .setRequired(false)
     );
@@ -34,14 +34,14 @@ module.exports = function buildSlashCommands(prefix) {
     .setName('mute')
     .setDescription('Temporarily mute a member')
     .setDescriptionLocalizations({
-      'pt-PT': 'Silenciar temporariamente um membro',
+      'pt-BR': 'Silenciar temporariamente um membro',
     })
     .addUserOption((opt) =>
       opt
         .setName('user')
         .setDescription('User to mute')
         .setDescriptionLocalizations({
-          'pt-PT': 'Utilizador a silenciar',
+          'pt-BR': 'Utilizador a silenciar',
         })
         .setRequired(true)
     )
@@ -50,7 +50,7 @@ module.exports = function buildSlashCommands(prefix) {
         .setName('duration')
         .setDescription('Duration (e.g. 10m, 1h, 1d)')
         .setDescriptionLocalizations({
-          'pt-PT': 'Duração (ex.: 10m, 1h, 1d)',
+          'pt-BR': 'Duração (ex.: 10m, 1h, 1d)',
         })
         .setRequired(true)
     )
@@ -59,7 +59,7 @@ module.exports = function buildSlashCommands(prefix) {
         .setName('reason')
         .setDescription('Reason')
         .setDescriptionLocalizations({
-          'pt-PT': 'Motivo',
+          'pt-BR': 'Motivo',
         })
         .setRequired(false)
     );
@@ -68,14 +68,14 @@ module.exports = function buildSlashCommands(prefix) {
     .setName('unmute')
     .setDescription('Remove an active mute from a member')
     .setDescriptionLocalizations({
-      'pt-PT': 'Remover um mute ativo de um membro',
+      'pt-BR': 'Remover um mute ativo de um membro',
     })
     .addUserOption((opt) =>
       opt
         .setName('user')
         .setDescription('User to unmute')
         .setDescriptionLocalizations({
-          'pt-PT': 'Utilizador a desmutar',
+          'pt-BR': 'Utilizador a desmutar',
         })
         .setRequired(true)
     );
@@ -84,14 +84,14 @@ module.exports = function buildSlashCommands(prefix) {
     .setName('clear')
     .setDescription('Bulk delete a number of recent messages in this channel')
     .setDescriptionLocalizations({
-      'pt-PT': 'Apagar em massa um número de mensagens recentes neste canal',
+      'pt-BR': 'Apagar em massa um número de mensagens recentes neste canal',
     })
     .addIntegerOption((opt) =>
       opt
         .setName('amount')
         .setDescription('Number of messages to delete (max 100)')
         .setDescriptionLocalizations({
-          'pt-PT': 'Número de mensagens a apagar (máx. 100)',
+          'pt-BR': 'Número de mensagens a apagar (máx. 100)',
         })
         .setRequired(true)
     );
@@ -100,14 +100,14 @@ module.exports = function buildSlashCommands(prefix) {
     .setName('userinfo')
     .setDescription('Show basic information about a member')
     .setDescriptionLocalizations({
-      'pt-PT': 'Mostrar informação básica sobre um membro',
+      'pt-BR': 'Mostrar informação básica sobre um membro',
     })
     .addUserOption((opt) =>
       opt
         .setName('user')
         .setDescription('User to inspect')
         .setDescriptionLocalizations({
-          'pt-PT': 'Utilizador a inspecionar',
+          'pt-BR': 'Utilizador a inspecionar',
         })
         .setRequired(false)
     );
@@ -116,14 +116,14 @@ module.exports = function buildSlashCommands(prefix) {
     .setName('history')
     .setDescription('Show moderation history for a member')
     .setDescriptionLocalizations({
-      'pt-PT': 'Mostrar histórico de moderação de um membro',
+      'pt-BR': 'Mostrar histórico de moderação de um membro',
     })
     .addUserOption((opt) =>
       opt
         .setName('user')
         .setDescription('User to inspect')
         .setDescriptionLocalizations({
-          'pt-PT': 'Utilizador a inspecionar',
+          'pt-BR': 'Utilizador a inspecionar',
         })
         .setRequired(true)
     );
@@ -132,7 +132,7 @@ module.exports = function buildSlashCommands(prefix) {
     .setName('help')
     .setDescription('Show help and a summary of available commands')
     .setDescriptionLocalizations({
-      'pt-PT': 'Mostrar ajuda e um resumo dos comandos disponíveis',
+      'pt-BR': 'Mostrar ajuda e um resumo dos comandos disponíveis',
     });
 
   return [warn, mute, unmute, clear, userinfo, history, help].map((c) => c.toJSON());
