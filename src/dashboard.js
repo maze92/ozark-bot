@@ -410,6 +410,13 @@ app.get('/api/guilds/:guildId/users', requireDashboardAuth, async (req, res) => 
     const guild = _client.guilds.cache.get(guildId);
     if (!guild) return res.status(404).json({ ok: false, error: 'Guild not found' });
 
+    // Garantir que temos a lista de membros atualizada (não apenas cache parcial)
+    try {
+      await guild.members.fetch();
+    } catch (e) {
+      console.warn('[Dashboard] Failed to fetch full member list for guild', guildId, e);
+    }
+
     const items = guild.members.cache.map((m) => ({
       id: m.id,
       username: m.user?.username || null,
