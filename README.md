@@ -83,3 +83,17 @@ MONGO_URI=mongodb_connection_string
 DASHBOARD_TOKEN=secure_random_token
 PORT=3000
 
+
+
+### 🧵 Sistema de Tickets por Threads
+- Mensagem fixa de suporte com reação 🎫 num canal configurável.
+- Cada reação abre uma **thread privada** (`ticket-001`, `ticket-002`, ...).
+- Embed inicial dentro da thread com botão via reação 🔒 para fechar o ticket.
+- Logs de tickets integrados com o sistema de moderação e painel de histórico por utilizador.
+
+### 👤 Histórico por Utilizador na Dashboard
+- Nova área na tab **Utilizadores** com:
+  - Resumo de infrações (WARN / MUTE / KICK / BAN)
+  - Lista de ações recentes
+  - Lista de tickets associados ao utilizador
+- Ajuda moderadores a tomar decisões rápidas e consistentes.

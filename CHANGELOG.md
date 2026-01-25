@@ -6,6 +6,24 @@ O projeto segue **Semantic Versioning** (`MAJOR.MINOR.PATCH`)
 e boas práticas inspiradas em **Keep a Changelog**.
 
 ---
+## [1.7.0] – 2026-01-25
+### Tickets por Thread, Histórico por Utilizador & Limpezas
+
+#### Added
+- Sistema de tickets reescrito para usar **threads privadas** por pedido, abertas através de reação 🎫 numa mensagem fixa de suporte.
+- Configuração de **canal de suporte (tickets)** por servidor na tab **Config** da dashboard.
+- Painel de **histórico por utilizador** na tab **Utilizadores**, com resumo de infrações (WARN/MUTE/KICK/BAN) e lista de tickets recentes.
+
+#### Changed
+- Evento `ready` atualizado para `clientReady` em conformidade com o aviso depreciação do discord.js v14.
+- Descrições dos comandos slash (`/warn`, `/mute`, `/unmute`, `/clear`, `/userinfo`, `/history`, `/help`) tornadas mais claras e profissionais.
+- Mensagens de erro genéricas do dashboard (toasts) passaram a usar o sistema de tradução (PT/EN) em vez de texto misto.
+- Sistema antigo de tickets baseado em `TicketModel` e tab **Tickets** no dashboard foi descontinuado em favor do novo fluxo por threads.
+
+#### Fixed
+- Reações no emoji de suporte agora removidas automaticamente após abrir um ticket, permitindo abrir novos tickets com um único clique.
+- Removidos endpoints e código não utilizado relacionados com o antigo painel de tickets.
+
 
 ## [1.6.2] – 2026-01-19
 ### Dashboard Tickets & Cases Filters
