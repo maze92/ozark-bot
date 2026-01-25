@@ -18,7 +18,6 @@ const dashboardBridge = require('./systems/dashboardBridge');
 const { parseDuration, formatDuration } = require('./utils/time');
 const { getTrustConfig, getTrustLabel, getEffectiveMaxMessages, getEffectiveMuteDuration } = require('./utils/trust');
 const { isStaff } = require('./utils/staff');
-const rateLimit = require('./systems/rateLimit');
 
 let DashboardLog = null;
 let GameNewsModel = null;
@@ -33,6 +32,7 @@ let Infraction = null;
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const DashboardUserModel = require('./database/models/DashboardUser');
+const rateLimit = require('./systems/rateLimit');
 
 const JWT_SECRET = process.env.DASHBOARD_JWT_SECRET || 'ozark-dashboard-change-me';
 
@@ -300,31 +300,6 @@ function setClient(client) {
 // Not a replacement for a dedicated gateway, but helps protect critical endpoints.
 const _rateBuckets = new Map();
 
-function rateLimit({ windowMs = 60_000, max = 30, keyPrefix = 'rl:' } = {}) {
-  return (req, res, next) => {
-    try {
-      const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-      const key = `${keyPrefix}${req.method}:${req.path}:${ip}`;
-      const now = Date.now();
-
-      let bucket = _rateBuckets.get(key);
-      if (!bucket || now - bucket.start > windowMs) {
-        bucket = { start: now, count: 0 };
-      }
-
-      bucket.count += 1;
-      _rateBuckets.set(key, bucket);
-
-      if (bucket.count > max) {
-        return res.status(429).json({ ok: false, error: 'Too many requests' });
-      }
-    } catch (err) {
-      console.error('[Dashboard] rateLimit error:', err);
-    }
-
-    next();
-  };
-}
 
 app.use(express.static(path.join(__dirname, '../public')));
 
