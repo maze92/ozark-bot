@@ -757,7 +757,10 @@
       // Badges de resumo
       html += '<div class="badge-row">';
 
-      const warnCount = counts.WARN || 0;
+      const warnCount =
+        dbInfo && typeof dbInfo.warnings === 'number'
+          ? dbInfo.warnings
+          : (counts.WARN || 0);
       const muteCount = counts.MUTE || 0;
 
       if (warnCount || muteCount) {
