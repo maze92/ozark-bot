@@ -1902,6 +1902,7 @@
     loadGuilds().catch(function () {});
     setTab('overview');
   });
+}
 })();
 
 // ===== History loading overlay helpers =====
