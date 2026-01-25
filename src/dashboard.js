@@ -947,6 +947,64 @@ app.post('/api/mod/unmute', requireDashboardAuth, rateLimit({ windowMs: 60_000, 
   }
 });
 
+
+
+app.post('/api/mod/reset-trust', requireDashboardAuth, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: 'rl:mod:reset:' }), async (req, res) => {
+  try {
+    const { guildId: g0, userId: u0, reason: r0 } = req.body || {};
+    const guildId = sanitizeId(g0);
+    const userId = sanitizeId(u0);
+    const reason = sanitizeText(r0, { maxLen: 1000, stripHtml: true });
+    const actor = getActorFromRequest(req);
+
+    await recordAudit({
+      req,
+      action: 'mod.resetTrust',
+      guildId,
+      targetUserId: userId,
+      actor,
+      payload: { reason }
+    });
+
+    if (!guildId || !userId) {
+      return res.status(400).json({ ok: false, error: 'guildId and userId are required' });
+    }
+
+    const { guild, member } = await resolveGuildMember(guildId, userId);
+    if (!guild || !member) {
+      return res.status(404).json({ ok: false, error: 'User not found in guild' });
+    }
+
+    const me = guild.members.me;
+    if (!me) {
+      return res.status(500).json({ ok: false, error: 'Bot member not available' });
+    }
+
+    // Não deixar resetar alguém com cargo superior ao bot
+    if (member.roles.highest && me.roles.highest && member.roles.highest.comparePositionTo(me.roles.highest) >= 0) {
+      return res.status(403).json({ ok: false, error: 'User has higher or equal role' });
+    }
+
+    const baseReason = reason || 'Dashboard reset trust/warnings';
+
+    // Reset via warningsService (avisos + trust)
+    const warningsService = require('./systems/warningsService');
+    const trustCfg = require('./utils/trust').getTrustConfig();
+
+    const baseTrust = typeof trustCfg.baseTrust === 'number' ? trustCfg.baseTrust : 0;
+
+    const dbUser = await warningsService.resetUser(guild.id, member.id, baseTrust, baseReason).catch(() => null);
+
+    return res.json({
+      ok: true,
+      dbUser: dbUser ? { warnings: dbUser.warnings, trust: dbUser.trust } : null
+    });
+  } catch (err) {
+    console.error('[Dashboard] /api/mod/reset-trust error:', err);
+    return res.status(500).json({ ok: false, error: err?.message || 'Internal Server Error' });
+  }
+});
+
 app.get('/health', (req, res) => {
   try {
     const s = status.getStatus();

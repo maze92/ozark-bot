@@ -9,7 +9,7 @@ const infractionSchema = new Schema({
 
   type: {
     type: String,
-    enum: ['WARN', 'MUTE', 'KICK', 'BAN'],
+    enum: ['WARN', 'MUTE'],
     required: true
   },
 

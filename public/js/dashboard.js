@@ -203,10 +203,9 @@
       users_history_none: 'Sem histórico de moderação para este utilizador.',
       users_actions_title: 'Ações rápidas de moderação',
       users_actions_warn: 'Warn',
-      users_actions_mute: 'Mute',
       users_actions_unmute: 'Unmute',
+      users_actions_reset: 'Repor trust/avisos',
       users_actions_reason_placeholder: 'Motivo (opcional)',
-      users_actions_duration_placeholder: 'Duração (ex.: 10m, 1h, 1d)',
 
       config_title: 'Configuração do servidor',
       config_hint: 'Define canais de logs e cargos de staff para este servidor.',
@@ -309,10 +308,9 @@
       users_history_none: 'No moderation history for this user.',
       users_actions_title: 'Quick moderation actions',
       users_actions_warn: 'Warn',
-      users_actions_mute: 'Mute',
       users_actions_unmute: 'Unmute',
+      users_actions_reset: 'Reset trust/warnings',
       users_actions_reason_placeholder: 'Reason (optional)',
-      users_actions_duration_placeholder: 'Duration (e.g. 10m, 1h, 1d)',
 
       config_title: 'Server configuration',
       config_hint: 'Define log channels, support channel and staff roles for this guild.',
@@ -648,10 +646,8 @@
 
       const warnCount = counts.WARN || 0;
       const muteCount = counts.MUTE || 0;
-      const kickCount = counts.KICK || 0;
-      const banCount = counts.BAN || 0;
 
-      if (warnCount || muteCount || kickCount || banCount) {
+      if (warnCount || muteCount) {
         if (warnCount) {
           html +=
             '<div class="badge badge-warn">WARN: ' + String(warnCount) + '</div>';
@@ -659,12 +655,6 @@
         if (muteCount) {
           html +=
             '<div class="badge badge-mute">MUTE: ' + String(muteCount) + '</div>';
-        }
-        if (kickCount) {
-          html += '<div class="badge">KICK: ' + String(kickCount) + '</div>';
-        }
-        if (banCount) {
-          html += '<div class="badge badge-ban">BAN: ' + String(banCount) + '</div>';
         }
       } else {
         html +=
@@ -693,6 +683,10 @@
       html +=
         '<button type="button" class="btn xs btn-unmute" data-action="unmute">' +
         escapeHtml(t('users_actions_unmute')) +
+        '</button>';
+      html +=
+        '<button type="button" class="btn xs btn-reset" data-action="reset">' +
+        escapeHtml(t('users_actions_reset')) +
         '</button>';
       html += '</div>';
       html += '</div>';
@@ -807,6 +801,25 @@
                   })
                   .catch(function (err) {
                     console.error('Unmute error', err);
+                    toast(t('cases_error_generic'));
+                  });
+              } else if (action === 'reset') {
+                apiPost('/mod/reset-trust', {
+                  guildId: state.guildId,
+                  userId: user.id,
+                  reason: reason
+                })
+                  .then(function (res) {
+                    if (!res || res.ok === false) {
+                      console.error('Reset trust failed', res && res.error);
+                      toast(res && res.error ? String(res.error) : t('cases_error_generic'));
+                      return;
+                    }
+                    toast(t('users_actions_reset') + ' OK');
+                    loadUserHistory(user).catch(function () {});
+                  })
+                  .catch(function (err) {
+                    console.error('Reset trust error', err);
                     toast(t('cases_error_generic'));
                   });
               }

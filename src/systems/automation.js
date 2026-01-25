@@ -14,7 +14,7 @@ const { t } = require('./i18n');
  * @param {import('discord.js').Guild}  opts.guild
  * @param {import('discord.js').User}   opts.user
  * @param {import('discord.js').User}   opts.moderator
- * @param {string} opts.type            Tipo da infração recém-criada (WARN/MUTE/KICK/BAN)
+ * @param {string} opts.type            Tipo da infração recém-criada (WARN/MUTE)
  */
 async function handleInfractionAutomation({ client, guild, user, moderator, type }) {
   try {
@@ -91,60 +91,5 @@ async function handleInfractionAutomation({ client, guild, user, moderator, type
     }
 
     // ------------------------
-    // Auto-kick por nº total de infrações
-    // ------------------------
-    if (autoKick.enabled) {
-      const threshold = Number(autoKick.infractionsToKick || 0);
-      if (threshold > 0) {
-        const totalInfractions = await Infraction.countDocuments({
-          guildId: guild.id,
-          userId: user.id
-        });
-
-        if (
-          totalInfractions >= threshold &&
-          member.kickable &&
-          botMember.permissions.has(PermissionsBitField.Flags.KickMembers)
-        ) {
-          await member.kick('Auto-kick (automation)')
-            .catch((err) => console.warn('[automation] failed kick:', err?.message || err));
-
-          let infKick = null;
-          try {
-            infKick = await infractionsService.create({
-              guild,
-              user,
-              moderator: moderator || client.user,
-              type: 'KICK',
-              reason: 'Auto-kick (automation)',
-              duration: null,
-              source: 'automation'
-            });
-          } catch (err) {
-            console.warn('[automation] failed to create KICK infraction:', err?.message || err);
-          }
-
-          const casePrefix = infKick?.caseId ? `Case: **#${infKick.caseId}**\n` : '';
-
-          await logger(
-            client,
-            'Automation: Auto-Kick',
-            user,
-            moderator || client.user,
-            casePrefix + t('log.actions.manualKick', null, {
-              reason: 'Auto-kick (automation)'
-            }),
-            guild
-          ).catch(() => null);
-        }
-      }
-    }
-  } catch (err) {
-    console.error('[automation] handleInfractionAutomation error:', err);
-  }
-}
-
-module.exports = {
-  handleInfractionAutomation
-};
+    };
 

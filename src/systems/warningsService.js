@@ -120,6 +120,23 @@ async function applyMutePenalty(guildId, userId) {
   return u;
 }
 
+async function resetUser(guildId, userId, baseTrust, reason) {
+  const trustCfg = getTrustConfig();
+  const u = await getOrCreateUser(guildId, userId);
+
+  u.warnings = 0;
+  // repor trust base, mas sempre dentro dos limites configurados
+  const minTrust = typeof trustCfg.minTrust === 'number' ? trustCfg.minTrust : -100;
+  const maxTrust = typeof trustCfg.maxTrust === 'number' ? trustCfg.maxTrust : 100;
+  const nextTrust = typeof baseTrust === 'number' ? baseTrust : (typeof trustCfg.baseTrust === 'number' ? trustCfg.baseTrust : 0);
+
+  u.trust = clampTrust(nextTrust, minTrust, maxTrust);
+
+  // opcional: registar um timestamp de último reset se quisermos no futuro
+  await u.save();
+  return u;
+}
+
 async function resetWarnings(guildId, userId) {
   const u = await getOrCreateUser(guildId, userId);
   u.warnings = 0;
@@ -131,6 +148,7 @@ module.exports = {
   getOrCreateUser,
   addWarning,
   resetWarnings,
-  applyMutePenalty
+  applyMutePenalty,
+  resetUser
 };
 
