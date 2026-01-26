@@ -184,6 +184,7 @@
       gamenews_error_incomplete: 'Alguns feeds estão incompletos (falta URL ou canal). Preenche todos os campos antes de guardar.',
       gamenews_editor_title: 'Configuração de feeds',
       gamenews_editor_hint: 'Adiciona, edita ou remove feeds e escolhe o canal para cada um.',
+      gamenews_search_placeholder: 'Procurar por nome ou URL do feed',
       gamenews_add_feed: 'Adicionar feed',
       gamenews_save_feeds: 'Guardar alterações',
       gamenews_save_success: 'Feeds de GameNews guardados.',
@@ -311,6 +312,7 @@
       gamenews_error_incomplete: 'Some feeds are incomplete (missing URL or channel). Please fill all fields before saving.',
       gamenews_editor_title: 'Feeds configuration',
       gamenews_editor_hint: 'Add, edit or remove feeds and choose the target channel for each one.',
+      gamenews_search_placeholder: 'Search by feed name or URL',
       gamenews_add_feed: 'Add feed',
       gamenews_save_feeds: 'Save changes',
       gamenews_save_success: 'GameNews feeds saved.',
@@ -1326,13 +1328,20 @@ function renderGameNewsUI() {
   const detailEl = document.getElementById('gamenewsDetailPanel');
   if (!feedsList || !detailEl) return;
 
-  const feeds = (state.gamenews && Array.isArray(state.gamenews.feeds))
+  let feeds = (state.gamenews && Array.isArray(state.gamenews.feeds))
     ? state.gamenews.feeds
     : [];
 
-  feedsList.innerHTML = '';
+  const searchTerm = (state.gamenewsSearch || '').trim().toLowerCase();
+  if (searchTerm) {
+    feeds = feeds.filter(function (f) {
+      const name = (f.name || '').toLowerCase();
+      const url = (f.feedUrl || '').toLowerCase();
+      return (name && name.indexOf(searchTerm) !== -1) || (url && url.indexOf(searchTerm) !== -1);
+    });
+  }
 
-  if (!feeds.length) {
+  feedsList.innerHTML = '';if (!feeds.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
     empty.textContent = t('gamenews_editor_empty');
@@ -1582,8 +1591,6 @@ function renderGameNewsUI() {
       const target = state.gamenews.feeds[idx];
       target.enabled = !target.enabled;
       renderGameNewsUI();
-      // Auto-save after toggle so o utilizador não precisa de clicar "Guardar alterações"
-      saveGameNewsFeeds().catch(function () {});
     });
   }
 
@@ -1613,12 +1620,7 @@ async function saveGameNewsFeeds() {
   }
   try {
     const feeds = collectGameNewsEditorFeeds();
-    if ((!feeds || !feeds.length) && state.gamenews && Array.isArray(state.gamenews.feeds) && state.gamenews.feeds.length) {
-      // Existem feeds na UI mas nenhum é válido (falta URL ou canal)
-      toast(t('gamenews_error_incomplete'));
-      return;
-    }
-const guildParam = '?guildId=' + encodeURIComponent(state.guildId);
+    const guildParam = '?guildId=' + encodeURIComponent(state.guildId);
     await apiPost('/gamenews/feeds' + guildParam, {
       guildId: state.guildId,
       feeds: feeds
@@ -2280,14 +2282,21 @@ const guildParam = '?guildId=' + encodeURIComponent(state.guildId);
       });
     }
 
-    var btnSaveGameNewsFeeds = document.getElementById('btnSaveGameNewsFeeds');
-    if (btnSaveGameNewsFeeds) {
-      btnSaveGameNewsFeeds.addEventListener('click', function () {
-        saveGameNewsFeeds().catch(function () {});
+    var gamenewsSearchInput = document.getElementById('gamenewsSearch');
+    if (gamenewsSearchInput) {
+      gamenewsSearchInput.addEventListener('input', function () {
+        var term = (this.value || '').toLowerCase();
+        state.gamenewsSearch = term;
+        renderGameNewsUI();
       });
     }
 
-    // Tickets: delegação para responder / fechar / apagar
+    document.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('#btnSaveGameNewsFeeds');
+      if (!btn) return;
+      saveGameNewsFeeds().catch(function () {});
+    });
+// Tickets: delegação para responder / fechar / apagar
     var ticketsList = document.getElementById('ticketsList');
     if (ticketsList) {
       ticketsList.addEventListener('click', function (ev) {
