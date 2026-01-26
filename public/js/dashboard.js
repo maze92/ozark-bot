@@ -314,8 +314,8 @@
       gamenews_save_success: 'GameNews feeds saved.',
       gamenews_editor_empty: 'No feeds configured yet. Add your first feed to get started.',
       gamenews_feed_name_label: 'Name',
-      gamenews_feed_url_label: 'Feed URL',
-      gamenews_feed_channel_label: 'Channel',
+      // gamenews_feed_url_label (duplicated removed)
+      // gamenews_feed_channel_label (duplicated removed)
       gamenews_feed_enabled_label: 'Enabled',
       gamenews_feed_url_label: 'Feed URL',
       gamenews_feed_channel_label: 'Channel ID',
