@@ -1196,7 +1196,7 @@
           typeof f.maxPerCycle === 'number' && f.maxPerCycle >= 1 && f.maxPerCycle <= 10
             ? f.maxPerCycle
             : null;
-        if (!feedUrl || !channelId) return null;
+        if (!feedUrl) return null;
         return {
           name: name || 'Feed',
           feedUrl: feedUrl,
