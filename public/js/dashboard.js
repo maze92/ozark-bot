@@ -1508,9 +1508,10 @@ function renderGameNewsUI() {
     '    <input type="number" min="1" max="10" class="input gn-detail-max" value="' + escapeHtml(maxValue) + '" />' +
     '  </div>' +
     '</div>' +
-    '<div class="row gap" style="margin-top:10px;">' +
-    '  <button type="button" class="btn" id="btnGamenewsToggle">' + escapeHtml(t('gamenews_btn_toggle')) + '</button>' +
-    '  <button type="button" class="btn danger btn-remove-feed">' + escapeHtml(t('gamenews_feed_remove_label')) + '</button>' +
+    '<div class="badge-row user-actions-buttons" style="margin-top:10px;">' +
+    '  <button type="button" class="btn xs btn-warn" id="btnGamenewsToggle">' + escapeHtml(t('gamenews_btn_toggle')) + '</button>' +
+    '  <button type="button" class="btn xs btn-reset" id="btnSaveGameNewsFeeds">' + escapeHtml(t('gamenews_save_feeds')) + '</button>' +
+    '  <button type="button" class="btn xs btn-unmute btn-remove-feed">' + escapeHtml(t('gamenews_feed_remove_label')) + '</button>' +
     '</div>';
 
   configCard.appendChild(form);
