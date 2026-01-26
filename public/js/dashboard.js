@@ -2322,4 +2322,5 @@ async function saveGameNewsFeeds() {
     loadGuilds().catch(function () {});
     setTab('overview');
   });
+});
 })();
