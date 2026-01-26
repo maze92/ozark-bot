@@ -568,3 +568,14 @@ h2 {
   background: rgba(149, 165, 166, 0.16);
   border: 1px solid rgba(149, 165, 166, 0.7);
 }
+
+
+.list .list-item {
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+
+.list .list-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: translateX(1px);
+}

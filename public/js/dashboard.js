@@ -203,6 +203,7 @@
       users_history_none: 'Sem histórico de moderação para este utilizador.',
       users_history_click_to_remove: 'Clique numa infração para a remover e ajustar o trust.',
       users_history_remove_confirm: 'Tens a certeza que queres remover esta infração? Isto pode ajustar o trust e o número de avisos.',
+      users_history_remove_success: 'Infração removida com sucesso.',
       users_trust_title: 'Nível de confiança (trust)',
       users_trust_score: 'Trust',
       users_trust_next_penalty_prefix: 'Próximo auto-mute estimado após mais',
@@ -318,6 +319,7 @@
       users_history_none: 'No moderation history for this user.',
       users_history_click_to_remove: 'Click an infraction to remove it and adjust trust.',
       users_history_remove_confirm: 'Are you sure you want to remove this infraction? This may adjust trust and warning count.',
+      users_history_remove_success: 'Infraction removed successfully.',
       users_trust_title: 'Trust level',
       users_trust_score: 'Trust',
       users_trust_next_penalty_prefix: 'Next estimated auto-mute after',
@@ -573,7 +575,10 @@
         row.dataset.username = u.username || u.tag || u.id || '';
 
         const name = u.username || u.tag || u.id;
-        const roles = (u.roles || []).map(function (r) { return r.name; }).join(', ');
+        const roles = (u.roles || [])
+          .filter(function (r) { return r && r.id !== '1385619241235120169'; })
+          .map(function (r) { return r.name; })
+          .join(', ');
 
         const isBot = !!u.bot;
 
@@ -843,8 +848,9 @@
           escapeHtml(t('users_history_none')) +
           '</div>';
       } else {
-        html += '<ul>';
+        html += '<ul class="infractions-list">';
         infractions.forEach(function (inf) {
+          const id = (inf._id || inf.id || '').toString();
           const when = inf.createdAt
             ? new Date(inf.createdAt).toLocaleString()
             : '';
@@ -855,7 +861,12 @@
             '] ' +
             (reason ? reason : '') +
             (when ? ' • ' + when : '');
-          html += '<li>' + escapeHtml(line) + '</li>';
+          html +=
+            '<li class="infraction-item" data-infraction-id="' +
+            escapeHtml(id) +
+            '\">' +
+            escapeHtml(line) +
+            '</li>';
         });
         html += '</ul>';
       }
@@ -984,6 +995,40 @@
                     toast(t('cases_error_generic'));
                   });
               }
+            });
+          });
+        }
+
+        // Bind infractions click-to-remove
+        const infraList = detailEl.querySelector('.infractions-list');
+        if (infraList) {
+          infraList.querySelectorAll('.infraction-item').forEach(function (li) {
+            li.addEventListener('click', function () {
+              const id = li.getAttribute('data-infraction-id');
+              if (!id || !state.guildId || !user || !user.id) return;
+
+              if (!window.confirm(t('users_history_remove_confirm'))) return;
+
+              apiPost('/mod/remove-infraction', {
+                guildId: state.guildId,
+                userId: user.id,
+                infractionId: id
+              })
+                .then(function (res) {
+                  if (!res || res.ok === false) {
+                    console.error('Remove infraction failed', res && res.error);
+                    toast(res && res.error ? String(res.error) : t('cases_error_generic'));
+                    return;
+                  }
+                  // Feedback visual e reload de histórico
+                  li.classList.add('removing');
+                  toast(t('users_history_remove_success'));
+                  loadUserHistory(user).catch(function () {});
+                })
+                .catch(function (err) {
+                  console.error('Remove infraction error', err);
+                  toast(t('cases_error_generic'));
+                });
             });
           });
         }
