@@ -189,16 +189,16 @@
       gamenews_editor_empty: 'Ainda não existem feeds configurados. Adiciona o primeiro feed para começar.',
       gamenews_feed_name_label: 'Nome',
       gamenews_feed_url_label: 'URL do feed',
-      gamenews_feed_channel_label: 'Canal',
-      gamenews_feed_enabled_label: 'Ativo',
-      gamenews_feed_url_label: 'URL do feed',
       gamenews_feed_channel_label: 'Canal ID',
+      gamenews_feed_enabled_label: 'Ativo',
+      // gamenews_feed_url_label (duplicated removed)
+      // gamenews_feed_channel_label (duplicated removed)
       gamenews_feed_max_label: 'Máx. notícias por ciclo (1–10)',
       gamenews_feed_remove_label: 'Remover',
       gamenews_status_last_label: 'Último envio',
       gamenews_status_state_ok: 'Ativo',
       gamenews_status_state_paused: 'Em pausa',
-            gamenews_status_state_error: 'Em erro',
+      gamenews_status_state_error: 'Em erro',
       gamenews_detail_empty: 'Seleciona um feed para veres detalhes, estado e configuração.',
       gamenews_banner_disabled: 'Este feed está desativado e não irá publicar notícias.',
       gamenews_banner_paused: 'Este feed foi temporariamente pausado devido a falhas consecutivas.',
@@ -208,7 +208,7 @@
       gamenews_detail_meta_title: 'Detalhes recentes',
       gamenews_btn_toggle: 'Ativar / desativar',
       gamenews_last_sent_label: 'Último envio:',
-
+ 
       users_title: 'Utilizadores',
       users_hint: 'Lista de utilizadores e acesso rápido ao histórico de moderação.',
       users_empty: 'Selecione um servidor para ver utilizadores.',
@@ -333,7 +333,7 @@
       gamenews_detail_config_title: 'Feed configuration',
       gamenews_detail_meta_title: 'Recent details',
       gamenews_btn_toggle: 'Enable / Disable',
-      gamenews_last_sent_label: 'Last sent:',
+      gamenews_last_sent_label: 'Last sent:'
 
       users_title: 'Users',
       users_hint: 'Users list with quick access to their moderation history.',
