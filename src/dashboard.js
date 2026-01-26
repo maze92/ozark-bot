@@ -2061,7 +2061,7 @@ app.post('/api/gamenews/feeds', requireDashboardAuth, rateLimit({ windowMs: 60_0
       if (!f) continue;
       const name = sanitizeText(f.name || 'Feed', { maxLen: 64, stripHtml: true }) || 'Feed';
       const feedUrl = sanitizeText(f.feedUrl, { maxLen: 512, stripHtml: true });
-      const channelId = sanitizeId(f.channelId);
+      const channelId = sanitizeId(f.channelId) || null;
       const logChannelId = sanitizeId(f.logChannelId) || null;
       const enabled = f.enabled !== false;
 
@@ -2074,7 +2074,7 @@ app.post('/api/gamenews/feeds', requireDashboardAuth, rateLimit({ windowMs: 60_0
           ? maxPerCycleRaw
           : null;
 
-      if (!feedUrl || !channelId) continue;
+      if (!feedUrl) continue;
       sanitized.push({ guildId, name, feedUrl, channelId, logChannelId, enabled, intervalMs, maxPerCycle });
     }
 
