@@ -1105,20 +1105,49 @@ app.post('/api/mod/remove-infraction', requireDashboardAuth, async (req, res) =>
       return res.status(500).json({ ok: false, error: 'Infraction model not available' });
     }
 
-    // Tentar encontrar a infração de forma robusta (ObjectId ou string legacy)
-    const filter = { guildId, userId };
-    if (infractionId && typeof infractionId === 'string' && /^[0-9a-fA-F]{24}$/.test(infractionId)) {
-      filter._id = new mongoose.Types.ObjectId(infractionId);
-    } else if (infractionId) {
-      filter._id = infractionId;
-    }
-
+    // Tentar encontrar a infração de forma robusta (ObjectId, string legacy ou caseId)
     const rawCollection = Infraction && Infraction.collection;
     if (!rawCollection) {
       return res.status(500).json({ ok: false, error: 'Infractions collection not available' });
     }
 
-    const inf = await rawCollection.findOne(filter);
+    const orFilters = [];
+
+    if (infractionId) {
+      // Caso 1: parecer um ObjectId (24 hex)
+      if (typeof infractionId === 'string' && /^[0-9a-fA-F]{24}$/.test(infractionId)) {
+        try {
+          orFilters.push({
+            _id: new mongoose.Types.ObjectId(infractionId),
+            guildId,
+            userId
+          });
+        } catch (e) {
+          // ignore cast error here
+        }
+      }
+
+      // Caso 2: usar o valor bruto como _id (string/legacy)
+      orFilters.push({
+        _id: infractionId,
+        guildId,
+        userId
+      });
+
+      // Caso 3: tentar como caseId numérico
+      const asNumber = Number(infractionId);
+      if (Number.isFinite(asNumber)) {
+        orFilters.push({
+          caseId: asNumber,
+          guildId,
+          userId
+        });
+      }
+    }
+
+    const query = orFilters.length ? { $or: orFilters } : { guildId, userId };
+
+    const inf = await rawCollection.findOne(query);
     if (!inf) {
       return res.status(404).json({ ok: false, error: 'Infraction not found' });
     }
