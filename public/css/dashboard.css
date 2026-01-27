@@ -622,3 +622,14 @@ h2 {
   font-size: 12px;
   opacity: 0.85;
 }
+
+
+.badge-secondary {
+  opacity: 0.85;
+  background: rgba(255,255,255,0.04);
+}
+
+/* GameNews feed list: avoid horizontal scrollbar on hover */
+#gamenewsFeedsList .list-item {
+  overflow-x: hidden;
+}

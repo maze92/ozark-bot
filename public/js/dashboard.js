@@ -209,6 +209,11 @@
       gamenews_detail_config_title: 'Configuração do feed',
       gamenews_detail_meta_title: 'Detalhes recentes',
       gamenews_btn_toggle: 'Ativar / desativar',
+      gamenews_btn_toggle_logs: 'Ativar / desativar logs',
+      gamenews_logs_status_on: 'Logs ativos',
+      gamenews_logs_status_off: 'Logs desativados',
+      gamenews_feed_log_channel_label: 'Canal de logs',
+      gamenews_logs_select_channel: 'Seleciona um canal de logs antes de ativar os logs.',
       gamenews_last_sent_label: 'Último envio:',
  
       users_title: 'Utilizadores',
@@ -335,6 +340,11 @@
       gamenews_detail_config_title: 'Feed configuration',
       gamenews_detail_meta_title: 'Recent details',
       gamenews_btn_toggle: 'Enable / Disable',
+      gamenews_btn_toggle_logs: 'Enable / disable logs',
+      gamenews_logs_status_on: 'Logs enabled',
+      gamenews_logs_status_off: 'Logs disabled',
+      gamenews_feed_log_channel_label: 'Log channel',
+      gamenews_logs_select_channel: 'Select a log channel before enabling logs.',
       gamenews_last_sent_label: 'Last sent:',
 
       users_title: 'Users',
@@ -1196,30 +1206,29 @@
           typeof f.maxPerCycle === 'number' && f.maxPerCycle >= 1 && f.maxPerCycle <= 10
             ? f.maxPerCycle
             : null;
+        const logChannelId = (f.logChannelId || '').trim();
         if (!feedUrl) return null;
         return {
           name: name || 'Feed',
           feedUrl: feedUrl,
           channelId: channelId,
           enabled: enabled,
-          maxPerCycle: maxPerCycle
+          maxPerCycle: maxPerCycle,
+          logChannelId: logChannelId || null
         };
       })
       .filter(function (x) { return !!x; });
   }
-
-async function loadGameNews() {
-  const feedsList = document.getElementById('gamenewsFeedsList');
-  const detailEl = document.getElementById('gamenewsDetailPanel');
+etElementById('gamenewsDetailPanel');
 
   if (!feedsList || !detailEl) return;
 
   if (!state.gamenews) {
-    state.gamenews = { feeds: [], status: [], selectedFeedId: null };
+    state.gamenews = { feeds: [], status: [], selectedFeedId: null, channels: [] };
   }
   state.gamenews.feeds = [];
   state.gamenews.status = [];
-  state.gamenews.selectedFeedId = null;
+  state.gamenews.channels = [];
 
   if (!state.guildId) {
     feedsList.innerHTML = '';
@@ -1266,8 +1275,17 @@ async function loadGameNews() {
     console.error('GameNews feeds error', err);
   }
 
+  let channels = [];
+  try {
+    const meta = await apiGet('/guilds/' + encodeURIComponent(state.guildId) + '/meta');
+    channels = (meta && meta.channels) || [];
+  } catch (err) {
+    console.error('GameNews meta error', err);
+  }
+
   state.gamenews.status = Array.isArray(statusItems) ? statusItems : [];
   state.gamenews.feeds = Array.isArray(feeds) ? feeds.slice() : [];
+  state.gamenews.channels = Array.isArray(channels) ? channels.slice() : [];
 
   if (!state.gamenews.feeds.length) {
     feedsList.innerHTML = '';
@@ -1283,17 +1301,6 @@ async function loadGameNews() {
     detailEl.appendChild(emptyDetail);
     return;
   }
-
-  const feedsArr = state.gamenews.feeds;
-  const firstId = feedsArr[0].id || feedsArr[0].feedUrl || feedsArr[0].name || '0';
-  let selectedId = state.gamenews.selectedFeedId || firstId;
-  const availableIds = feedsArr.map(function (f) {
-    return f.id || f.feedUrl || f.name || '0';
-  });
-  if (availableIds.indexOf(selectedId) === -1) {
-    selectedId = firstId;
-  }
-  state.gamenews.selectedFeedId = selectedId;
 
   renderGameNewsUI();
 }
@@ -1360,11 +1367,9 @@ function renderGameNewsUI() {
     return f.id || f.feedUrl || f.name || '0';
   });
 
-  let effectiveSelectedId = selectedId;
-  if (!effectiveSelectedId || feedIds.indexOf(effectiveSelectedId) === -1) {
-    effectiveSelectedId = feedIds[0];
-    if (!state.gamenews) state.gamenews = {};
-    state.gamenews.selectedFeedId = effectiveSelectedId;
+  let effectiveSelectedId = null;
+  if (selectedId && feedIds.indexOf(selectedId) !== -1) {
+    effectiveSelectedId = selectedId;
   }
 
   feeds.forEach(function (f) {
@@ -1407,9 +1412,19 @@ function renderGameNewsUI() {
       '</div>';
 
     row.addEventListener('click', function () {
-      if (!state.gamenews) state.gamenews = { feeds: [], status: [], selectedFeedId: null };
+      if (!state.gamenews) state.gamenews = { feeds: [], status: [], selectedFeedId: null, channels: [] };
       state.gamenews.selectedFeedId = id;
-      renderGameNewsUI();
+      var detailEl2 = document.getElementById('gamenewsDetailPanel');
+      if (detailEl2) {
+        detailEl2.innerHTML = '';
+        var loadingDetail2 = document.createElement('div');
+        loadingDetail2.className = 'empty';
+        loadingDetail2.textContent = t('gamenews_loading');
+        detailEl2.appendChild(loadingDetail2);
+      }
+      setTimeout(function () {
+        renderGameNewsUI();
+      }, 0);
     });
 
     feedsList.appendChild(row);
@@ -1442,6 +1457,9 @@ function renderGameNewsUI() {
     stateLabel = t('gamenews_status_state_ok');
   }
 
+  const hasLogs = !!(selectedFeed.logChannelId);
+  const logsStatusLabel = hasLogs ? t('gamenews_logs_status_on') : t('gamenews_logs_status_off');
+
   const header = document.createElement('div');
   header.className = 'user-header gamenews-header';
   header.innerHTML =
@@ -1451,6 +1469,7 @@ function renderGameNewsUI() {
     '</div>' +
     '<div class="user-meta">' +
     '  <span class="badge">' + escapeHtml(stateLabel) + '</span>' +
+    '  <span class="badge badge-secondary">' + escapeHtml(logsStatusLabel) + '</span>' +
     '</div>';
 
   detailEl.appendChild(header);
@@ -1460,8 +1479,7 @@ function renderGameNewsUI() {
   let bannerText = '';
   if (!selectedFeed.enabled || (status && status.enabled === false)) {
     bannerText = t('gamenews_banner_disabled');
-  } else if (status && status.paused) {
-    bannerText = t('gamenews_banner_paused');
+  } else if (status && status.paused) {    bannerText = t('gamenews_banner_paused');
   } else if (status && status.failCount && status.failCount > 0) {
     bannerText = t('gamenews_banner_errors');
   } else {
@@ -1477,6 +1495,7 @@ function renderGameNewsUI() {
 
   const form = document.createElement('div');
   form.className = 'gamenews-detail-form';
+
 
   const maxValue = selectedFeed.maxPerCycle != null ? String(selectedFeed.maxPerCycle) : '';
 
@@ -1496,10 +1515,9 @@ function renderGameNewsUI() {
     '    <label>' + escapeHtml(t('gamenews_feed_channel_label')) + '</label>' +
     '    <input type="text" class="input gn-detail-channel" value="' + escapeHtml(selectedFeed.channelId || '') + '" />' +
     '  </div>' +
-    '  <div class="col" style="display:flex;align-items:center;gap:8px;">' +
-    '    <label><input type="checkbox" class="gn-detail-enabled"' +
-    (selectedFeed.enabled === false ? '' : ' checked') +
-    '> ' + escapeHtml(t('gamenews_feed_enabled_label')) + '</label>' +
+    '  <div class="col">' +
+    '    <label>' + escapeHtml(t('gamenews_feed_log_channel_label')) + '</label>' +
+    '    <select class="select gn-detail-log-channel"></select>' +
     '  </div>' +
     '</div>' +
     '<div class="row gap" style="margin-top:6px;">' +
@@ -1510,11 +1528,13 @@ function renderGameNewsUI() {
     '</div>' +
     '<div class="badge-row user-actions-buttons" style="margin-top:10px;">' +
     '  <button type="button" class="btn xs btn-warn" id="btnGamenewsToggle">' + escapeHtml(t('gamenews_btn_toggle')) + '</button>' +
+    '  <button type="button" class="btn xs" id="btnGamenewsToggleLogs">' + escapeHtml(t('gamenews_btn_toggle_logs')) + '</button>' +
     '  <button type="button" class="btn xs btn-reset" id="btnSaveGameNewsFeeds">' + escapeHtml(t('gamenews_save_feeds')) + '</button>' +
     '  <button type="button" class="btn xs btn-unmute btn-remove-feed">' + escapeHtml(t('gamenews_feed_remove_label')) + '</button>' +
     '</div>';
 
   configCard.appendChild(form);
+
 
   const metaCard = document.createElement('div');
   metaCard.className = 'history-section';
@@ -1533,9 +1553,10 @@ function renderGameNewsUI() {
   const nameInput = detailEl.querySelector('.gn-detail-name');
   const urlInput = detailEl.querySelector('.gn-detail-url');
   const channelInput = detailEl.querySelector('.gn-detail-channel');
-  const enabledInput = detailEl.querySelector('.gn-detail-enabled');
+  const logChannelSelect = detailEl.querySelector('.gn-detail-log-channel');
   const maxInput = detailEl.querySelector('.gn-detail-max');
   const toggleBtn = detailEl.querySelector('#btnGamenewsToggle');
+  const toggleLogsBtn = detailEl.querySelector('#btnGamenewsToggleLogs');
   const removeBtn = detailEl.querySelector('.btn-remove-feed');
 
   function updateFromInputs() {
@@ -1546,10 +1567,19 @@ function renderGameNewsUI() {
     });
     if (idx === -1) return;
     const target = state.gamenews.feeds[idx];
-    target.name = nameInput.value.trim();
-    target.feedUrl = urlInput.value.trim();
-    target.channelId = channelInput.value.trim();
-    target.enabled = !!enabledInput.checked;
+    if (nameInput) {
+      target.name = nameInput.value.trim();
+    }
+    if (urlInput) {
+      target.feedUrl = urlInput.value.trim();
+    }
+    if (channelInput) {
+      target.channelId = channelInput.value.trim();
+    }
+    if (logChannelSelect) {
+      var draft = (logChannelSelect.value || '').trim();
+      target._logChannelDraft = draft || null;
+    }
     if (maxInput && maxInput.value) {
       const v = Number(maxInput.value.trim());
       if (Number.isFinite(v) && v >= 1 && v <= 10) {
@@ -1571,11 +1601,8 @@ function renderGameNewsUI() {
   if (channelInput) {
     channelInput.addEventListener('input', updateFromInputs);
   }
-  if (enabledInput) {
-    enabledInput.addEventListener('change', function () {
-      updateFromInputs();
-      renderGameNewsUI();
-    });
+  if (logChannelSelect) {
+    logChannelSelect.addEventListener('change', updateFromInputs);
   }
   if (maxInput) {
     maxInput.addEventListener('input', updateFromInputs);
@@ -1595,9 +1622,51 @@ function renderGameNewsUI() {
     });
   }
 
+  if (toggleLogsBtn) {
+    toggleLogsBtn.addEventListener('click', function () {
+      if (!state.gamenews || !Array.isArray(state.gamenews.feeds)) return;
+      const idx = state.gamenews.feeds.findIndex(function (f2) {
+        const fid = f2.id || f2.feedUrl || f2.name || '0';
+        return fid === effectiveSelectedId;
+      });
+      if (idx === -1) return;
+      const target = state.gamenews.feeds[idx];
+
+      if (target.logChannelId) {
+        // Turn logs off
+        target.logChannelId = null;
+      } else {
+        // Turn logs on using draft or selected value
+        var chosen = target._logChannelDraft;
+        if (!chosen && logChannelSelect) {
+          chosen = (logChannelSelect.value || '').trim();
+        }
+        if (!chosen) {
+          toast(t('gamenews_logs_select_channel'));
+          return;
+        }
+        target.logChannelId = chosen;
+      }
+
+      renderGameNewsUI();
+    });
+  }
+
   if (removeBtn) {
     removeBtn.addEventListener('click', function () {
       if (!state.gamenews || !Array.isArray(state.gamenews.feeds)) return;
+      const next = state.gamenews.feeds.filter(function (f2) {
+        const fid = f2.id || f2.feedUrl || f2.name || '0';
+        return fid !== effectiveSelectedId;
+      });
+      state.gamenews.feeds = next;
+      if (state.gamenews.selectedFeedId === effectiveSelectedId) {
+        state.gamenews.selectedFeedId = null;
+      }
+      renderGameNewsUI();
+    });
+  }
+ds)) return;
       const next = state.gamenews.feeds.filter(function (f2) {
         const fid = f2.id || f2.feedUrl || f2.name || '0';
         return fid !== effectiveSelectedId;
@@ -1617,13 +1686,15 @@ function renderGameNewsUI() {
 
 function syncCurrentGameNewsDetailToState() {
   if (!state.gamenews || !Array.isArray(state.gamenews.feeds)) return;
+  var detailEl function syncCurrentGameNewsDetailToState() {
+  if (!state.gamenews || !Array.isArray(state.gamenews.feeds)) return;
   var detailEl = document.getElementById('gamenewsDetailPanel');
   if (!detailEl) return;
 
   var nameInput = detailEl.querySelector('.gn-detail-name');
   var urlInput = detailEl.querySelector('.gn-detail-url');
   var channelInput = detailEl.querySelector('.gn-detail-channel');
-  var enabledInput = detailEl.querySelector('.gn-detail-enabled');
+  var logChannelSelect = detailEl.querySelector('.gn-detail-log-channel');
   var maxInput = detailEl.querySelector('.gn-detail-max');
 
   var feeds = state.gamenews.feeds;
@@ -1634,14 +1705,13 @@ function syncCurrentGameNewsDetailToState() {
     return f.id || f.feedUrl || f.name || '0';
   });
 
-  var effectiveSelectedId = selectedId;
-  if (!effectiveSelectedId || feedIds.indexOf(effectiveSelectedId) === -1) {
-    effectiveSelectedId = feedIds[0];
+  if (!selectedId || feedIds.indexOf(selectedId) === -1) {
+    return;
   }
 
   var idx = feeds.findIndex(function (f2) {
     var fid = f2.id || f2.feedUrl || f2.name || '0';
-    return fid === effectiveSelectedId;
+    return fid === selectedId;
   });
   if (idx === -1) return;
 
@@ -1655,8 +1725,9 @@ function syncCurrentGameNewsDetailToState() {
   if (channelInput) {
     target.channelId = channelInput.value.trim();
   }
-  if (enabledInput) {
-    target.enabled = !!enabledInput.checked;
+  if (logChannelSelect) {
+    var logVal = (logChannelSelect.value || '').trim();
+    target._logChannelDraft = logVal || null;
   }
   if (maxInput) {
     if (maxInput.value) {
@@ -1671,10 +1742,7 @@ function syncCurrentGameNewsDetailToState() {
     }
   }
 }
-
-async function saveGameNewsFeeds() {
-  if (!state.guildId) {
-    toast(t('gamenews_select_guild'));
+'gamenews_select_guild'));
     return;
   }
   try {
@@ -2323,10 +2391,12 @@ async function saveGameNewsFeeds() {
     if (btnAddGameNewsFeed) {
       btnAddGameNewsFeed.addEventListener('click', function () {
         if (!state.gamenews) {
-          state.gamenews = { feeds: [], status: [], selectedFeedId: null };
+          state.gamenews = { feeds: [], status: [], selectedFeedId: null, channels: [] };
         }
         var feeds = Array.isArray(state.gamenews.feeds) ? state.gamenews.feeds.slice() : [];
+        var tempId = 'local-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
         feeds.push({
+          id: tempId,
           name: '',
           feedUrl: '',
           channelId: '',
@@ -2334,10 +2404,7 @@ async function saveGameNewsFeeds() {
           maxPerCycle: null
         });
         state.gamenews.feeds = feeds;
-        if (!state.gamenews.selectedFeedId && feeds.length) {
-          var f0 = feeds[feeds.length - 1];
-          state.gamenews.selectedFeedId = f0.id || f0.feedUrl || f0.name || '0';
-        }
+        state.gamenews.selectedFeedId = tempId;
         renderGameNewsUI();
       });
     }
