@@ -1642,27 +1642,12 @@ function renderGameNewsUI() {
       renderGameNewsUI();
     });
   }
-ds)) return;
-      const next = state.gamenews.feeds.filter(function (f2) {
-        const fid = f2.id || f2.feedUrl || f2.name || '0';
-        return fid !== effectiveSelectedId;
-      });
-      state.gamenews.feeds = next;
-      if (next.length === 0) {
-        state.gamenews.selectedFeedId = null;
-      } else {
-        const newFirstId = next[0].id || next[0].feedUrl || next[0].name || '0';
-        state.gamenews.selectedFeedId = newFirstId;
-      }
-      renderGameNewsUI();
-    });
   }
 }
 
 
+
 function syncCurrentGameNewsDetailToState() {
-  if (!state.gamenews || !Array.isArray(state.gamenews.feeds)) return;
-  var detailEl function syncCurrentGameNewsDetailToState() {
   if (!state.gamenews || !Array.isArray(state.gamenews.feeds)) return;
   var detailEl = document.getElementById('gamenewsDetailPanel');
   if (!detailEl) return;
@@ -1718,13 +1703,16 @@ function syncCurrentGameNewsDetailToState() {
     }
   }
 }
-'gamenews_select_guild'));
+
+async function saveGameNewsFeeds() {
+  if (!state.guildId) {
+    toast(t('gamenews_select_guild'));
     return;
   }
   try {
     syncCurrentGameNewsDetailToState();
-    const feeds = collectGameNewsEditorFeeds();
-    const guildParam = '?guildId=' + encodeURIComponent(state.guildId);
+    var feeds = collectGameNewsEditorFeeds();
+    var guildParam = '?guildId=' + encodeURIComponent(state.guildId);
     await apiPost('/gamenews/feeds' + guildParam, {
       guildId: state.guildId,
       feeds: feeds
@@ -1735,10 +1723,9 @@ function syncCurrentGameNewsDetailToState() {
     console.error('Failed to save GameNews feeds', err);
     toast(t('gamenews_error_generic'));
   }
-} // <--- Agora fecha corretamente a função
+}
 
-  
-  // -----------------------------
+// -----------------------------
   // Logs de moderação + Tickets
   // -----------------------------
 
