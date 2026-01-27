@@ -851,28 +851,13 @@
           html += '<div class="user-trust-next">';
           if (mins !== null) {
             if (remaining !== null && remaining > 0) {
-              html +=
-                '<span>' +
-                escapeHtml(t('users_trust_next_penalty_prefix')) +
-                ' ' +
-                String(remaining) +
-                ' warn(s); ' +
-                escapeHtml(t('users_trust_next_penalty_suffix')) +
-                ' ~' +
-                String(mins) +
-                ' min' +
-                '</span>';
+              html += `<span>${escapeHtml(t('users_trust_next_penalty_prefix'))} ${String(
+                remaining
+              )} warn(s); ${escapeHtml(t('users_trust_next_penalty_suffix'))} ~${String(mins)} min</span>`;
             } else {
-              html +=
-                '<span>' +
-                escapeHtml(t('users_trust_next_penalty_at_threshold')) +
-                ' ~' +
-                String(mins) +
-                ' min ' +
-                '(' +
-                String(currentWarns) +
-                ' WARN(s) atuais)' +
-                '</span>';
+              html += `<span>${escapeHtml(
+                t('users_trust_next_penalty_at_threshold')
+              )} ~${String(mins)} min (${String(currentWarns)} WARN(s) atuais)</span>`;
             }
           }
           html += '</div>';
