@@ -554,4 +554,19 @@ dashboard.js
  │   ├─ gamenews.js
  │   ├─ config.js
  └─ init()
+
 Tudo dentro de um único ficheiro, mas organizado como se fossem módulos.
+
+
+
+corrigir:
+1) Adicionar chave loading ao I18N
+Insira estas linhas nas tabelas pt e en (por exemplo logo após outras mensagens gerais):
+
+javascript
+    // dentro de I18N.pt
+    loading: 'A carregar...',
+
+    // dentro de I18N.en
+    loading: 'Loading...',
+
