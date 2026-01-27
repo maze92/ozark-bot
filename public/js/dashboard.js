@@ -112,8 +112,8 @@
     }
 
     row.innerHTML = `
-        <div class="title">\${escapeHtml(title)}</div>
-        <div class="subtitle">\${escapeHtml(subtitleParts.join(' • '))}</div>
+        <div class="title">${escapeHtml(title)}</div>
+        <div class="subtitle">${escapeHtml(subtitleParts.join(' • '))}</div>
       `;
 
     return row;
