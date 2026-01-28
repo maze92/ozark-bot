@@ -11,7 +11,6 @@
   const toast = D.toast;
   const t = D.t;
   const escapeHtml = D.escapeHtml;
-  const renderGameNewsStatus = D.renderGameNewsStatus;
 
   function createGameNewsFeedRow(f, idx) {
     const row = document.createElement('div');
