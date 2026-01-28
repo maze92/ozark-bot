@@ -386,7 +386,8 @@
       }
       if (countEl) {
         countEl.textContent = t('gamenews_feeds_count_zero') || '0 feeds configurados';
-      
+      }
+
       return;
     }
 
