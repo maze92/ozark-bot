@@ -140,41 +140,7 @@
     return row;
   }
 
-  function createGameNewsFeedRow(f, idx) {
-    const row = document.createElement('div');
-    row.className = 'list-item';
-    row.dataset.index = String(idx);
-
-    row.innerHTML = `
-        <div class="row gap">
-          <div class="col">
-            <label for="auto_id_1">${escapeHtml(t('gamenews_feed_name_label'))}</label>
-<input type="text" class="input feed-name" value="${escapeHtml(f.name || '')}" / name="auto_field_1" id="auto_id_1">
-          </div>
-          <div class="col">
-            <label for="auto_id_2">${escapeHtml(t('gamenews_feed_url_label'))}</label>
-<input type="text" class="input feed-url" value="${escapeHtml(f.feedUrl || '')}" / name="auto_field_2" id="auto_id_2">
-          </div>
-        </div>
-        <div class="row gap" style="margin-top:6px;">
-          <div class="col">
-            <label for="auto_id_3">${escapeHtml(t('gamenews_feed_channel_label'))}</label>
-<input type="text" class="input feed-channel" value="${escapeHtml(f.channelId || '')}" / name="auto_field_3" id="auto_id_3">
-          </div>
-          <div class="col" style="display:flex;align-items:center;gap:8px;">
-            <label>
-              <input type="checkbox" class="feed-enabled"${f.enabled === false ? '' : ' checked'} name="auto_field_4" id="auto_id_4">
-              ${escapeHtml(t('gamenews_feed_enabled_label'))}
-            </label>
-            <button type="button" class="btn btn-small btn-remove-feed">
-              ${escapeHtml(t('gamenews_feed_remove_label'))}
-            </button>
-          </div>
-        </div>
-      `;
-
-    return row;
-  }
+  
 
   function toast(message) {
     const id = 'ozarkToast';
@@ -635,55 +601,7 @@
   // GameNews (status + editor)
   // -----------------------------
 
-  function renderGameNewsStatus(items) {
-    const listEl = document.getElementById('gamenewsStatusList');
-    if (!listEl) return;
-    listEl.innerHTML = '';
-
-    if (!items || !items.length) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = t('gamenews_empty');
-      listEl.appendChild(empty);
-      return;
-    }
-
-    items.forEach(function (s) {
-      const row = document.createElement('div');
-      row.className = 'list-item';
-
-      const lastSent = s.lastSentAt ? new Date(s.lastSentAt).toLocaleString() : '—';
-      const fails = s.failCount != null ? String(s.failCount) : '0';
-
-      let stateLabel;
-      if (s.enabled === false) {
-        stateLabel = t('gamenews_status_state_paused');
-      } else if (s.paused) {
-        stateLabel = t('gamenews_status_state_paused');
-      } else if (s.failCount && s.failCount > 0) {
-        stateLabel = t('gamenews_status_state_error');
-      } else {
-        stateLabel = t('gamenews_status_state_ok');
-      }
-
-      const statusText = stateLabel + ' • ' + 'Fails: ' + fails;
-
-      row.innerHTML =
-        '<div class="title">' +
-        escapeHtml(s.feedName || s.source || 'Feed') +
-        '</div>' +
-        '<div class="subtitle">' +
-        escapeHtml(s.feedUrl || '') +
-        '</div>' +
-        '<div class="meta">' +
-        escapeHtml(statusText) +
-        ' • ' + escapeHtml(t('gamenews_status_last_label')) + ': ' +
-        escapeHtml(lastSent) +
-        '</div>';
-
-      listEl.appendChild(row);
-    });
-  }
+  
 
   
 
@@ -1307,7 +1225,5 @@
   window.OzarkDashboard.renderLogs = renderLogs;
 
   // GameNews
-  window.OzarkDashboard.renderGameNewsStatus = renderGameNewsStatus;
-  window.OzarkDashboard.createGameNewsFeedRow = createGameNewsFeedRow;
-
+    
 })();
