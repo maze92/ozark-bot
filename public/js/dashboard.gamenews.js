@@ -229,14 +229,10 @@
       )}</div>`;
     } else {
       html += '<div class="row gap">';
-      html += '<div class="col">';
-      html += `<strong>${escapeHtml(t('gamenews_detail_last_sent') || 'Último envio')}:</strong> ${
+      html += `<div class="badge">${escapeHtml(t('gamenews_detail_last_sent') || 'Último envio')}: ${
         lastSent ? escapeHtml(lastSent) : '-'
-      }`;
-      html += '</div>';
-      html += '<div class="col">';
-      html += `<strong>${escapeHtml(t('gamenews_detail_fail_count') || 'Falhas')}:</strong> ${String(failCount)}`;
-      html += '</div>';
+      }</div>`;
+      html += `<div class="badge">${escapeHtml(t('gamenews_detail_fail_count') || 'Falhas')}: ${String(failCount)}</div>`;
       html += '</div>';
 
       if (pausedUntil) {
