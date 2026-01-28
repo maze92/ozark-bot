@@ -103,6 +103,12 @@
     if (!listEl) return;
     listEl.innerHTML = '';
 
+  const header = document.createElement('div');
+  header.className = 'section-header';
+  header.innerHTML = `<h3>${escapeHtml(t('gamenews_editor_title'))}</h3><p class="hint">${escapeHtml(t('gamenews_editor_hint'))}</p>`;
+  listEl.appendChild(header);
+
+
     if (!items || !items.length) {
       const empty = document.createElement('div');
       empty.className = 'empty';
@@ -256,6 +262,12 @@ async function loadGameNews() {
       const listEl = document.getElementById('gamenewsFeedsList');
       if (!listEl) return;
       listEl.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'section-header';
+  header.innerHTML = `<h3>${escapeHtml(t('gamenews_editor_title'))}</h3><p class="hint">${escapeHtml(t('gamenews_editor_hint'))}</p>`;
+  listEl.appendChild(header);
+
 
       if (!feeds || !feeds.length) {
         const empty = document.createElement('div');
