@@ -115,7 +115,11 @@
     if (!Array.isArray(state.gameNewsFeeds)) return;
     const feed = state.gameNewsFeeds[idx];
     if (!feed) return;
+    const detailEl = document.getElementById('gamenewsFeedDetailPanel');
     state.activeGameNewsFeedIndex = idx;
+    if (detailEl) {
+      detailEl.innerHTML = `<div class="empty">${escapeHtml(t('loading') || 'Loading...')}</div>`;
+    }
     renderGameNewsFeedDetail(feed);
   }
 
@@ -255,7 +259,7 @@
     html += `<button type="button" class="btn xs gamenews-action btn-save" data-action="save">${escapeHtml(t('gamenews_detail_action_save') || 'Guardar feed')}</button>`;
     html += `<button type="button" class="btn xs gamenews-action btn-toggle" data-action="toggle-enabled">${escapeHtml(enabled ? (t('gamenews_detail_action_disable') || 'Desativar feed') : (t('gamenews_detail_action_enable') || 'Ativar feed'))}</button>`;
     html += `<button type="button" class="btn xs gamenews-action btn-remove" data-action="remove">${escapeHtml(t('gamenews_detail_action_remove') || 'Remover feed')}</button>`;
-    html += `<button type="button" class="btn xs ghost gamenews-action btn-reload" data-action="reload">${escapeHtml(t('gamenews_reload_status') || 'Recarregar estado')}</button>`;
+    
     html += '</div>';
     html += '</div>'; // /history-section actions
 

@@ -657,3 +657,22 @@ h2 {
 #tab-gamenews .gamenews-layout .list {
   overflow-x: hidden;
 }
+
+
+/* GameNews detail parity with Users panel */
+#tab-gamenews .user-detail-inner {
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+#tab-gamenews .history-section h3 {
+  font-size: 13px;
+}
+
+#tab-gamenews .history-section p,
+#tab-gamenews .history-section label,
+#tab-gamenews .history-section input {
+  font-size: 12px;
+}
+
