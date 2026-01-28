@@ -77,6 +77,27 @@
     return row;
   }
 
+  
+  function renderGameNewsHeader(container) {
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `
+      <div class="row space-between align-center">
+        <div>
+          <h2 class="section-title">${escapeHtml(t('gamenews_title') || 'GameNews')}</h2>
+          <div class="section-subtitle">${escapeHtml(t('gamenews_subtitle') || 'Gerir feeds de notícias e anúncios')}</div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-primary btn-add-feed">
+            ${escapeHtml(t('gamenews_add_feed') || 'Adicionar feed')}
+          </button>
+        </div>
+      </div>
+    `;
+    container.appendChild(header);
+    return header;
+  }
+
   function renderGameNewsStatus(items) {
     const listEl = document.getElementById('gamenewsStatusList');
     if (!listEl) return;
@@ -118,9 +139,9 @@
         escapeHtml(s.feedUrl || '') +
         '</div>' +
         '<div class="meta">' +
-        escapeHtml(statusText) +
-        ' • ' + escapeHtml(t('gamenews_status_last_label')) + ': ' +
-        escapeHtml(lastSent) +
+        '<span class="badge">' + escapeHtml(statusText) + '</span>' +
+        ' ' +
+        '<span class="badge">' + escapeHtml(t('gamenews_status_last_label')) + ': ' + escapeHtml(lastSent) + '</span>' +
         '</div>';
 
       listEl.appendChild(row);
