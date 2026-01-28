@@ -12,6 +12,7 @@
   const t = D.t;
   const escapeHtml = D.escapeHtml;
   const createGameNewsFeedRow = D.createGameNewsFeedRow;
+  const renderGameNewsStatus = D.renderGameNewsStatus;
 
   async function loadGameNews() {
       const statusList = document.getElementById('gamenewsStatusList');
