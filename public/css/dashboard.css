@@ -258,7 +258,8 @@ h2 {
   overflow: auto;
 }
 
-#tab-user .user-detail {
+#tab-user .user-detail,
+#tab-gamenews .user-detail {
   border-radius: 10px;
   border: 1px solid var(--border-soft);
   background: rgba(255,255,255,0.02);
@@ -266,19 +267,22 @@ h2 {
   min-height: 120px;
 }
 
-#tab-user .user-detail .title {
+#tab-user .user-detail .title,
+#tab-gamenews .user-detail .title {
   font-size: 15px;
   font-weight: 600;
   margin-bottom: 4px;
 }
 
-#tab-user .user-detail .subtitle {
+#tab-user .user-detail .subtitle,
+#tab-gamenews .user-detail .subtitle {
   font-size: 12px;
   color: var(--text-muted);
   margin-bottom: 8px;
 }
 
-#tab-user .user-detail .history-section {
+#tab-user .user-detail .history-section,
+#tab-gamenews .user-detail .history-section {
   margin-top: 8px;
 }
 
