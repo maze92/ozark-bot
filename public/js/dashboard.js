@@ -1395,7 +1395,7 @@ async function saveGameNewsFeeds() {
     renderTempVoiceBaseList();
   }
 
-strict';
+'use strict';
 
 (function () {
   // Global namespace for multi-file-friendly dashboard
