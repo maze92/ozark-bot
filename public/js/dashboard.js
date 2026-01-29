@@ -18,6 +18,7 @@
   // Small helpers
   // -----------------------------
 
+  
   function getToken() {
     try {
       return localStorage.getItem(TOKEN_KEY) || '';
@@ -32,15 +33,14 @@
         localStorage.setItem(TOKEN_KEY, token);
       }
     } catch (e) {
+      // ignore
+    }
+  }
 
   function clearToken() {
     try {
       localStorage.removeItem(TOKEN_KEY);
     } catch (e) {
-      // ignore
-    }
-  }
-
       // ignore
     }
   }
@@ -54,6 +54,8 @@
     }
     return headers;
   }
+
+
 
   async function apiGet(path) {
     const res = await fetch(API_BASE + path, {
@@ -1341,9 +1343,8 @@ async function saveGameNewsFeeds() {
   window.OzarkDashboard.API_BASE = API_BASE;
   window.OzarkDashboard.getToken = getToken;
   window.OzarkDashboard.setToken = setToken;
-
   window.OzarkDashboard.clearToken = clearToken;
-  window.OzarkDashboard.apiGet = apiGet;
+window.OzarkDashboard.apiGet = apiGet;
   window.OzarkDashboard.apiPost = apiPost;
   window.OzarkDashboard.toast = toast;
   window.OzarkDashboard.t = t;
