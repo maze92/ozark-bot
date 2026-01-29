@@ -127,7 +127,7 @@
     if (detailEl) {
       detailEl.innerHTML = `<div class="empty">${escapeHtml(t('loading') || 'Loading...')}</div>`;
     }
-    renderGameNewsFeedDetail(feed);
+    setTimeout(function () { renderGameNewsFeedDetail(feed); }, 0);
   }
 
   function renderGameNewsFeedDetail(feed) {
@@ -387,9 +387,6 @@
       if (detailEl) {
         detailEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_detail_empty'))}</div>`;
       }
-      if (countEl) {
-        countEl.textContent = t('gamenews_feeds_count_zero') || '0 feeds configurados';
-      }
 
       return;
     }
@@ -406,15 +403,6 @@
       const statusItems = statusRes && Array.isArray(statusRes.items) ? statusRes.items : [];
 
       state.gameNewsFeeds = feeds;
-      const feedsCount = Array.isArray(feeds) ? feeds.length : 0;
-      if (countEl) {
-        if (feedsCount === 1) {
-          countEl.textContent = t('gamenews_feeds_count_single') || '1 feed configurado';
-        } else {
-          const prefix = t('gamenews_feeds_count_multiple_prefix') || '';
-          const suffix = t('gamenews_feeds_count_multiple_suffix') || ' feeds configurados';
-          countEl.textContent = prefix + String(feedsCount || 0) + suffix;
-        }
       }
       state.gameNewsStatusIndex = buildStatusIndex(statusItems);
 
@@ -460,15 +448,6 @@
           intervalMs: null
         });
         renderGameNewsFeedsList(state.gameNewsFeeds);
-        const countEl = document.getElementById('gamenewsFeedCount');
-        if (countEl) {
-          const feedsCount = Array.isArray(state.gameNewsFeeds) ? state.gameNewsFeeds.length : 0;
-          if (feedsCount === 1) {
-            countEl.textContent = t('gamenews_feeds_count_single') || '1 feed configurado';
-          } else {
-            const prefix = t('gamenews_feeds_count_multiple_prefix') || '';
-            const suffix = t('gamenews_feeds_count_multiple_suffix') || ' feeds configurados';
-            countEl.textContent = prefix + String(feedsCount || 0) + suffix;
           }
         }
       });
