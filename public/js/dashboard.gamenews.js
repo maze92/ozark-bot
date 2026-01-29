@@ -113,15 +113,7 @@
 
   
   function renderGameNewsFeedSkeleton() {
-    return `
-      <div class="gn-loading">
-        <div class="gn-skeleton gn-skeleton-title"></div>
-        <div class="gn-skeleton gn-skeleton-line"></div>
-        <div class="gn-skeleton gn-skeleton-line short"></div>
-        <div class="gn-skeleton gn-skeleton-line"></div>
-        <div class="gn-skeleton gn-skeleton-line short"></div>
-      </div>
-    `;
+    return `<div class="empty">${escapeHtml(t('loading') || 'Loading...')}</div>`;
   }
 
 function selectGameNewsFeedByIndex(idx) {
@@ -140,11 +132,9 @@ function selectGameNewsFeedByIndex(idx) {
     if (detailEl) {
       detailEl.innerHTML = renderGameNewsFeedSkeleton();
     }
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        renderGameNewsFeedDetail(feed);
-      });
-    });
+    setTimeout(function () {
+      renderGameNewsFeedDetail(feed);
+    }, 250);
   }
 
   function renderGameNewsFeedDetail(feed) {
