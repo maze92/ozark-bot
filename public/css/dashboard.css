@@ -818,3 +818,9 @@ h2 {
 .card.subcard {
   margin-top: 10px;
 }
+
+
+#extras-tempvoice-panel .list {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
