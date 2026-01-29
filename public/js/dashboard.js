@@ -1209,158 +1209,123 @@ async function saveGameNewsFeeds() {
     }
   }
 
-  async function loadTempVoiceConfig() {
-    if (!state.guildId) return;
+    async function loadTempVoiceConfig() {
+      if (!state.guildId) return;
 
-    try {
-      const res = await apiGet(`/temp-voice/config?guildId=${encodeURIComponent(state.guildId)}`);
-      if (!res || !res.ok) return;
+      try {
+        const res = await apiGet(`/temp-voice/config?guildId=${encodeURIComponent(state.guildId)}`);
+        if (!res || !res.ok) return;
 
-      var cfg = res.config || {};
+        var cfg = res.config || {};
+        var enabledSel = document.getElementById('tempVoiceEnabled');
+        var baseIdInput = document.getElementById('tempVoiceBaseId');
+        var catInput = document.getElementById('tempVoiceCategoryId');
+        var delayInput = document.getElementById('tempVoiceDeleteDelay');
+
+        var baseIds = Array.isArray(cfg.baseChannelIds) ? cfg.baseChannelIds : [];
+
+        state.tempVoiceBase = state.tempVoiceBase || { items: [], selectedIndex: -1 };
+        state.tempVoiceBase.items = baseIds.slice();
+        state.tempVoiceBase.selectedIndex = baseIds.length ? 0 : -1;
+
+        if (enabledSel) {
+          enabledSel.value = cfg.enabled ? 'true' : 'false';
+        }
+        if (baseIdInput) {
+          baseIdInput.value = baseIds.length ? baseIds[0] : '';
+        }
+        if (catInput) {
+          catInput.value = cfg.categoryId || '';
+        }
+        if (delayInput) {
+          delayInput.value = typeof cfg.deleteDelaySeconds === 'number' ? String(cfg.deleteDelaySeconds) : '10';
+        }
+
+        if (typeof renderTempVoiceBaseList === 'function') {
+          renderTempVoiceBaseList();
+        }
+      } catch (err) {
+        console.error('Failed to load temp voice config', err);
+      }
+    }
+
+    async function saveTempVoiceConfig() {
+      if (!state.guildId) return;
+
       var enabledSel = document.getElementById('tempVoiceEnabled');
-      var baseIdInput = document.getElementById('tempVoiceBaseId');
       var catInput = document.getElementById('tempVoiceCategoryId');
       var delayInput = document.getElementById('tempVoiceDeleteDelay');
 
-      var baseIds = Array.isArray(cfg.baseChannelIds) ? cfg.baseChannelIds : [];
-
-      state.tempVoiceBase.items = baseIds.slice();
-      state.tempVoiceBase.selectedIndex = baseIds.length ? 0 : -1;
-
-      if (enabledSel) {
-        enabledSel.value = cfg.enabled ? 'true' : 'false';
-      }
-      if (baseIdInput) {
-        baseIdInput.value = baseIds.length ? baseIds[0] : '';
-      }
-      if (catInput) {
-        catInput.value = cfg.categoryId || '';
-      }
-      if (delayInput) {
-        delayInput.value = typeof cfg.deleteDelaySeconds === 'number' ? String(cfg.deleteDelaySeconds) : '10';
+      if (typeof syncTempVoiceBaseFromInput === 'function') {
+        syncTempVoiceBaseFromInput();
       }
 
-      renderTempVoiceBaseList();
-    } catch (err) {
-      console.error('Failed to load temp voice config', err);
-    }
-  }
+      var enabled = enabledSel && enabledSel.value === 'true';
+      var categoryId = (catInput && catInput.value) || '';
+      var delayRaw = (delayInput && delayInput.value) || '10';
 
-async function saveTempVoiceConfig() {
-    if (!state.guildId) return;
+      var baseChannelIds = (state.tempVoiceBase && state.tempVoiceBase.items || []).filter(function (s) { return !!s; });
 
-    var enabledSel = document.getElementById('tempVoiceEnabled');
-    var catInput = document.getElementById('tempVoiceCategoryId');
-    var delayInput = document.getElementById('tempVoiceDeleteDelay');
+      var delaySeconds = parseInt(delayRaw, 10);
+      if (!Number.isFinite(delaySeconds) || delaySeconds < 5) delaySeconds = 10;
 
-    syncTempVoiceBaseFromInput();
-
-    var enabled = enabledSel && enabledSel.value === 'true';
-    var categoryId = (catInput && catInput.value) || '';
-    var delayRaw = (delayInput && delayInput.value) || '10';
-
-    var baseChannelIds = (state.tempVoiceBase.items || []).filter(function (s) { return !!s; });
-
-    var delaySeconds = parseInt(delayRaw, 10);
-    if (!Number.isFinite(delaySeconds) || delaySeconds < 5) delaySeconds = 10;
-
-    try {
-      const body = {
-        guildId: state.guildId,
-        enabled: enabled,
-        baseChannelIds: baseChannelIds,
-        categoryId: categoryId,
-        deleteDelaySeconds: delaySeconds
-      };
-      const res = await apiPost('/temp-voice/config', body);
-      if (res && res.ok) {
-        toast(t('tempvoice_saved') || 'Configuração de voz temporária guardada.');
-        loadTempVoiceConfig().catch(function () {});
-      } else {
+      try {
+        const body = {
+          guildId: state.guildId,
+          enabled: enabled,
+          baseChannelIds: baseChannelIds,
+          categoryId: categoryId,
+          deleteDelaySeconds: delaySeconds
+        };
+        const res = await apiPost('/temp-voice/config', body);
+        if (res && res.ok) {
+          toast(t('tempvoice_saved') || 'Configuração de voz temporária guardada.');
+          loadTempVoiceConfig().catch(function () {});
+        } else {
+          toast(t('tempvoice_save_error') || 'Falha ao guardar configuração de voz temporária.', 'error');
+        }
+      } catch (err) {
+        console.error('Failed to save temp voice config', err);
         toast(t('tempvoice_save_error') || 'Falha ao guardar configuração de voz temporária.', 'error');
       }
-    } catch (err) {
-      console.error('Failed to save temp voice config', err);
-      toast(t('tempvoice_save_error') || 'Falha ao guardar configuração de voz temporária.', 'error');
     }
-  }
 
+    async function loadTempVoiceActive() {
+      if (!state.guildId) return;
 
-    if (!state.guildId) return;
+      try {
+        const res = await apiGet(`/temp-voice/active?guildId=${encodeURIComponent(state.guildId)}`);
+        const listEl = document.getElementById('tempVoiceActiveList');
+        if (!listEl) return;
 
-    var enabledSel = document.getElementById('tempVoiceEnabled');
-    var baseInput = document.getElementById('tempVoiceBaseChannels');
-    var catInput = document.getElementById('tempVoiceCategoryId');
-    var delayInput = document.getElementById('tempVoiceDeleteDelay');
+        listEl.innerHTML = '';
 
-    var enabled = enabledSel && enabledSel.value === 'true';
-    var baseRaw = (baseInput && baseInput.value) || '';
-    var categoryId = (catInput && catInput.value) || '';
-    var delayRaw = (delayInput && delayInput.value) || '10';
+        if (!res || !res.ok || !Array.isArray(res.items) || !res.items.length) {
+          listEl.innerHTML = `<div class="empty">${escapeHtml(t('tempvoice_active_empty'))}</div>`;
+          return;
+        }
 
-    var baseChannelIds = baseRaw
-      .split(',')
-      .map(function (s) { return s.trim(); })
-      .filter(function (s) { return !!s; });
-
-    var delaySeconds = parseInt(delayRaw, 10);
-    if (!Number.isFinite(delaySeconds) || delaySeconds < 5) delaySeconds = 10;
-
-    try {
-      const body = {
-        guildId: state.guildId,
-        enabled: enabled,
-        baseChannelIds: baseChannelIds,
-        categoryId: categoryId,
-        deleteDelaySeconds: delaySeconds
-      };
-      const res = await apiPost('/temp-voice/config', body);
-      if (res && res.ok) {
-        toast(t('tempvoice_saved') || 'Configuração de voz temporária guardada.');
-        loadTempVoiceConfig().catch(function () {});
-      } else {
-        toast(t('tempvoice_save_error') || 'Falha ao guardar configuração de voz temporária.', 'error');
-      }
-    } catch (err) {
-      console.error('Failed to save temp voice config', err);
-      toast(t('tempvoice_save_error') || 'Falha ao guardar configuração de voz temporária.', 'error');
-    }
-  }
-
-  async function loadTempVoiceActive() {
-    if (!state.guildId) return;
-
-    try {
-      const res = await apiGet(`/temp-voice/active?guildId=${encodeURIComponent(state.guildId)}`);
-      const listEl = document.getElementById('tempVoiceActiveList');
-      if (!listEl) return;
-
-      listEl.innerHTML = '';
-
-      if (!res || !res.ok || !Array.isArray(res.items) || !res.items.length) {
-        listEl.innerHTML = `<div class="empty">${escapeHtml(t('tempvoice_active_empty'))}</div>`;
-        return;
-      }
-
-      res.items.forEach(function (item) {
-        var el = document.createElement('div');
-        el.className = 'list-item';
-        el.innerHTML = `
-          <div class="row space">
-            <div>
-              <div class="title">#${escapeHtml(item.channelId || '')}</div>
-              <div class="subtitle">
-                Owner: ${escapeHtml(item.ownerId || '?')} · Base: ${escapeHtml(item.baseChannelId || '?')}
+        res.items.forEach(function (item) {
+          var el = document.createElement('div');
+          el.className = 'list-item';
+          el.innerHTML = `
+            <div class="row space">
+              <div>
+                <div class="title">#${escapeHtml(item.channelId || '')}</div>
+                <div class="subtitle">
+                  Owner: ${escapeHtml(item.ownerId || '?')} · Base: ${escapeHtml(item.baseChannelId || '?')}
+                </div>
               </div>
             </div>
-          </div>
-        `;
-        listEl.appendChild(el);
-      });
-    } catch (err) {
-      console.error('Failed to load temp voice active list', err);
+          `;
+          listEl.appendChild(el);
+        });
+      } catch (err) {
+        console.error('Failed to load temp voice active list', err);
+      }
     }
-  }
+
+
 
   function renderTempVoiceBaseList() {
     var listEl = document.getElementById('tempVoiceBaseList');
