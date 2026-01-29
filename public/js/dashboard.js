@@ -645,6 +645,8 @@
       window.OzarkDashboard.loadCases().catch(function () {});
     } else if (name === 'gamenews') {
       window.OzarkDashboard.loadGameNews().catch(function () {});
+        loadTempVoiceConfig().catch(function () {});
+        loadTempVoiceActive().catch(function () {});
     } else if (name === 'user') {
       window.OzarkDashboard.loadUsers().catch(function () {});
     } else if (name === 'config') {
@@ -1374,6 +1376,8 @@ async function saveGameNewsFeeds() {
             window.OzarkDashboard.loadLogs().catch(function () {});
           } else if (state.currentTab === 'gamenews') {
             window.OzarkDashboard.loadGameNews().catch(function () {});
+            loadTempVoiceConfig().catch(function () {});
+            loadTempVoiceActive().catch(function () {});
           } else if (state.currentTab === 'user') {
             window.OzarkDashboard.loadUsers().catch(function () {});
           } else if (state.currentTab === 'config') {
@@ -1383,7 +1387,15 @@ async function saveGameNewsFeeds() {
       });
     }
 
-    // Logs controls
+          // Temp voice config
+      var btnSaveTempVoice = document.getElementById('btnSaveTempVoice');
+      if (btnSaveTempVoice) {
+        btnSaveTempVoice.addEventListener('click', function () {
+          saveTempVoiceConfig().catch(function () {});
+        });
+      }
+
+// Logs controls
     var btnReloadLogs = document.getElementById('btnReloadLogs');
     if (btnReloadLogs) {
       btnReloadLogs.addEventListener('click', function () {
