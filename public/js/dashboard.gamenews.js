@@ -403,7 +403,7 @@
       const statusItems = statusRes && Array.isArray(statusRes.items) ? statusRes.items : [];
 
       state.gameNewsFeeds = feeds;
-      }
+    } catch (err) {
       state.gameNewsStatusIndex = buildStatusIndex(statusItems);
 
       renderGameNewsFeedsList(state.gameNewsFeeds);
@@ -421,9 +421,6 @@
       listEl.appendChild(empty);
       if (detailEl) {
         detailEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_detail_empty'))}</div>`;
-      }
-      if (countEl) {
-        countEl.textContent = t('gamenews_feeds_count_zero') || '0 feeds configurados';
       }
     }
   }
