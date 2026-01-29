@@ -37,6 +37,7 @@ require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 require('./events/interactionCreate')(client);
 require('./events/messageReactionAdd')(client);
+require('./events/voiceStateUpdate.tempVoice')(client);
 
 client.once('clientReady', async () => {
   status.setDiscordReady(true);
