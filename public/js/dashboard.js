@@ -12,7 +12,7 @@
   };
 
   const API_BASE = '/api';
-  const TOKEN_KEY = 'OZARK_DASH_TOKEN';
+  const TOKEN_KEY = 'DASHBOARD_TOKEN';
 
   // -----------------------------
   // Small helpers
@@ -193,7 +193,7 @@
       tab_logs: 'Moderação',
       tab_cases: 'Casos',
       tab_tickets: 'Tickets',
-      tab_gamenews: 'GameNews',
+      tab_gamenews: 'Extras',
       tab_user: 'Utilizadores',
       tab_config: 'Configuração',
 
@@ -349,7 +349,7 @@
       tab_logs: 'Moderation',
       tab_cases: 'Cases',
       tab_tickets: 'Tickets',
-      tab_gamenews: 'GameNews',
+      tab_gamenews: 'Extras',
       tab_user: 'Users',
       tab_config: 'Server config',
 
