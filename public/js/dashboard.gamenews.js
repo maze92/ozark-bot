@@ -403,7 +403,6 @@
       const statusItems = statusRes && Array.isArray(statusRes.items) ? statusRes.items : [];
 
       state.gameNewsFeeds = feeds;
-    } catch (err) {
       state.gameNewsStatusIndex = buildStatusIndex(statusItems);
 
       renderGameNewsFeedsList(state.gameNewsFeeds);
