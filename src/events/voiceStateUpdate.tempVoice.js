@@ -56,7 +56,7 @@ async function handleJoin(client, newState, cfg) {
   }
 
   // Nome do canal temporário
-  const baseName = 'voice';
+  const baseName = 'channel';
   let seq = 1;
   try {
     const existingChannels = guild.channels.cache.filter(
@@ -79,13 +79,7 @@ async function handleJoin(client, newState, cfg) {
     // ignore
   }
 
-  const usernamePart = (user.displayName || user.user.username || 'user')
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9_-]/g, '')
-    .slice(0, 12) || 'user';
-
-  const channelName = `${baseName}-${seq}-${usernamePart}`;
+  const channelName = `${baseName}-${seq}`;
 
   // Permissões: o owner pode gerenciar a sala, etc.
   const permissionOverwrites = [

@@ -277,6 +277,12 @@
       tempvoice_save_btn: 'Guardar configuração',
       tempvoice_active_title: 'Salas temporárias ativas',
       tempvoice_active_empty: 'Não existem salas temporárias neste momento.',
+      tempvoice_base_list_title: 'Canais base',
+      tempvoice_base_list_hint: 'Canais de voz que funcionam como "botões" para criar salas temporárias.',
+      tempvoice_base_list_empty: 'Ainda não existem canais base configurados.',
+      tempvoice_add_base_btn: 'Adicionar canal',
+      tempvoice_detail_title: 'Configuração',
+      tempvoice_detail_hint: 'Define o comportamento global das salas temporárias criadas a partir dos canais base.',
       tempvoice_saved: 'Configuração de voz temporária guardada.',
       tempvoice_save_error: 'Falha ao guardar configuração de voz temporária.',
       gamenews_detail_config_title: 'Configuração do feed',
@@ -1212,15 +1218,20 @@ async function saveGameNewsFeeds() {
 
       var cfg = res.config || {};
       var enabledSel = document.getElementById('tempVoiceEnabled');
-      var baseInput = document.getElementById('tempVoiceBaseChannels');
+      var baseIdInput = document.getElementById('tempVoiceBaseId');
       var catInput = document.getElementById('tempVoiceCategoryId');
       var delayInput = document.getElementById('tempVoiceDeleteDelay');
+
+      var baseIds = Array.isArray(cfg.baseChannelIds) ? cfg.baseChannelIds : [];
+
+      state.tempVoiceBase.items = baseIds.slice();
+      state.tempVoiceBase.selectedIndex = baseIds.length ? 0 : -1;
 
       if (enabledSel) {
         enabledSel.value = cfg.enabled ? 'true' : 'false';
       }
-      if (baseInput) {
-        baseInput.value = Array.isArray(cfg.baseChannelIds) ? cfg.baseChannelIds.join(', ') : '';
+      if (baseIdInput) {
+        baseIdInput.value = baseIds.length ? baseIds[0] : '';
       }
       if (catInput) {
         catInput.value = cfg.categoryId || '';
@@ -1228,12 +1239,53 @@ async function saveGameNewsFeeds() {
       if (delayInput) {
         delayInput.value = typeof cfg.deleteDelaySeconds === 'number' ? String(cfg.deleteDelaySeconds) : '10';
       }
+
+      renderTempVoiceBaseList();
     } catch (err) {
       console.error('Failed to load temp voice config', err);
     }
   }
 
-  async function saveTempVoiceConfig() {
+async function saveTempVoiceConfig() {
+    if (!state.guildId) return;
+
+    var enabledSel = document.getElementById('tempVoiceEnabled');
+    var catInput = document.getElementById('tempVoiceCategoryId');
+    var delayInput = document.getElementById('tempVoiceDeleteDelay');
+
+    syncTempVoiceBaseFromInput();
+
+    var enabled = enabledSel && enabledSel.value === 'true';
+    var categoryId = (catInput && catInput.value) || '';
+    var delayRaw = (delayInput && delayInput.value) || '10';
+
+    var baseChannelIds = (state.tempVoiceBase.items || []).filter(function (s) { return !!s; });
+
+    var delaySeconds = parseInt(delayRaw, 10);
+    if (!Number.isFinite(delaySeconds) || delaySeconds < 5) delaySeconds = 10;
+
+    try {
+      const body = {
+        guildId: state.guildId,
+        enabled: enabled,
+        baseChannelIds: baseChannelIds,
+        categoryId: categoryId,
+        deleteDelaySeconds: delaySeconds
+      };
+      const res = await apiPost('/temp-voice/config', body);
+      if (res && res.ok) {
+        toast(t('tempvoice_saved') || 'Configuração de voz temporária guardada.');
+        loadTempVoiceConfig().catch(function () {});
+      } else {
+        toast(t('tempvoice_save_error') || 'Falha ao guardar configuração de voz temporária.', 'error');
+      }
+    } catch (err) {
+      console.error('Failed to save temp voice config', err);
+      toast(t('tempvoice_save_error') || 'Falha ao guardar configuração de voz temporária.', 'error');
+    }
+  }
+
+
     if (!state.guildId) return;
 
     var enabledSel = document.getElementById('tempVoiceEnabled');
@@ -1309,6 +1361,84 @@ async function saveGameNewsFeeds() {
       console.error('Failed to load temp voice active list', err);
     }
   }
+
+  function renderTempVoiceBaseList() {
+    var listEl = document.getElementById('tempVoiceBaseList');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+
+    var items = state.tempVoiceBase.items || [];
+    if (!items.length) {
+      listEl.innerHTML = '<div class="empty">' + escapeHtml(t('tempvoice_base_list_empty')) + '</div>';
+      return;
+    }
+
+    items.forEach(function (id, index) {
+      var row = document.createElement('div');
+      row.className = 'list-item' + (index === state.tempVoiceBase.selectedIndex ? ' selected' : '');
+      row.dataset.index = String(index);
+      row.innerHTML = `
+        <div class="row space">
+          <div>
+            <div class="title">#${escapeHtml(id || '')}</div>
+            <div class="subtitle">${escapeHtml(t('tempvoice_base_list_hint'))}</div>
+          </div>
+        </div>
+      `;
+      row.addEventListener('click', function () {
+        selectTempVoiceBaseIndex(index);
+      });
+      listEl.appendChild(row);
+    });
+  }
+
+  function selectTempVoiceBaseIndex(index) {
+    var items = state.tempVoiceBase.items || [];
+    if (index < 0 || index >= items.length) {
+      state.tempVoiceBase.selectedIndex = -1;
+      var baseIdInput = document.getElementById('tempVoiceBaseId');
+      if (baseIdInput) baseIdInput.value = '';
+      renderTempVoiceBaseList();
+      return;
+    }
+
+    state.tempVoiceBase.selectedIndex = index;
+    var baseIdInput = document.getElementById('tempVoiceBaseId');
+    if (baseIdInput) baseIdInput.value = items[index] || '';
+    renderTempVoiceBaseList();
+  }
+
+  function addTempVoiceBaseChannel() {
+    if (!state.tempVoiceBase.items) state.tempVoiceBase.items = [];
+    state.tempVoiceBase.items.push('');
+    state.tempVoiceBase.selectedIndex = state.tempVoiceBase.items.length - 1;
+    renderTempVoiceBaseList();
+
+    var baseIdInput = document.getElementById('tempVoiceBaseId');
+    if (baseIdInput) {
+      baseIdInput.focus();
+      baseIdInput.select();
+    }
+  }
+
+  function syncTempVoiceBaseFromInput() {
+    var baseIdInput = document.getElementById('tempVoiceBaseId');
+    if (!baseIdInput) return;
+    var val = (baseIdInput.value || '').trim();
+    var idx = state.tempVoiceBase.selectedIndex;
+    if (!state.tempVoiceBase.items) state.tempVoiceBase.items = [];
+    if (idx >= 0 && idx < state.tempVoiceBase.items.length) {
+      state.tempVoiceBase.items[idx] = val;
+    } else if (val) {
+      state.tempVoiceBase.items.push(val);
+      state.tempVoiceBase.selectedIndex = state.tempVoiceBase.items.length - 1;
+    }
+    state.tempVoiceBase.items = state.tempVoiceBase.items.filter(function (s) { return !!s; });
+    renderTempVoiceBaseList();
+  }
+
+
 
 
 
@@ -1388,6 +1518,24 @@ async function saveGameNewsFeeds() {
     }
 
           // Temp voice config
+      // Temp voice base channels
+      var btnTempVoiceAddBase = document.getElementById('btnTempVoiceAddBase');
+      if (btnTempVoiceAddBase) {
+        btnTempVoiceAddBase.addEventListener('click', function () {
+          addTempVoiceBaseChannel();
+        });
+      }
+      var baseIdInput = document.getElementById('tempVoiceBaseId');
+      if (baseIdInput) {
+        baseIdInput.addEventListener('change', function () {
+          syncTempVoiceBaseFromInput();
+        });
+        baseIdInput.addEventListener('blur', function () {
+          syncTempVoiceBaseFromInput();
+        });
+      }
+
+
       var btnSaveTempVoice = document.getElementById('btnSaveTempVoice');
       if (btnSaveTempVoice) {
         btnSaveTempVoice.addEventListener('click', function () {
