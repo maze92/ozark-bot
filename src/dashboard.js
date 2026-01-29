@@ -2585,7 +2585,7 @@ app.post('/api/temp-voice/config', requireDashboardAuth, async (req, res) => {
 
     const categoryId = sanitizeText(req.body.categoryId || '', { maxLen: 32, stripHtml: true }) || null;
     let deleteDelaySeconds = parseInt(req.body.deleteDelaySeconds, 10);
-    if (!Number.isFinite(deleteDelaySeconds) || deleteDelaySeconds < 5) deleteDelaySeconds = 10;
+    if (!Number.isFinite(deleteDelaySeconds) || deleteDelaySeconds < 2) deleteDelaySeconds = 10;
 
     const update = {
       tempVoice: {

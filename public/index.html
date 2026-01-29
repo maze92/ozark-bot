@@ -194,72 +194,72 @@
                   Cria canais de voz temporários por utilizador, que são apagados automaticamente quando ficam vazios.
                 </p>
 
-                <div class="master-detail">
-                    <div class="detail-panel side-panel" id="tempVoiceDetailPanel">
-                      <h3 data-i18n="tempvoice_detail_title">Configuração</h3>
-                      <p class="hint" data-i18n="tempvoice_detail_hint">
-                        Define o comportamento global das salas temporárias criadas a partir dos canais base.
-                      </p>
+                <div class="user-layout">
+                      <div>
+                        <h3 data-i18n="tempvoice_base_list_title">Canais base</h3>
+                        <p class="hint" data-i18n="tempvoice_base_list_hint">
+                          Escolhe quais os canais de voz que funcionam como &quot;botões&quot; para criar salas temporárias.
+                        </p>
 
-                      <div class="field">
-                        <label for="tempVoiceEnabled" data-i18n="tempvoice_enabled_label">Ativar voz temporária</label>
-                        <select id="tempVoiceEnabled" class="select">
-                          <option value="false" data-i18n="tempvoice_disabled">Desativado</option>
-                          <option value="true" data-i18n="tempvoice_enabled">Ativado</option>
-                        </select>
-                      </div>
+                        <div class="list" id="tempVoiceBaseList">
+                          <div class="empty" data-i18n="tempvoice_base_list_empty">
+                            Ainda não existem canais base configurados.
+                          </div>
+                        </div>
 
-                      <div class="field">
-                        <label for="tempVoiceBaseId" data-i18n="tempvoice_base_channels_label">ID do canal base selecionado</label>
-                        <input id="tempVoiceBaseId" class="input" placeholder="ID do canal de voz" />
-                      </div>
-
-                      <div class="field">
-                        <label for="tempVoiceCategoryId" data-i18n="tempvoice_category_label">Categoria para criar salas temporárias</label>
-                        <input id="tempVoiceCategoryId" class="input" placeholder="ID da categoria (opcional)" />
-                      </div>
-
-                      <div class="field">
-                        <label for="tempVoiceDeleteDelay" data-i18n="tempvoice_delete_delay_label">Tempo para apagar sala vazia (segundos)</label>
-                        <input id="tempVoiceDeleteDelay" class="input" type="number" min="2" max="600" step="1" />
-                      </div>
-
-                      <div class="row gap">
-                        <button id="btnSaveTempVoice" class="btn xs" type="button" data-i18n="tempvoice_save_btn">
-                          Guardar configuração
-                        </button>
-                        <button id="btnDeleteTempVoiceBase" class="btn xs danger" type="button" data-i18n="tempvoice_delete_btn">
-                          Remover
+                        <button id="btnTempVoiceAddBase" class="btn xs" type="button" data-i18n="tempvoice_add_base_btn">
+                          Adicionar
                         </button>
                       </div>
 
-                      <div class="field" style="margin-top: 16px;">
-                        <h4 data-i18n="tempvoice_active_title">Salas temporárias ativas</h4>
-                        <div class="list" id="tempVoiceActiveList">
-                          <div class="empty" data-i18n="tempvoice_active_empty">
-                            Não existem salas temporárias neste momento.
+                      <div class="user-detail" id="tempVoiceDetailPanel">
+                        <h3 data-i18n="tempvoice_detail_title">Configuração</h3>
+                        <p class="hint" data-i18n="tempvoice_detail_hint">
+                          Define o comportamento global das salas temporárias criadas a partir dos canais base.
+                        </p>
+
+                        <div class="field">
+                          <label for="tempVoiceEnabled" data-i18n="tempvoice_enabled_label">Ativar voz temporária</label>
+                          <select id="tempVoiceEnabled" class="select">
+                            <option value="false" data-i18n="tempvoice_disabled">Desativado</option>
+                            <option value="true" data-i18n="tempvoice_enabled">Ativado</option>
+                          </select>
+                        </div>
+
+                        <div class="field">
+                          <label for="tempVoiceBaseId" data-i18n="tempvoice_base_channels_label">ID do canal base selecionado</label>
+                          <input id="tempVoiceBaseId" class="input" placeholder="ID do canal de voz" />
+                        </div>
+
+                        <div class="field">
+                          <label for="tempVoiceCategoryId" data-i18n="tempvoice_category_label">Categoria para criar salas temporárias</label>
+                          <input id="tempVoiceCategoryId" class="input" placeholder="ID da categoria (opcional)" />
+                        </div>
+
+                        <div class="field">
+                          <label for="tempVoiceDeleteDelay" data-i18n="tempvoice_delete_delay_label">Tempo para apagar sala vazia (segundos)</label>
+                          <input id="tempVoiceDeleteDelay" class="input" type="number" min="2" max="600" step="1" />
+                        </div>
+
+                        <div class="row gap">
+                          <button id="btnSaveTempVoice" class="btn xs" type="button" data-i18n="tempvoice_save_btn">
+                            Guardar
+                          </button>
+                          <button id="btnDeleteTempVoiceBase" class="btn xs danger" type="button" data-i18n="tempvoice_delete_btn">
+                            Remover
+                          </button>
+                        </div>
+
+                        <div class="field" style="margin-top: 16px;">
+                          <h4 data-i18n="tempvoice_active_title">Salas temporárias ativas</h4>
+                          <div class="list" id="tempVoiceActiveList">
+                            <div class="empty" data-i18n="tempvoice_active_empty">
+                              Não existem salas temporárias neste momento.
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    <div class="master">
-                      <h3 data-i18n="tempvoice_base_list_title">Canais base</h3>
-                      <p class="hint" data-i18n="tempvoice_base_list_hint">
-                        Escolhe quais os canais de voz que funcionam como &quot;botões&quot; para criar salas temporárias.
-                      </p>
-
-                      <div class="list" id="tempVoiceBaseList">
-                        <div class="empty" data-i18n="tempvoice_base_list_empty">
-                          Ainda não existem canais base configurados.
-                        </div>
-                      </div>
-
-                      <button id="btnTempVoiceAddBase" class="btn xs" type="button" data-i18n="tempvoice_add_base_btn">
-                        Adicionar canal
-                      </button>
-                    </div>
-                  </div>
               </div>
             </div>
           </div>
