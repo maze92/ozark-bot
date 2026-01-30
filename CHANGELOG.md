@@ -1,92 +1,57 @@
 # Changelog
 
-All notable changes to **Ozark Bot** will be documented in this file.
+Todas as alterações relevantes deste projeto serão documentadas neste ficheiro.
 
-The project is being restructured as if starting fresh from **v1.0.0**, focusing on stability, trust‑based moderation and a clean dashboard.
-
----
-
-## [1.0.0] – Initial stable dashboard & trust rewrite
-
-### Core
-
-- Reorganized project structure (`src/` for bot, dashboard and systems).
-- Updated to **discord.js v14** and **Node.js 20.x**.
-- Added a central **error guard** to log uncaught exceptions and unhandled rejections.
-- Introduced a robust **config** layer (`defaultConfig.js`) with sensible defaults.
-
-### Trust & infractions
-
-- Implemented **User** model with:
-  - `trust`
-  - `warnings`
-  - timestamps for infractions and trust updates.
-- Implemented **Infraction** model with:
-  - `WARN` and `MUTE` types only (no KICK/BAN).
-  - Case IDs, reasons, durations and sources.
-- Added **warningsService**:
-  - Handles warnings, trust penalties and regeneration logic.
-  - Provides `resetUser` to reset trust/warnings (for false positives).
-- Added **automation** module:
-  - Listens to new infractions and applies **auto‑mute** based on:
-    - Number of WARN infractions.
-    - Trust score and configured escalation.
-  - Creates corresponding `MUTE` infractions and logs them.
-
-### Dashboard
-
-- Rebuilt the **Express** dashboard with:
-  - Authentication via a single `DASHBOARD_TOKEN`.
-  - Health endpoint with Discord and MongoDB status.
-- **Overview** page:
-  - Shows key stats for the last 24h, including infractions.
-- **Users** page:
-  - Lists guild members (with rate‑limit friendly fetching).
-  - Hides internal/system roles (e.g. specific role IDs).
-  - Shows per‑user panel with:
-    - Trust score and **colored badge** (low / medium / high).
-    - Clear indication of the **next estimated auto‑mute** (warns remaining + minutes).
-    - Recent infractions and tickets.
-  - Quick actions:
-    - `Warn`
-    - `Unmute`
-    - `Reset trust/warnings`
-- All strings used in the dashboard are **localized** (PT/EN).
-
-### Tickets
-
-- Replaced legacy `/ticket` and `/ticketclose` flows with:
-  - A single support message in a configurable **Ticket channel**.
-  - Reaction‑based creation of **threads** (ticket‑001, ticket‑002, ...).
-  - Per‑thread embed with a **close** button available to participants.
-- Removed old ticket code paths and dashboard tab in favor of the new flow.
-- Added ticket logs to the dashboard, grouped with other moderation logs.
-
-### GameNews
-
-- Simplified **GameNews** module:
-  - Per‑guild feed activation (only active feeds post).
-  - Limit on number of news items per interval (anti‑spam).
-  - Clean embed/message formatting in target channels.
-
-### AutoMod
-
-- Improved AutoMod for banned words:
-  - Normalizes content (accents, links, emojis, punctuation).
-  - Detects obfuscated banned words using simple replacements.
-- When triggered:
-  - Adds a **WARN** infraction with a **generic reason** (e.g. “Linguagem imprópria”).
-  - Applies trust penalties and, when thresholds are met, auto‑mutes.
-- **No more DMs** are sent to the user for AutoMod warns/mutes:
-  - All communication is done via channel messages and logs.
-
-### UX and safety
-
-- Prevents moderation actions against members with equal or higher roles than the bot.
-- Hides specific internal roles from the users list in the dashboard.
-- Avoids exposing exact banned words or message content in reasons, keeping them generic.
-- Added clear error handling and toasts for failed dashboard actions.
+O formato segue uma aproximação ao [Keep a Changelog](https://keepachangelog.com/) e utiliza versionamento semântico inspirado em [SemVer](https://semver.org/).
 
 ---
 
-[1.0.0]: https://github.com/maze92/ozark-bot/releases/tag/v1.0.0
+## [v1.0.13] – Dashboard & UX refinements
+
+### Adicionado
+- Badge **Bot online/offline** no topo da dashboard, alimentado pelo endpoint `/health`.
+- Mini-painéis na tab **Hub de moderação**:
+  - Resumo de ações de moderação nas últimas 24h.
+  - Painel de últimos tickets (24h).
+  - Estrutura preparada para painel de "utilizadores mais tempo online" por intervalo (24h / 7d / 30d / 1 ano).
+- Endpoint `/api/mod/overview` no backend para fornecer estatísticas rápidas de moderação e tickets.
+
+### Alterado
+- Tab **GameNews** alinhada com o padrão master-detail usado em Utilizadores (lista à esquerda + painel de detalhe à direita).
+- Painel de **Voz temporária** (Extras) ajustado para ter mini-painel de detalhe visualmente consistente com o resto da UI.
+- Dashboard atualizada para:
+  - Reutilizar mais componentes de layout (`user-layout`, mini-paineis).
+  - Garantir que, em caso de erro 401, o utilizador é devolvido ao ecrã de login.
+
+### Corrigido
+- Remoção da antiga tab **Cases** e respetiva lógica legacy no frontend.
+- Erros de sintaxe em `dashboard.js` causados por ramos de tabs obsoletos.
+- Problemas de CSS em `dashboard.css` (regra solta que afetava a secção GameNews).
+- Vários pontos de scroll horizontal indesejado, especialmente no painel de Voz Temporária.
+
+---
+
+## [v1.0.0] – Primeira versão pública
+
+### Adicionado
+- Bot Discord com:
+  - Comandos de moderação (`warn`, `mute`, `unmute`, `clear`, `userinfo`, `help`).
+  - Integração com MongoDB para registo de infrações.
+- Dashboard web inicial:
+  - Visão geral do servidor.
+  - Tabs de Utilizadores, Logs, Tickets, GameNews e Configuração.
+- Sistema de GameNews baseado em RSS.
+- Sistema de canais de Voz Temporária com configuração guardada em MongoDB.
+- Configuração base em `defaultConfig.js` e integração com variáveis `.env`.
+
+---
+
+## Histórico anterior
+
+Versões intermédias (ex: 1.0.1–1.0.12) focaram-se sobretudo em:
+
+- Ajustes incrementais de UI na dashboard.
+- Pequenas correções ao fluxo de tickets e logs.
+- Melhorias na robustez do bot (tratamento de erros, estados de conexão, etc.).
+
+Para detalhes finos dessas versões, consultar o histórico de commits.

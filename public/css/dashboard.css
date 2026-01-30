@@ -1019,3 +1019,10 @@ h2 {
 .simple-list li.empty {
   border-bottom: none;
 }
+
+
+#extras-tempvoice-panel .user-detail p.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
