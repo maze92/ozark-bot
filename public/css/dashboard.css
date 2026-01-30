@@ -833,11 +833,6 @@ h2 {
 
 
 
-#extras-tempvoice-panel .user-layout .user-detail {
-  margin-top: 10px; /* align top of config panel with left list similarly to other mini painéis */
-}
-
-
 #extras-tempvoice-panel .list .title {
   word-break: break-all; /* permite partir IDs enormes em várias linhas */
 }
@@ -887,4 +882,36 @@ h2 {
 
 #tempVoiceBaseList .list-item {
   overflow-x: hidden;
+}
+
+
+/* TempVoice: align detail panel top with left list (same as feeds/users) */
+#extras-tempvoice-panel .user-detail {
+  margin-top: 0 !important;
+}
+
+
+/* TempVoice: prevent horizontal scrollbar on hover */
+#extras-tempvoice-panel .list,
+#extras-tempvoice-panel .list-item,
+#extras-tempvoice-panel .list-item * {
+  max-width: 100%;
+}
+
+#extras-tempvoice-panel .list-item {
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+#extras-tempvoice-panel .list-item:hover {
+  overflow-x: hidden;
+}
+
+
+/* TempVoice: match feed/user detail heading sizing */
+#extras-tempvoice-panel .user-detail h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
 }

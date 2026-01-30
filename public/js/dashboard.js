@@ -13,6 +13,7 @@
 
   const API_BASE = '/api';
   const TOKEN_KEY = 'DASHBOARD_TOKEN';
+    const LANG_KEY = 'OZARK_DASH_LANG';
 
   // -----------------------------
   // Small helpers
@@ -434,11 +435,20 @@
   }
 
   function setLang(newLang) {
-    state.lang = (newLang || 'pt').toLowerCase();
-    applyI18n();
-    const msg = state.lang === 'en' ? 'Language updated.' : 'Idioma alterado.';
-    toast(msg);
-  }
+      state.lang = (newLang || 'pt').toLowerCase();
+
+      try {
+        localStorage.setItem(LANG_KEY, state.lang);
+      } catch (e) {}
+
+      // keep picker in sync
+      var lp = document.getElementById('langPicker');
+      if (lp && lp.value !== state.lang) lp.value = state.lang;
+
+      applyI18n();
+      const msg = state.lang === 'en' ? 'Language updated.' : 'Idioma alterado.';
+      toast(msg);
+    }
 
   // -----------------------------
   // Tab / layout helpers
@@ -1309,8 +1319,28 @@ function addTempVoiceBaseChannel() {
   // -----------------------------
 
   document.addEventListener('DOMContentLoaded', function () {
-    // i18n inicial
-    applyI18n();
+      // i18n inicial
+      (function initLang() {
+        var lang = 'pt';
+        try {
+          var stored = localStorage.getItem(LANG_KEY);
+          if (stored) lang = stored;
+        } catch (e) {}
+
+        var lp = document.getElementById('langPicker');
+        if (lp && lp.value) lang = lp.value;
+
+        // stored wins over picker default
+        try {
+          var stored2 = localStorage.getItem(LANG_KEY);
+          if (stored2) lang = stored2;
+        } catch (e) {}
+
+        state.lang = (lang || 'pt').toLowerCase();
+        if (lp) lp.value = state.lang;
+      })();
+
+      applyI18n();
 
     // Lang picker
     var langPicker = document.getElementById('langPicker');
