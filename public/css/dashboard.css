@@ -821,6 +821,13 @@ h2 {
 
 
 #extras-tempvoice-panel .list {
+  overflow-x: hidden;
   overflow-y: auto;
   overflow-x: hidden;
 }
+
+
+#extras-tempvoice-panel .user-layout > div:first-child {
+  overflow-x: hidden;
+}
+
