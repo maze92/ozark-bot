@@ -821,7 +821,7 @@ h2 {
 #extras-tempvoice-panel .list {
   overflow-x: hidden;
   overflow-y: auto;
-  overflow-x: hidden;
+  max-width: 100%;
 }
 
 
@@ -989,9 +989,8 @@ h2 {
 
 #tempVoiceBaseList .list-item .title,
 #tempVoiceBaseList .list-item .subtitle {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-all;
 }
 
 /* Lista simples usada nas análises de moderação e painel de tickets */

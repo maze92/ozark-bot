@@ -213,7 +213,7 @@
     pt: {
       app_subtitle: 'Dashboard de moderação e gestão',
       select_guild: 'Seleciona um servidor',
-      badge_bot_online: '* Bot online',
+      badge_bot_online: 'Bot online',
 
         login_title: 'Login',
         login_subtitle: 'Autentica-te para aceder ao painel.',
