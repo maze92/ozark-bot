@@ -242,25 +242,16 @@ async function loadCases() {
       );
 
       const items = (resTickets && resTickets.items) || [];
-      const now = Date.now();
-      const cutoff = now - 24 * 60 * 60 * 1000;
-
-      const recent = items.filter(function (it) {
-        if (!it.time) return true; // se não houver time normalizado, não filtrar agressivamente
-        const ts = Date.parse(it.time);
-        if (Number.isNaN(ts)) return true;
-        return ts >= cutoff;
-      });
 
       ticketsList.innerHTML = '';
 
-      if (!recent.length) {
+      if (!items.length) {
         const li = document.createElement('li');
         li.className = 'empty';
-        li.textContent = t('logs_tickets_panel_empty') || 'Não existem tickets nas últimas 24 horas.';
+        li.textContent = t('logs_tickets_panel_empty') || 'Não existem tickets para mostrar.';
         ticketsList.appendChild(li);
       } else {
-        recent.forEach(function (it) {
+        items.forEach(function (it) {
           const li = document.createElement('li');
           const title = it.title || 'Ticket';
           const desc = it.description || '';
