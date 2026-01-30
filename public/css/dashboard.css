@@ -832,7 +832,9 @@ h2 {
 
 
 #extras-tempvoice-panel .list .title {
-  word-break: break-all; /* permite partir IDs enormes em várias linhas */
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 #extras-tempvoice-panel .user-layout {
