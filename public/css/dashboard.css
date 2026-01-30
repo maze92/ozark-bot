@@ -1070,3 +1070,40 @@ h2 {
   font-size: 12px;
   background: rgba(0, 0, 0, 0.25);
 }
+
+
+/* Moderation overview mini panel header + pagination */
+.mini-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mini-panel-header .chips {
+  flex-shrink: 0;
+}
+
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.pagination-small .btn {
+  min-width: auto;
+  padding-inline: 8px;
+}
+
+@media (max-width: 768px) {
+  .mini-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mini-panel-header .chips {
+    justify-content: flex-start;
+  }
+}
