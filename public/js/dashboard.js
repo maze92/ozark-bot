@@ -458,7 +458,61 @@ cases_error_generic: 'Não foi possível carregar os casos.',
     if (warn) warn.textContent = t('warn_select_guild');
   }
 
-  function setLang(newLang) {
+  
+    function updateLangFlag(lang) {
+      try {
+        var select = document.getElementById('langPicker');
+        if (!select) return;
+        var wrap = select.parentElement;
+        if (!wrap || !wrap.classList.contains('lang-picker-wrap')) return;
+        var flag = wrap.querySelector('.lang-picker-flag');
+        if (!flag) return;
+
+        flag.className = 'lang-picker-flag';
+
+        var map = {
+          pt: 'lang-flag-pt',
+          en: 'lang-flag-en'
+        };
+        var key = (lang || '').toLowerCase();
+        var cls = map[key] || null;
+
+        if (cls) {
+          flag.classList.add(cls);
+        } else {
+          // fallback simples: emoji
+          flag.classList.add('lang-flag-emoji');
+          flag.textContent = key === 'pt' ? '🇵🇹' : key === 'en' ? '🇬🇧' : '🏳️';
+        }
+      } catch (e) {}
+    }
+
+    function ensureLangPickerFlag() {
+      try {
+        var select = document.getElementById('langPicker');
+        if (!select) return;
+
+        if (!select.parentElement || !select.parentElement.classList.contains('lang-picker-wrap')) {
+          var wrap = document.createElement('span');
+          wrap.className = 'lang-picker-wrap';
+          select.parentNode.insertBefore(wrap, select);
+          wrap.appendChild(select);
+        }
+
+        var wrap = select.parentElement;
+        var flag = wrap.querySelector('.lang-picker-flag');
+        if (!flag) {
+          flag = document.createElement('span');
+          flag.className = 'lang-picker-flag';
+          flag.setAttribute('aria-hidden', 'true');
+          wrap.insertBefore(flag, select);
+        }
+
+        updateLangFlag(state.lang || select.value || 'pt');
+      } catch (e) {}
+    }
+
+function setLang(newLang) {
       state.lang = (newLang || 'pt').toLowerCase();
 
       try {
@@ -468,6 +522,10 @@ cases_error_generic: 'Não foi possível carregar os casos.',
       // keep picker in sync
       var lp = document.getElementById('langPicker');
       if (lp && lp.value !== state.lang) lp.value = state.lang;
+
+      try {
+        updateLangFlag(state.lang);
+      } catch (e) {}
 
       applyI18n();
       const msg = state.lang === 'en' ? 'Language updated.' : 'Idioma alterado.';
@@ -1365,6 +1423,7 @@ function addTempVoiceBaseChannel() {
       })();
 
       applyI18n();
+        ensureLangPickerFlag();
 
     // Lang picker
     var langPicker = document.getElementById('langPicker');
