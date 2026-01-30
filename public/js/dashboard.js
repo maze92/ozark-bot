@@ -350,6 +350,7 @@
       gamenews_add_feed: 'Adicionar',
       gamenews_save_feeds: 'Guardar alterações',
       gamenews_save_success: 'Feeds de GameNews guardados.',
+        gamenews_validation_missing: 'Preenche o URL do feed e o ID do canal em todos os feeds antes de guardar.',
       gamenews_editor_empty: 'Ainda não existem feeds configurados. Adiciona o primeiro feed para começar.',
       gamenews_feeds_count_zero: '0 feeds configurados',
       gamenews_feeds_count_single: '1 feed configurado',

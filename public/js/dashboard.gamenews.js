@@ -17,23 +17,43 @@
   // Helpers internos
   // ------------------------
 
+  let _gameNewsDetailTimeout = null;
+
   function getGuildParam() {
     if (!state.guildId) return '';
     return '?guildId=' + encodeURIComponent(state.guildId);
   }
 
-  function buildStatusIndex(items) {
-    const idx = {};
-    if (!Array.isArray(items)) return idx;
-    items.forEach(function (it) {
-      if (!it) return;
-      const key = it.feedUrl || it.name || '';
-      if (key) idx[key] = it;
-    });
-    return idx;
-  }
+      function makeStatusKey(obj) {
+      if (!obj) return '';
+      var feedUrl = '';
+      var channelId = '';
+      var name = '';
+      try {
+        feedUrl = (obj.feedUrl != null ? String(obj.feedUrl) : '').trim();
+      } catch (e) {}
+      try {
+        channelId = (obj.channelId != null ? String(obj.channelId) : '').trim();
+      } catch (e) {}
+      try {
+        name = obj.name != null ? String(obj.name) : '';
+      } catch (e) {}
+      var right = channelId || name;
+      return (feedUrl || '') + '|' + (right || '');
+    }
 
-  function formatDateTimeShort(value) {
+    function buildStatusIndex(items) {
+      const idx = {};
+      if (!Array.isArray(items)) return idx;
+      items.forEach(function (it) {
+        if (!it) return;
+        const key = makeStatusKey(it);
+        if (key) idx[key] = it;
+      });
+      return idx;
+    }
+
+function formatDateTimeShort(value) {
     if (!value) return '';
     try {
       const d = new Date(value);
@@ -46,8 +66,9 @@
 
   function formatIntervalMinutes(ms) {
     if (!ms || typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return '';
-    const mins = Math.round(ms / 60000);
-    return String(mins);
+    const mins = ms / 60000;
+    if (Number.isInteger(mins)) return String(mins);
+    return String(Math.round(mins * 10) / 10);
   }
 
   // ------------------------
@@ -116,28 +137,36 @@
     return `<div class="empty">${escapeHtml(t('loading') || 'Loading...')}</div>`;
   }
 
-function selectGameNewsFeedByIndex(idx) {
-    if (!Array.isArray(state.gameNewsFeeds)) return;
-    const feed = state.gameNewsFeeds[idx];
-    if (!feed) return;
-    const listEl = document.getElementById('gamenewsFeedsList');
-    if (listEl) {
-      const rows = listEl.querySelectorAll('.list-item');
-      rows.forEach(function (r) { r.classList.remove('active'); });
-      const activeRow = listEl.querySelector(`.list-item[data-index="${idx}"]`);
-      if (activeRow) activeRow.classList.add('active');
-    }
-    const detailEl = document.getElementById('gamenewsFeedDetailPanel');
-    state.activeGameNewsFeedIndex = idx;
-    if (detailEl) {
-      detailEl.innerHTML = renderGameNewsFeedSkeleton();
-    }
-    setTimeout(function () {
-      renderGameNewsFeedDetail(feed);
-    }, 350);
-  }
+  function selectGameNewsFeedByIndex(idx) {
+      if (!Array.isArray(state.gameNewsFeeds)) return;
+      const feed = state.gameNewsFeeds[idx];
+      if (!feed) return;
+      const listEl = document.getElementById('gamenewsFeedsList');
+      if (listEl) {
+        const rows = listEl.querySelectorAll('.list-item');
+        rows.forEach(function (r) {
+          r.classList.remove('active');
+        });
+        const activeRow = listEl.querySelector(`.list-item[data-index="${idx}"]`);
+        if (activeRow) activeRow.classList.add('active');
+      }
+      const detailEl = document.getElementById('gamenewsFeedDetailPanel');
+      state.activeGameNewsFeedIndex = idx;
+      if (detailEl) {
+        detailEl.innerHTML = renderGameNewsFeedSkeleton();
+      }
 
-  function renderGameNewsFeedDetail(feed) {
+      if (_gameNewsDetailTimeout) {
+        clearTimeout(_gameNewsDetailTimeout);
+      }
+      _gameNewsDetailTimeout = setTimeout(function () {
+        renderGameNewsFeedDetail(feed);
+        _gameNewsDetailTimeout = null;
+      }, 350);
+    }
+
+
+function renderGameNewsFeedDetail(feed) {
     const detailEl = document.getElementById('gamenewsFeedDetailPanel');
     if (!detailEl) return;
 
@@ -147,7 +176,7 @@ function selectGameNewsFeedByIndex(idx) {
     }
 
     const statusIndex = state.gameNewsStatusIndex || {};
-    const statusKey = feed.feedUrl || feed.name || '';
+    const statusKey = makeStatusKey(feed);
     const st = statusIndex[statusKey] || null;
 
     const feedName = feed.name || 'Feed';
@@ -330,26 +359,49 @@ function selectGameNewsFeedByIndex(idx) {
   // Guardar feeds na DB
   // ------------------------
 
-  async function saveGameNewsFeeds() {
+    async function saveGameNewsFeeds() {
     if (!state.guildId) return;
 
     const feeds = Array.isArray(state.gameNewsFeeds) ? state.gameNewsFeeds : [];
+    let hadInvalid = false;
+
     const payloadFeeds = feeds
       .map(function (f) {
         if (!f) return null;
         const name = f.name || 'Feed';
-        const feedUrl = (f.feedUrl || '').trim();
-        const channelId = (f.channelId || '').trim();
-        const logChannelId = (f.logChannelId || '') || null;
+        const feedUrl = (f.feedUrl != null ? String(f.feedUrl) : '').trim();
+        const channelId = (f.channelId != null ? String(f.channelId) : '').trim();
+        const rawLogChannelId = (f.logChannelId != null ? String(f.logChannelId) : '');
+        const logChannelId = rawLogChannelId.trim();
         const enabled = f.enabled !== false;
-        const intervalMs = typeof f.intervalMs === 'number' && f.intervalMs > 0 ? f.intervalMs : null;
+        const intervalMs =
+          typeof f.intervalMs === 'number' && f.intervalMs > 0 ? f.intervalMs : null;
 
-        if (!feedUrl || !channelId) return null;
-        return { name, feedUrl, channelId, logChannelId, enabled, intervalMs };
+        if (!feedUrl || !channelId) {
+          hadInvalid = true;
+          return null;
+        }
+
+        return {
+          name: name,
+          feedUrl: feedUrl,
+          channelId: channelId,
+          logChannelId: logChannelId || null,
+          enabled: enabled,
+          intervalMs: intervalMs
+        };
       })
       .filter(function (x) {
         return !!x;
       });
+
+    if (hadInvalid) {
+      toast(
+        t('gamenews_validation_missing') ||
+          'Preenche o URL do feed e o ID do canal em todos os feeds antes de guardar.'
+      );
+      return;
+    }
 
     const body = {
       guildId: state.guildId,
@@ -373,7 +425,7 @@ function selectGameNewsFeedByIndex(idx) {
     }
   }
 
-  // ------------------------
+// ------------------------
   // Carregar GameNews (lista + estado)
   // ------------------------
 
