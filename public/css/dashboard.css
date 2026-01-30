@@ -850,3 +850,31 @@ h2 {
 #extras-tempvoice-panel .user-layout > div:first-child {
   overflow-x: hidden;
 }
+
+
+#extras-tempvoice-panel {
+  overflow-x: hidden;
+}
+
+#extras-tempvoice-panel .field label {
+  font-size: 0.875rem;
+}
+
+#extras-tempvoice-panel .input,
+#extras-tempvoice-panel .select {
+  font-size: 0.875rem;
+}
+
+
+#extras-tempvoice-panel {
+  overflow-x: hidden;
+}
+
+#extras-tempvoice-panel .field label {
+  font-size: 0.875rem;
+}
+
+#extras-tempvoice-panel .input,
+#extras-tempvoice-panel .select {
+  font-size: 0.875rem;
+}

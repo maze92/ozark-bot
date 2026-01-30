@@ -1091,13 +1091,13 @@ async function saveGameNewsFeeds() {
 
         state.tempVoiceBase = state.tempVoiceBase || { items: [], selectedIndex: -1 };
         state.tempVoiceBase.items = baseIds.slice();
-        state.tempVoiceBase.selectedIndex = baseIds.length ? 0 : -1;
+        state.tempVoiceBase.selectedIndex = -1;
 
         if (enabledSel) {
           enabledSel.value = cfg.enabled ? 'true' : 'false';
         }
         if (baseIdInput) {
-          baseIdInput.value = baseIds.length ? baseIds[0] : '';
+          baseIdInput.value = '';
         }
         if (catInput) {
           catInput.value = cfg.categoryId || '';
@@ -1327,6 +1327,31 @@ function addTempVoiceBaseChannel() {
       sub.addEventListener('click', function () {
         var name = sub.getAttribute('data-subtab');
         if (!name) return;
+
+        // Reset estado da voz temporária sempre que se entra na subtab
+        if (name === 'tempvoice') {
+          try {
+            state.tempVoiceBase = state.tempVoiceBase || { items: [], selectedIndex: -1 };
+            state.tempVoiceBase.selectedIndex = -1;
+
+            var baseIdInput = document.getElementById('tempVoiceBaseId');
+            if (baseIdInput) baseIdInput.value = '';
+
+            var emptyEl = document.getElementById('tempVoiceDetailEmpty');
+            var contentEl = document.getElementById('tempVoiceDetailContent');
+            var currentLabel = document.getElementById('tempVoiceCurrentBaseLabel');
+            if (emptyEl) emptyEl.style.display = '';
+            if (contentEl) contentEl.style.display = 'none';
+            if (currentLabel) {
+              currentLabel.textContent = t('tempvoice_current_base') + ' (nenhum selecionado)';
+            }
+            if (typeof renderTempVoiceBaseList === 'function') {
+              renderTempVoiceBaseList();
+            }
+          } catch (e) {
+            console.error('Failed to reset temp voice detail', e);
+          }
+        }
 
         document.querySelectorAll('#tab-gamenews .subtabs .subtab').forEach(function (btn) {
           btn.classList.remove('active');
