@@ -86,7 +86,7 @@ async function loadUsers() {
           <div class="user-row-header">
             <div class="title">${escapeHtml(name)}</div>
             <div class="user-type-badge ${isBot ? 'bot' : 'human'}">
-              ${escapeHtml(isBot ? 'BOT' : 'USER')}
+              ${escapeHtml(isBot ? (t('users_row_bot') || 'BOT') : (t('users_row_user') || 'USER'))}
             </div>
           </div>
           <div class="subtitle">
@@ -347,7 +347,9 @@ async function loadUserHistory(user) {
           const opened = tkt.createdAt
             ? new Date(tkt.createdAt).toLocaleString()
             : '';
-          const status = tkt.closedAt ? 'Fechado' : 'Aberto';
+          const status = tkt.closedAt
+            ? (t('users_ticket_closed') || 'Fechado')
+            : (t('users_ticket_open') || 'Aberto');
           const line =
             '#' +
             String(tkt.ticketNumber).padStart(3, '0') +
