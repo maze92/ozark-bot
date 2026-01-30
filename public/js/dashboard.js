@@ -1655,7 +1655,7 @@ function addTempVoiceBaseChannel() {
   window.OzarkDashboard.getToken = getToken;
   window.OzarkDashboard.setToken = setToken;
   window.OzarkDashboard.clearToken = clearToken;
-window.OzarkDashboard.apiGet = apiGet;
+  window.OzarkDashboard.apiGet = apiGet;
   window.OzarkDashboard.apiPost = apiPost;
   window.OzarkDashboard.toast = toast;
   window.OzarkDashboard.t = t;
@@ -1672,4 +1672,4 @@ window.OzarkDashboard.apiGet = apiGet;
 
   // GameNews
     
-})();
+}();
