@@ -15,6 +15,10 @@
   const renderLogs = D.renderLogs;
 
   let logsAbortController = null;
+let modServerRange = '24h';
+let modTicketsRange = '24h';
+let modTicketsPage = 1;
+
   
 
 
