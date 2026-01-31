@@ -233,7 +233,7 @@
     panel.classList.add('panel-loading');
     setTimeout(function () {
       panel.classList.remove('panel-loading');
-    }, 300);
+    }, 350);
   }
 
  function escapeHtml(value) {
@@ -311,17 +311,28 @@
       try {
         var select = document.getElementById('langPicker');
         if (!select) return;
+
         var wrap = select.parentElement;
         if (!wrap || !wrap.classList.contains('lang-picker-wrap')) return;
+
         var flag = wrap.querySelector('.lang-picker-flag');
         if (!flag) return;
 
+        // Reset classes e usar apenas emoji
         flag.className = 'lang-picker-flag';
+        var key = (lang || '').toLowerCase();
 
-        var map = {
-          pt: 'lang-flag-pt',
-          en: 'lang-flag-en'
-        };
+        if (key === 'pt') {
+          flag.textContent = '🇵🇹';
+        } else if (key === 'en') {
+          flag.textContent = '🇬🇧';
+        } else {
+          flag.textContent = '🏳️';
+        }
+      } catch (e) {
+        // não rebentar o dashboard por causa da flag
+      }
+    };
         var key = (lang || '').toLowerCase();
         var cls = map[key] || null;
 

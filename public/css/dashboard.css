@@ -930,13 +930,11 @@ h2 {
 }
 
 /* Lang picker with flag */
-.lang-picker-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
 }
 
-.lang-picker-flag {
   position: absolute;
   left: 8px;
   width: 18px;
@@ -954,15 +952,12 @@ h2 {
 }
 
 /* Simple flags via data URI (can be swapped for external SVGs if quiseres) */
-.lang-flag-pt {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='14' viewBox='0 0 20 14'><rect width='20' height='14' fill='%23ff0000'/><rect width='8' height='14' fill='%23006020'/></svg>");
 }
 
-.lang-flag-en {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='14' viewBox='0 0 20 14'><rect width='20' height='14' fill='%2300127b'/><rect x='0' y='5' width='20' height='4' fill='%23ffffff'/><rect x='8' y='0' width='4' height='14' fill='%23ffffff'/></svg>");
 }
 
-.lang-flag-emoji {
   font-size: 14px;
   line-height: 14px;
 }
@@ -1592,4 +1587,24 @@ h2 {
 .mini-panel .subtitle {
   word-wrap: break-word;
   overflow-wrap: anywhere;
+}
+
+/* Lang picker with flag (emoji-based) */
+.lang-picker-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lang-picker-flag {
+  position: absolute;
+  left: 8px;
+  pointer-events: none;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Espaço extra à esquerda no select para não colidir com a flag */
+#langPicker {
+  padding-left: 32px;
 }
