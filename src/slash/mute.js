@@ -1,5 +1,6 @@
 // src/slash/mute.js
 
+const { PermissionsBitField } = require('discord.js');
 
 const config = require('../config/defaultConfig');
 const logger = require('../systems/logger');
@@ -10,8 +11,6 @@ const { isStaff } = require('./utils');
 const { replyEphemeral, safeReply } = require('../utils/discord');
 const { ensureMutePermissions } = require('../utils/modPermissions');
 const { parseDuration, formatDuration } = require('../utils/time');
-
-
 
 module.exports = async function muteSlash(client, interaction) {
   try {
@@ -30,6 +29,7 @@ module.exports = async function muteSlash(client, interaction) {
     }
 
     const channelPerms = interaction.channel?.permissionsFor?.(botMember);
+    if (!channelPerms?.has(PermissionsBitField.Flags.ModerateMembers)) {
       return replyEphemeral(
         interaction,
         t('common.missingBotPerm', null, 'Moderate Members')
@@ -42,7 +42,13 @@ module.exports = async function muteSlash(client, interaction) {
       return replyEphemeral(interaction, t('common.cannotResolveUser'));
     }
 
-    const canProceed = await ensureMutePermissions({ client, interaction, executor, target, botMember });
+    const canProceed = await ensureMutePermissions({
+      client,
+      interaction,
+      executor,
+      target,
+      botMember
+    });
     if (!canProceed) return;
 
     const rawDuration = (interaction.options.getString('duration') || '').trim();
@@ -54,9 +60,14 @@ module.exports = async function muteSlash(client, interaction) {
       return replyEphemeral(interaction, t('mute.maxDuration'));
     }
 
-    const reason = (interaction.options.getString('reason') || '').trim() || t('common.noReason');
+    const reason =
+      (interaction.options.getString('reason') || '').trim() ||
+      t('common.noReason');
 
-    await target.timeout(durationMs, `Muted by ${interaction.user.tag}: ${reason}`);
+    await target.timeout(
+      durationMs,
+      `Muted by ${interaction.user.tag}: ${reason}`
+    );
 
     let dbUser = null;
     try {
@@ -76,7 +87,6 @@ module.exports = async function muteSlash(client, interaction) {
       })
       .catch(() => null);
 
-    // resposta pública
     await interaction
       .reply({
         content: t('mute.channelConfirm', null, {
@@ -101,6 +111,10 @@ module.exports = async function muteSlash(client, interaction) {
     );
   } catch (err) {
     console.error('[slash/mute] Error:', err);
-    return safeReply(interaction, { content: t('mute.failed') }, { ephemeral: true });
+    return safeReply(
+      interaction,
+      { content: t('mute.failed') },
+      { ephemeral: true }
+    );
   }
 };
