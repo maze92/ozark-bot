@@ -7,6 +7,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const { ChannelType } = require('discord.js');
 const helmet = require('helmet');
+const { z } = require('zod');
 
 const status = require('./systems/status');
 const config = require('./config/defaultConfig');
@@ -85,6 +86,46 @@ function safeAuditPayload(payload) {
     return { _unserializable: true };
   }
 }
+
+
+// ------------------------------
+// Schemas Zod para payloads da dashboard
+// ------------------------------
+
+const GuildConfigSchema = z.object({
+  logChannelId: z.string().regex(/^\d+$/).nullable().optional(),
+  dashboardLogChannelId: z.string().regex(/^\d+$/).nullable().optional(),
+  ticketThreadChannelId: z.string().regex(/^\d+$/).nullable().optional(),
+  staffRoleIds: z.array(z.string().regex(/^\d+$/)).max(100).optional()
+}).strict();
+
+const ModMuteSchema = z.object({
+  guildId: z.string().min(1).max(32),
+  userId: z.string().min(1).max(32),
+  duration: z.string().min(1).max(32).optional(),
+  reason: z.string().max(1000).optional()
+}).strict();
+
+const ModWarnSchema = z.object({
+  guildId: z.string().min(1).max(32),
+  userId: z.string().min(1).max(32),
+  reason: z.string().max(1000).optional()
+}).strict();
+
+const ModUnmuteSchema = z.object({
+  guildId: z.string().min(1).max(32),
+  userId: z.string().min(1).max(32),
+  reason: z.string().max(1000).optional()
+}).strict();
+
+const GameNewsFeedSchema = z.object({
+  name: z.string().min(1).max(100),
+  feed: z.string().url(),
+  channelId: z.string().regex(/^\d+$/).nullable().optional(),
+  enabled: z.boolean().optional(),
+  language: z.string().min(2).max(10).optional()
+}).strict();
+
 
 
 
@@ -2281,11 +2322,27 @@ app.post('/api/gamenews/feeds', requireDashboardAuth, rateLimit({ windowMs: 60_0
 
     for (const f of feeds) {
       if (!f) continue;
-      const name = sanitizeText(f.name || 'Feed', { maxLen: 64, stripHtml: true }) || 'Feed';
-      const feedUrl = sanitizeText(f.feedUrl, { maxLen: 512, stripHtml: true });
-      const channelId = sanitizeId(f.channelId);
+
+      const candidate = {
+        name: typeof f.name === 'string' && f.name.trim() ? f.name : 'Feed',
+        feed: f.feedUrl,
+        channelId: f.channelId ?? null,
+        enabled: f.enabled !== false,
+        language: typeof f.language === 'string' ? f.language : undefined
+      };
+
+      const parsedResult = GameNewsFeedSchema.safeParse(candidate);
+      if (!parsedResult.success) {
+        continue;
+      }
+
+      const parsed = parsedResult.data;
+
+      const name = sanitizeText(parsed.name || 'Feed', { maxLen: 64, stripHtml: true }) || 'Feed';
+      const feedUrl = sanitizeText(parsed.feed, { maxLen: 512, stripHtml: true });
+      const channelId = sanitizeId(parsed.channelId);
       const logChannelId = sanitizeId(f.logChannelId) || null;
-      const enabled = f.enabled !== false;
+      const enabled = parsed.enabled !== false;
 
       const intervalRaw = Number(f.intervalMs ?? 0);
       const intervalMs = Number.isFinite(intervalRaw) && intervalRaw > 0 ? intervalRaw : null;
