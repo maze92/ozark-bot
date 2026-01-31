@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const mongoose = require('mongoose');
 const { ChannelType } = require('discord.js');
+const helmet = require('helmet');
 
 const status = require('./systems/status');
 const config = require('./config/defaultConfig');
@@ -43,6 +44,10 @@ if (process.env.NODE_ENV === 'production' && !process.env.DASHBOARD_JWT_SECRET) 
   console.warn('[Dashboard Auth] DASHBOARD_JWT_SECRET is not set in production. Please configure a strong secret.');
 }
 
+// Warn if legacy static DASHBOARD_TOKEN is being used in production.
+if (process.env.NODE_ENV === 'production' && process.env.DASHBOARD_TOKEN) {
+  console.warn('[Dashboard Auth] Legacy DASHBOARD_TOKEN is enabled in production. This is not recommended. Prefer JWT login with username/password or future Discord OAuth2.');
+}
 
 // ------------------------------
 // Sanitização / hardening (dashboard)
@@ -171,6 +176,10 @@ const app = express();
 const server = http.createServer(app);
 
 app.set('trust proxy', 1);
+
+// Basic security headers for dashboard API
+// We disable the default CSP for now to avoid breaking inline scripts/styles.
+app.use(helmet({ contentSecurityPolicy: false }));
 
 app.use(express.json({ limit: '256kb' }));
 
