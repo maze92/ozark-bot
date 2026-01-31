@@ -332,18 +332,6 @@
       } catch (e) {
         // não rebentar o dashboard por causa da flag
       }
-    };
-        var key = (lang || '').toLowerCase();
-        var cls = map[key] || null;
-
-        if (cls) {
-          flag.classList.add(cls);
-        } else {
-          // fallback simples: emoji
-          flag.classList.add('lang-flag-emoji');
-          flag.textContent = key === 'pt' ? '🇵🇹' : key === 'en' ? '🇬🇧' : '🏳️';
-        }
-      } catch (e) {}
     }
 
     function ensureLangPickerFlag() {
@@ -351,24 +339,31 @@
         var select = document.getElementById('langPicker');
         if (!select) return;
 
-        if (!select.parentElement || !select.parentElement.classList.contains('lang-picker-wrap')) {
-          var wrap = document.createElement('span');
-          wrap.className = 'lang-picker-wrap';
-          select.parentNode.insertBefore(wrap, select);
-          wrap.appendChild(select);
+        var wrap = select.parentElement;
+        if (wrap && wrap.classList.contains('lang-picker-wrap')) {
+          updateLangFlag(state.lang || select.value || 'pt');
+          return;
         }
 
-        var wrap = select.parentElement;
-        var flag = wrap.querySelector('.lang-picker-flag');
-        if (!flag) {
-          flag = document.createElement('span');
-          flag.className = 'lang-picker-flag';
-          flag.setAttribute('aria-hidden', 'true');
-          wrap.insertBefore(flag, select);
-        }
+        // Criar wrapper e flag se ainda não existirem
+        var newWrap = document.createElement('span');
+        newWrap.className = 'lang-picker-wrap';
+
+        var parent = select.parentElement;
+        if (!parent) return;
+
+        parent.insertBefore(newWrap, select);
+        newWrap.appendChild(select);
+
+        var flag = document.createElement('span');
+        flag.className = 'lang-picker-flag';
+        flag.setAttribute('aria-hidden', 'true');
+        newWrap.insertBefore(flag, select);
 
         updateLangFlag(state.lang || select.value || 'pt');
-      } catch (e) {}
+      } catch (e) {
+        // evitar crash da dashboard
+      }
     }
 
 function setLang(newLang) {
