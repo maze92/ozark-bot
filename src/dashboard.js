@@ -1211,13 +1211,23 @@ app.get('/api/mod/overview', requireDashboardAuth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Missing guildId' });
     }
 
+    const range = (req.query.range || '24h').toString();
+    let windowHours = 24;
+    if (range === '7d') {
+      windowHours = 24 * 7;
+    } else if (range === '30d') {
+      windowHours = 24 * 30;
+    } else if (range === '1y') {
+      windowHours = 24 * 365;
+    }
+
     const now = new Date();
-    const since = new Date(now.getTime() - 24 * 60 * 60 * 1000); // últimas 24h
+    const since = new Date(now.getTime() - windowHours * 60 * 60 * 1000);
 
     const result = {
       ok: true,
       guildId,
-      windowHours: 24,
+      windowHours,
       moderationCounts: {
         warn: 0,
         mute: 0,

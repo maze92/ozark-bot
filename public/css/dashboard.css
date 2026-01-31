@@ -1107,3 +1107,21 @@ h2 {
     justify-content: flex-start;
   }
 }
+
+
+/* Ajustes finais Voz Temporária: evitar scroll horizontal e cortar texto com reticências */
+#extras-tempvoice-panel .user-layout > div:first-child {
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+#extras-tempvoice-panel .list-item {
+  min-width: 0;
+}
+
+#extras-tempvoice-panel .list .title,
+#extras-tempvoice-panel .list .subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
