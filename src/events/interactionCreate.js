@@ -1,4 +1,6 @@
 // src/events/interactionCreate.js
+//
+// Central handler for all slash commands.
 
 const config = require('../config/defaultConfig');
 const { t } = require('../systems/i18n');
@@ -38,7 +40,10 @@ module.exports = (client) => {
         const guild = interaction.guild;
         const rawOptions = (interaction.options && interaction.options.data) || [];
         const optStr = rawOptions
-          .map((opt) => `${opt.name}=${typeof opt.value === 'string' ? opt.value : (opt.value ?? '')}`)
+          .map((opt) => {
+            const v = opt.value;
+            return `${opt.name}=${typeof v === 'string' ? v : (v ?? '')}`;
+          })
           .join(', ');
 
         const desc = optStr ? `Options: ${optStr}` : '';
@@ -62,7 +67,11 @@ module.exports = (client) => {
     } catch (err) {
       console.error('[interactionCreate] Error:', err);
       try {
-        await safeReply(interaction, { content: t('common.unexpectedError') }, { ephemeral: true });
+        await safeReply(
+          interaction,
+          { content: t('common.unexpectedError') },
+          { ephemeral: true }
+        );
       } catch {
         // ignore
       }

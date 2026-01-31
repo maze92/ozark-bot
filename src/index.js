@@ -1,99 +1,158 @@
 // src/index.js
+//
+// Main entry point: connects to Mongo, starts Discord client and dashboard,
+// and orchestrates all "ready" logic in a single place.
 
 require('dotenv').config();
 require('./systems/errorGuard')();
 
 const status = require('./systems/status');
-
-// Liga ao Mongo e atualiza status conforme o resultado (sem crashar o bot)
-try {
-  const mongoose = require('./database/connect');
-
-  if (mongoose?.connection) {
-    const conn = mongoose.connection;
-
-    // Se já estiver ligado no momento do require
-    status.setMongoConnected(conn.readyState === 1);
-
-    conn.on('connected', () => status.setMongoConnected(true));
-    conn.on('disconnected', () => status.setMongoConnected(false));
-    conn.on('error', () => status.setMongoConnected(false));
-  }
-} catch {
-  status.setMongoConnected(false);
-}
-
-const client = require('./bot');
-const dashboard = require('./dashboard');
 const config = require('./config/defaultConfig');
 
+const mongoose = require('./database/connect');
+const client = require('./bot');
 
-// Allow dashboard to perform safe actions via API
-dashboard.setClient?.(client);
-
-require('./events/ready')(client);
+// Attach core event handlers
 require('./events/messageCreate')(client);
 require('./events/guildMemberAdd')(client);
 require('./events/interactionCreate')(client);
 require('./events/messageReactionAdd')(client);
 require('./events/voiceStateUpdate.tempVoice')(client);
 
-client.once('clientReady', async () => {
-  status.setDiscordReady(true);
-});
+// Dashboard (Express + Socket.IO)
+const dashboard = require('./dashboard');
 
+// Slash command registration
 const registerSlashCommands = require('./slash/register');
 
-client.once('clientReady', async () => {
-  try {
-    const slashCfg = config.slash || {};
-    if (slashCfg.enabled === false) return;
-    if (slashCfg.registerOnStartup === false) return;
-    await registerSlashCommands(client);
-  } catch (err) {
-    console.error('[Slash] Failed to register slash commands:', err);
-  }
-});
+// Maintenance & background systems
+const { startMaintenance } = require('./systems/maintenance');
+const startGameNews = require('./systems/gamenews');
 
-// Dashboard server (Railway precisa de porta aberta)
-if (typeof dashboard.ensureDefaultDashboardAdmin === 'function') {
-  dashboard.ensureDefaultDashboardAdmin().catch(err => {
-    console.error('[Dashboard Auth] Failed to ensure default admin from index:', err);
+// -----------------------------
+// Mongo status wiring
+// -----------------------------
+if (mongoose && mongoose.connection) {
+  const conn = mongoose.connection;
+
+  // Initial state (in case we're already connected)
+  status.setMongoConnected(conn.readyState === 1);
+  if (conn.readyState === 1) {
+    status.setMongoConnected(true);
+  }
+
+  conn.on('connected', () => {
+    status.setMongoConnected(true);
+  });
+
+  conn.on('disconnected', () => {
+    status.setMongoConnected(false);
+  });
+
+  conn.on('error', () => {
+    status.setMongoConnected(false);
   });
 }
 
-const PORT = process.env.PORT || 3000;
+// -----------------------------
+// Orchestrated Discord "ready"
+// -----------------------------
+
+let startupDone = false;
+
+client.once('ready', async () => {
+  if (startupDone) return;
+  startupDone = true;
+
+  try {
+    status.setDiscordReady(true);
+    console.log(`✅ Discord client logged in as ${client.user?.tag || client.user?.id || 'unknown user'}`);
+
+    // Register slash commands (if enabled)
+    try {
+      await registerSlashCommands(client);
+    } catch (err) {
+      console.error('[Startup] Failed to register slash commands:', err);
+    }
+
+    // Start maintenance scheduler (infractions / dashboard logs cleanup)
+    try {
+      startMaintenance(config);
+    } catch (err) {
+      console.error('[Startup] Failed to start maintenance scheduler:', err);
+    }
+
+    // Start Game News system (if enabled in config)
+    try {
+      if (config.gameNews?.enabled) {
+        await startGameNews(client, config);
+        console.log('📰 Game News system started.');
+        status.setGameNewsRunning(true);
+      } else {
+        status.setGameNewsRunning(false);
+      }
+    } catch (err) {
+      console.error('[Startup] Failed to start Game News system:', err);
+      status.setGameNewsRunning(false);
+    }
+
+    // Basic presence as a fallback; can be refined later
+    try {
+      if (client.user) {
+        await client.user.setPresence({
+          activities: [{ name: 'moderating your server', type: 0 }],
+          status: 'online',
+        });
+      }
+    } catch (err) {
+      console.error('[Startup] Failed to set presence:', err);
+    }
+  } catch (err) {
+    console.error('[Startup] Unhandled error during ready orchestration:', err);
+  }
+});
+
+// Keep presence consistent on shard resume
+client.on('shardResume', async () => {
+  try {
+    if (client.user) {
+      await client.user.setPresence({
+        activities: [{ name: 'moderating your server', type: 0 }],
+        status: 'online',
+      });
+    }
+  } catch (err) {
+    console.error('[Startup] Failed to refresh presence on shardResume:', err);
+  }
+});
+
+// -----------------------------
+// Dashboard HTTP server
+// -----------------------------
+
+const portFromConfig = config.dashboard?.port;
+const PORT = Number(process.env.PORT || portFromConfig || 3000);
+
 dashboard.server.listen(PORT, () => {
   console.log(`🚀 Dashboard running on port ${PORT}`);
 });
 
+// -----------------------------
 // Login
-if (!process.env.TOKEN) {
-  console.error('❌ Missing TOKEN in environment');
+// -----------------------------
+
+const token = process.env.TOKEN || process.env.DISCORD_TOKEN;
+if (!token) {
+  console.error('❌ Missing Discord bot token. Set TOKEN or DISCORD_TOKEN in environment.');
   process.exit(1);
 }
 
-client.login(process.env.TOKEN).catch((err) => {
-  console.error('❌ Discord login failed:', err);
-});
-
-// GameNews após bot pronto
-let gameNewsStarted = false;
-client.once('clientReady', async () => {
-  try {
-    if (gameNewsStarted) return;
-    gameNewsStarted = true;
-
-    if (config.gameNews?.enabled) {
-      const gameNews = require('./systems/gamenews');
-      await gameNews(client, config);
-      console.log('📰 Game News system started.');
-      status.setGameNewsRunning(true);
-    } else {
-      status.setGameNewsRunning(false);
-    }
-  } catch (err) {
-    console.error('[GameNews] Failed to start:', err);
-    status.setGameNewsRunning(false);
-  }
-});
+client
+  .login(token)
+  .then(() => {
+    console.log('✅ Discord login successful.');
+  })
+  .catch((err) => {
+    console.error('❌ Failed to login to Discord:', err);
+    process.exit(1);
+  });
