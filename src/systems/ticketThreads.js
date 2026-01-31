@@ -10,10 +10,6 @@ const OPEN_EMOJI = '🎫';
 // Emoji para fechar tickets dentro da thread
 const CLOSE_EMOJI = '🔒';
 
-// Opcional: roles de staff com permissão explícita para fechar tickets.
-// Se estiver vazio, qualquer membro com acesso à thread pode fechá-la.
-const STAFF_ROLE_IDS = [];
-
 /**
  * Cria uma nova thread de ticket a partir da mensagem-base
  * quando alguém reage com o emoji de abertura.
@@ -123,16 +119,7 @@ async function handleTicketClose(reaction, user) {
     const member = await guild.members.fetch(user.id).catch(() => null);
     if (!member) return;
 
-    let canClose = false;
-
-    if (STAFF_ROLE_IDS.length > 0) {
-      if (member.roles.cache.hasAny(...STAFF_ROLE_IDS)) {
-        canClose = true;
-      }
-    } else {
-      // Se nenhum role de staff estiver definido, usamos a regra global de staff
-      canClose = await isStaff(member).catch(() => false);
-    }
+    const canClose = await isStaff(member).catch(() => false);
 
     if (!canClose) {
       await channel.send(

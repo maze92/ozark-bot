@@ -4,84 +4,73 @@ const { PermissionsBitField } = require('discord.js');
 const config = require('../config/defaultConfig');
 const { getGuildConfig } = require('../systems/guildConfigService');
 
-// Regras específicas de permissões:
-// - /ticket e /help: cargo base configurável (env TICKET_HELP_BASE_ROLE_ID ou via GuildConfig)
-// - Outros comandos de staff: roles definidos em config.staffRoles (ex.: STAFF_ROLE_IDS no .env)
-const TICKET_HELP_BASE_ROLE_ID = process.env.TICKET_HELP_BASE_ROLE_ID || null;
+/**
+ * Obtém a lista de roles de staff para uma guild:
+ * 1) staffRoleIds configurados na GuildConfig (via dashboard)
+ * 2) caso não exista, usa config.staffRoles (ex.: STAFF_ROLE_IDS no .env)
+ */
+async function getStaffRoleIdsForGuild(guildId) {
+  if (!guildId) return [];
 
-// HIGH_STAFF_ROLE_IDS por defeito vem de config.staffRoles (override global).
-// Podem ser personalizados por guild via GuildConfig se necessário.
-const HIGH_STAFF_ROLE_IDS = Array.isArray(config.staffRoles) ? config.staffRoles : [];
+  // 1) GuildConfig (dashboard)
+  try {
+    const guildCfg = await getGuildConfig(guildId);
+    if (guildCfg && Array.isArray(guildCfg.staffRoleIds) && guildCfg.staffRoleIds.length) {
+      return guildCfg.staffRoleIds.map((id) => String(id));
+    }
+  } catch (err) {
+    console.error('[Staff] Failed to load GuildConfig for staff roles:', err);
+  }
 
+  // 2) Fallback global (config)
+  if (Array.isArray(config.staffRoles) && config.staffRoles.length) {
+    return config.staffRoles.map((id) => String(id));
+  }
+
+  return [];
+}
+
+/**
+ * Verifica se o membro é considerado STAFF.
+ * Regra:
+ *  - Administradores são sempre staff
+ *  - Roles configuradas na dashboard (ou config.staffRoles) contam como staff
+ */
 async function isStaff(member) {
   if (!member) return false;
 
   const isAdmin = member.permissions?.has(PermissionsBitField.Flags.Administrator);
   if (isAdmin) return true;
 
-  // Staff "forte"
-  if (member.roles?.cache?.some((r) => HIGH_STAFF_ROLE_IDS.includes(r.id))) {
-    return true;
-  }
-
   const guild = member.guild;
   if (!guild) return false;
 
-  let staffRoles = [];
-
-  try {
-    const guildCfg = await getGuildConfig(guild.id);
-    if (guildCfg && Array.isArray(guildCfg.staffRoleIds) && guildCfg.staffRoleIds.length) {
-      staffRoles = guildCfg.staffRoleIds.map((id) => String(id));
-    }
-  } catch (err) {
-    console.error('[Staff] Failed to load GuildConfig for isStaff:', err);
-  }
-
-  if (!staffRoles.length) {
-    staffRoles = Array.isArray(config.staffRoles) ? config.staffRoles.map((id) => String(id)) : [];
-  }
-
+  const staffRoles = await getStaffRoleIdsForGuild(guild.id);
   if (!staffRoles.length) return false;
 
   return member.roles?.cache?.some((r) => staffRoles.includes(r.id)) || false;
 }
 
-function canUseTicketOrHelp(member) {
-  if (!member) return false;
-
-  const isAdmin = member.permissions?.has(PermissionsBitField.Flags.Administrator);
-  if (isAdmin) return true;
-
-  if (member.roles?.cache?.some((r) => HIGH_STAFF_ROLE_IDS.includes(r.id))) {
-    return true;
-  }
-
-  const guild = member.guild;
-  if (!guild || !guild.roles) return false;
-
-  const baseRole = guild.roles.cache.get(TICKET_HELP_BASE_ROLE_ID);
-  if (!baseRole) {
-    return member.roles?.cache?.some((r) => r.id === TICKET_HELP_BASE_ROLE_ID) || false;
-  }
-
-  const minPosition = baseRole.position;
-  return member.roles?.cache?.some((r) => r.position >= minPosition) || false;
+/**
+ * Permissão para usar /ticket e /help.
+ * Para simplificar e evitar mil variantes de permissões, usamos a mesma regra de STAFF:
+ *  - Admin OU está na lista de roles de staff.
+ */
+async function canUseTicketOrHelp(member) {
+  return isStaff(member);
 }
 
-function isHighStaff(member) {
-  if (!member) return false;
-
-  const isAdmin = member.permissions?.has(PermissionsBitField.Flags.Administrator);
-  if (isAdmin) return true;
-
-  return member.roles?.cache?.some((r) => HIGH_STAFF_ROLE_IDS.includes(r.id)) || false;
+/**
+ * Alias de staff "forte". Neste momento é igual a isStaff,
+ * mas mantemos separado para futura expansão se quiseres níveis diferentes.
+ */
+async function isHighStaff(member) {
+  return isStaff(member);
 }
 
 module.exports = {
   isStaff,
   canUseTicketOrHelp,
   isHighStaff,
-  TICKET_HELP_BASE_ROLE_ID,
-  HIGH_STAFF_ROLE_IDS
+  getStaffRoleIdsForGuild
 };
