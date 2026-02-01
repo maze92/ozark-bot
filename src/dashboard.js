@@ -113,6 +113,14 @@ const ModWarnSchema = z.object({
 });
 
 const ModUnmuteSchema = z.object({
+  guildId: z.string().min(1).max(32),
+  userId: z.string().min(1).max(32),
+  reason: z.string().max(1000).optional()
+});
+
+/**
+ * Query validation schemas
+ */
 const CasesSearchQuerySchema = z.object({
   guildId: z.string().min(1).max(32),
   q: z.string().max(100).optional(),
@@ -127,11 +135,6 @@ const LogsQuerySchema = z.object({
   guildId: z.string().min(1).max(32),
   page: z.string().regex(/^\d+$/).optional(),
   limit: z.string().regex(/^\d+$/).optional()
-});
-
-  guildId: z.string().min(1).max(32),
-  userId: z.string().min(1).max(32),
-  reason: z.string().max(1000).optional()
 });
 
 const GameNewsFeedSchema = z.object({
