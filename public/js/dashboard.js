@@ -384,6 +384,7 @@ function setLang(newLang) {
   } else {
     applyI18n();
   }
+}
 
 // -----------------------------
   // Tab / layout helpers
