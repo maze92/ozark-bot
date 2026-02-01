@@ -1621,3 +1621,47 @@ h2 {
   justify-content: flex-end;
   gap: 8px;
 }
+
+
+/* === UX polish: logs & extras === */
+
+/* Logs tab: ensure main moderation logs list has comfortable max height and padding */
+#tab-logs .list.logs-list {
+  max-height: 460px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+/* Empty states inside cards/lists: a bit more breathing room */
+#tab-logs .list .empty,
+#tab-gamenews .list .empty,
+#extras-tickets-panel .empty {
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Extras subcards (feeds, tickets, trust) look consistent */
+#tab-gamenews .card.subcard {
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  padding: 12px 14px;
+}
+
+/* Space between sections inside extras panels */
+#tab-gamenews .card.subcard + .card.subcard {
+  margin-top: 12px;
+}
+
+/* Tickets extras form: align bottom actions with config tab */
+#extras-tickets-panel .config-actions-row {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Small visual alignment for gamenews layout */
+#extras-feeds-panel .gamenews-layout {
+  margin-top: 8px;
+}
