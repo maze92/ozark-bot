@@ -235,12 +235,6 @@ app.set('trust proxy', 1);
 
 // Basic security headers for dashboard API
 // We disable the default CSP for now to avoid breaking inline scripts/styles.
-app.use(helmet({ contentSecurityPolicy: false }));
-
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : undefined, credentials: false }));
-
-app.use(express.json({ limit: '256kb' }));
-
 const allowedOrigins = (Array.isArray(config.dashboard?.allowedOrigins) && config.dashboard.allowedOrigins.length > 0
   ? config.dashboard.allowedOrigins
   : (process.env.DASHBOARD_ORIGIN || '')
@@ -252,6 +246,12 @@ const allowedOrigins = (Array.isArray(config.dashboard?.allowedOrigins) && confi
 if (!allowedOrigins.length) {
   console.warn('[Dashboard] No explicit CORS origins configured. Falling back to default Socket.IO behaviour.');
 }
+
+app.use(helmet({ contentSecurityPolicy: false }));
+
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : undefined, credentials: false }));
+
+app.use(express.json({ limit: '256kb' }));
 
 const io = new Server(server, {
   cors: {
