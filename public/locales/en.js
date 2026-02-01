@@ -190,4 +190,5 @@ window.OzarkLocales.en = {
   'users_title': 'Users',
   'warn_select_guild': 'Selecione um servidor para aceder às restantes secções.',
 
+  'users_history_error_generic': 'Failed to load user history.',
 };

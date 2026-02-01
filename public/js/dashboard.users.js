@@ -500,7 +500,7 @@ async function loadUserHistory(user) {
     } catch (err) {
       console.error('Failed to load user history', err);
       detailEl.innerHTML =
-        '<div class="empty">Erro ao carregar histórico / error loading history.</div>';
+        `<div class="empty">${escapeHtml(t('users_history_error_generic'))}</div>`;
     }
   }
 

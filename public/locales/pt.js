@@ -235,4 +235,5 @@ window.OzarkLocales.pt = {
   'users_trust_title': 'Confiança do utilizador',
   'warn_select_guild': 'Selecione um servidor para aceder às restantes secções.',
 
+  'users_history_error_generic': 'Erro ao carregar histórico do utilizador.',
 };
