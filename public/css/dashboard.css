@@ -1702,3 +1702,35 @@ h2 {
   justify-content: flex-start;
   gap: 8px;
 }
+
+
+/* === Extras (Feeds, Tickets, Trust, TempVoice) unified form look === */
+
+#extras-feeds-panel .field,
+#extras-tickets-panel .field,
+#extras-trust-panel .field,
+#extras-tempvoice-panel .field {
+  margin-bottom: 8px;
+}
+
+#extras-feeds-panel .field label,
+#extras-tickets-panel .field label,
+#extras-trust-panel .field label,
+#extras-tempvoice-panel .field label {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+#extras-feeds-panel .input,
+#extras-tickets-panel .input,
+#extras-trust-panel .input,
+#extras-tempvoice-panel .input,
+#extras-feeds-panel .select,
+#extras-tickets-panel .select,
+#extras-trust-panel .select,
+#extras-tempvoice-panel .select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  font-size: 0.875rem;
+}
