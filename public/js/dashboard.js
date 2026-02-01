@@ -1826,3 +1826,60 @@ window.OzarkDashboard.apiGet = apiGet;
   // GameNews
     
 })();
+
+    async function exportGuildConfigJson() {
+      if (!state.guildId) return;
+      try {
+        const cfg = await apiGet('/guilds/' + encodeURIComponent(state.guildId) + '/config');
+        const conf = cfg && cfg.config ? cfg.config : {};
+        const payload = {
+          logChannelId: conf.logChannelId || null,
+          dashboardLogChannelId: conf.dashboardLogChannelId || null,
+          ticketThreadChannelId: conf.ticketThreadChannelId || null,
+          staffRoleIds: Array.isArray(conf.staffRoleIds) ? conf.staffRoleIds : []
+        };
+        const ta = document.getElementById('configJsonExport');
+        if (ta) {
+          ta.value = JSON.stringify(payload, null, 2);
+        }
+        toast(t('config_saved'));
+      } catch (err) {
+        console.error('Failed to export guild config JSON', err);
+        toast(t('config_error_generic'));
+      }
+    }
+
+    async function importGuildConfigJson() {
+      if (!state.guildId) return;
+      const ta = document.getElementById('configJsonImport');
+      if (!ta || !ta.value.trim()) {
+        toast(t('config_error_generic'));
+        return;
+      }
+
+      let parsed = null;
+      try {
+        parsed = JSON.parse(ta.value);
+      } catch (e) {
+        console.error('Invalid JSON for import', e);
+        toast(t('config_error_generic'));
+        return;
+      }
+
+      const payload = {
+        logChannelId: parsed.logChannelId || null,
+        dashboardLogChannelId: parsed.dashboardLogChannelId || null,
+        ticketThreadChannelId: parsed.ticketThreadChannelId || null,
+        staffRoleIds: Array.isArray(parsed.staffRoleIds) ? parsed.staffRoleIds.filter(Boolean) : []
+      };
+
+      try {
+        await apiPost('/guilds/' + encodeURIComponent(state.guildId) + '/config', payload);
+        toast(t('config_saved'));
+        await loadGuildConfig();
+      } catch (err) {
+        console.error('Failed to import guild config JSON', err);
+        toast(t('config_error_save'));
+      }
+    }
+

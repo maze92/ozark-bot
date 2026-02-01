@@ -57,6 +57,13 @@ window.OzarkLocales.en = {
   'config_server_language_en': 'English',
   'config_server_timezone_label': 'Server timezone',
   'config_server_timezone_hint': 'Use a valid IANA identifier (e.g. Europe/Lisbon, UTC). Affects only how dates are shown in the dashboard.',
+
+  'config_json_section_title': 'Configuration (JSON)',
+  'config_json_section_hint': 'Export or import this guild\'s basic configuration as JSON.',
+  'config_json_export_label': 'Export current configuration',
+  'config_json_export_btn': 'Generate JSON',
+  'config_json_import_label': 'Import configuration (JSON)',
+  'config_json_import_btn': 'Apply JSON',
 'config_logs_section_title': 'Registos e canais de logs',
   'config_reload': 'Reload',
   'config_save': 'Save configuration',

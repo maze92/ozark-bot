@@ -549,6 +549,34 @@
               <button type="button" class="btn" id="btnReloadGuildConfig" data-i18n="config_reload">Recarregar</button>
               <button type="button" class="btn primary" id="btnSaveGuildConfig" data-i18n="config_save">Guardar configuração</button>
             </div>
+            <div class="card subcard">
+              <h3 data-i18n="config_json_section_title">Configuração (JSON)</h3>
+              <p class="hint" data-i18n="config_json_section_hint">
+                Exporta ou importa a configuração básica deste servidor em formato JSON.
+              </p>
+
+              <div class="row gap row-tight-top">
+                <div class="col">
+                  <label for="configJsonExport" data-i18n="config_json_export_label">Exportar configuração atual</label>
+                  <textarea id="configJsonExport" class="input" rows="4" readonly></textarea>
+                  <button type="button" class="btn xs" onclick="window.OzarkDashboard.exportGuildConfigJson()">
+                    <span data-i18n="config_json_export_btn">Gerar JSON</span>
+                  </button>
+                </div>
+                <div class="col">
+                  <label for="configJsonImport" data-i18n="config_json_import_label">Importar configuração (JSON)</label>
+                  <textarea id="configJsonImport" class="input" rows="4" placeholder="{
+  \"logChannelId\": \"123...\",
+  \"dashboardLogChannelId\": null,
+  \"ticketThreadChannelId\": null,
+  \"staffRoleIds\": []
+}"></textarea>
+                  <button type="button" class="btn xs" onclick="window.OzarkDashboard.importGuildConfigJson()">
+                    <span data-i18n="config_json_import_btn">Aplicar JSON</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
 
             <div id="configStatus" class="hint hint-spaced-top"></div>

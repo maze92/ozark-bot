@@ -64,6 +64,13 @@ window.OzarkLocales.pt = {
   'config_server_language_en': 'Inglês',
   'config_server_timezone_label': 'Timezone do servidor',
   'config_server_timezone_hint': 'Use um identificador IANA válido (ex.: Europe/Lisbon, UTC). Afeta apenas a apresentação de datas na dashboard.',
+
+  'config_json_section_title': 'Configuração (JSON)',
+  'config_json_section_hint': 'Exporta ou importa a configuração básica deste servidor em formato JSON.',
+  'config_json_export_label': 'Exportar configuração atual',
+  'config_json_export_btn': 'Gerar JSON',
+  'config_json_import_label': 'Importar configuração (JSON)',
+  'config_json_import_btn': 'Aplicar JSON',
 'config_logs_section_title': 'Registos e canais de logs',
   'config_reload': 'Reload',
   'config_save': 'Save configuration',
