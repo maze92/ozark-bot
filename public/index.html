@@ -304,18 +304,8 @@
                         </div>
 
                         <div class="field">
-                        <div class="field">
                           <label for="tempVoiceCategoryId" data-i18n="tempvoice_category_label">Categoria para criar salas temporárias</label>
                           <input id="tempVoiceCategoryId" class="input" placeholder="ID da categoria (opcional)" />
-                        </div>
-
-                        <div class="config-actions-row tempvoice-actions-row">
-                          <button id="btnSaveTempVoice" class="btn xs" type="button" data-i18n="tempvoice_save_btn">
-                            Guardar
-                          </button>
-                          <button id="btnDeleteTempVoiceBase" class="btn xs danger" type="button" data-i18n="tempvoice_delete_btn">
-                            Remover
-                          </button>
                         </div>
 
                         <div class="field field-spaced-top">
@@ -327,10 +317,20 @@
                           </div>
                         </div>
 
+                        <div class="config-actions-row tempvoice-actions-row">
+                          <button id="btnSaveTempVoice" class="btn xs" type="button" data-i18n="tempvoice_save_btn">
+                            Guardar
+                          </button>
+                          <button id="btnDeleteTempVoiceBase" class="btn xs danger" type="button" data-i18n="tempvoice_delete_btn">
+                            Remover
+                          </button>
+                        </div>
+
                         <div class="field">
                           <label for="tempVoiceDeleteDelay" data-i18n="tempvoice_delete_delay_label">Tempo para apagar sala vazia (segundos)</label>
                           <input id="tempVoiceDeleteDelay" class="input" type="number" min="2" max="600" step="1" />
                         </div>
+                      </div>
                     </div>
                   </div>
                 </div>

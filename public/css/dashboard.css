@@ -1699,6 +1699,6 @@ h2 {
 #extras-tempvoice-panel .tempvoice-actions-row {
   margin-top: 12px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: flex-end;
   gap: 8px;
 }
