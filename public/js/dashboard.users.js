@@ -12,6 +12,7 @@
   const apiPost = D.apiPost;
   const toast = D.toast;
   const t = D.t;
+  let userHistoryAbortController = null;
   const escapeHtml = D.escapeHtml;
 
 
@@ -141,7 +142,15 @@ async function loadUserHistory(user) {
       return;
     }
 
+    // Cancelar pedidos anteriores de histórico (evita race conditions)
+    if (userHistoryAbortController) {
+      userHistoryAbortController.abort();
+    }
+    userHistoryAbortController = new AbortController();
+    const signal = userHistoryAbortController.signal;
+
     detailEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
+
 
     try {
       const [historyRes, userRes] = await Promise.all([
@@ -150,13 +159,15 @@ async function loadUserHistory(user) {
             encodeURIComponent(state.guildId) +
             '/users/' +
             encodeURIComponent(user.id) +
-            '/history'
+            '/history',
+          { signal: signal }
         ),
         apiGet(
           '/user?guildId=' +
             encodeURIComponent(state.guildId) +
             '&userId=' +
-            encodeURIComponent(user.id)
+            encodeURIComponent(user.id),
+          { signal: signal }
         )
       ]);
 
@@ -377,7 +388,7 @@ async function loadUserHistory(user) {
                 container.querySelector('.user-actions-reason') || null;
 
               const reasonRaw = reasonInput && reasonInput.value ? reasonInput.value : '';
-              const reason = reasonRaw.trim() || 'No reason provided';
+              const reason = reasonRaw.trim() || t('common_no_reason_provided');
 
               if (action === 'reset-history') {
                 apiPost('/mod/reset-history', {
@@ -498,6 +509,10 @@ async function loadUserHistory(user) {
         console.error('Failed to bind user quick actions', err);
       }
     } catch (err) {
+      if (err && err.name === 'AbortError') {
+        // Pedido de histórico cancelado devido a uma nova seleção de utilizador; ignorar.
+        return;
+      }
       console.error('Failed to load user history', err);
       detailEl.innerHTML =
         `<div class="empty">${escapeHtml(t('users_history_error_generic'))}</div>`;

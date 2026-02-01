@@ -236,4 +236,6 @@ window.OzarkLocales.pt = {
   'warn_select_guild': 'Selecione um servidor para aceder às restantes secções.',
 
   'users_history_error_generic': 'Erro ao carregar histórico do utilizador.',
+  'guilds_loading_option': 'A carregar servidores...',
+  'common_no_reason_provided': 'Sem motivo especificado.',
 };

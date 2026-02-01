@@ -563,7 +563,7 @@ function setLang(newLang) {
     select.innerHTML = '';
     const optLoading = document.createElement('option');
     optLoading.value = '';
-    optLoading.textContent = '...';
+    optLoading.textContent = t('guilds_loading_option');
     select.appendChild(optLoading);
 
     try {

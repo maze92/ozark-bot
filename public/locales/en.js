@@ -191,4 +191,6 @@ window.OzarkLocales.en = {
   'warn_select_guild': 'Selecione um servidor para aceder às restantes secções.',
 
   'users_history_error_generic': 'Failed to load user history.',
+  'guilds_loading_option': 'Loading servers...',
+  'common_no_reason_provided': 'No reason provided.',
 };
