@@ -4,6 +4,7 @@
 
 const config = require('../config/defaultConfig');
 const { t } = require('../systems/i18n');
+const { getGuildLanguage } = require('../systems/langService');
 const logger = require('../systems/logger');
 const { safeReply } = require('../utils/discord');
 
@@ -65,11 +66,13 @@ module.exports = (client) => {
 
       return handler(client, interaction);
     } catch (err) {
-      console.error('[interactionCreate] Error:', err);
-      try {
+        console.error('[interactionCreate] Error:', err);
+        try {
+          const guild = interaction.guild;
+          const lang = await getGuildLanguage(guild && guild.id);
         await safeReply(
           interaction,
-          { content: t('common.unexpectedError') },
+          { content: t('common.unexpectedError', lang) },
           { ephemeral: true }
         );
       } catch {

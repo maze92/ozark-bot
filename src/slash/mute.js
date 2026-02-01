@@ -7,6 +7,7 @@ const logger = require('../systems/logger');
 const infractionsService = require('../systems/infractionsService');
 const warningsService = require('../systems/warningsService');
 const { t } = require('../systems/i18n');
+const { getGuildLanguage } = require('../systems/langService');
 const { isStaff } = require('./utils');
 const { replyEphemeral, safeReply } = require('../utils/discord');
 const { ensureMutePermissions } = require('../utils/modPermissions');
@@ -17,29 +18,30 @@ module.exports = async function muteSlash(client, interaction) {
     if (!interaction?.guild) return;
 
     const guild = interaction.guild;
+    const lang = await getGuildLanguage(guild && guild.id);
     const executor = interaction.member;
     const botMember = guild.members.me;
 
     if (!executor || !botMember) {
-      return replyEphemeral(interaction, t('common.unexpectedError'));
+      return replyEphemeral(interaction, t('common.unexpectedError', lang));
     }
 
     if (!(await isStaff(executor))) {
-      return replyEphemeral(interaction, t('common.noPermission'));
+      return replyEphemeral(interaction, t('common.noPermission', lang));
     }
 
     const channelPerms = interaction.channel?.permissionsFor?.(botMember);
     if (!channelPerms?.has(PermissionsBitField.Flags.ModerateMembers)) {
       return replyEphemeral(
         interaction,
-        t('common.missingBotPerm', null, 'Moderate Members')
+        t('common.missingBotPerm', lang, 'Moderate Members')
       );
     }
 
     const targetUser = interaction.options.getUser('user', true);
     const target = await guild.members.fetch(targetUser.id).catch(() => null);
     if (!target) {
-      return replyEphemeral(interaction, t('common.cannotResolveUser'));
+      return replyEphemeral(interaction, t('common.cannotResolveUser', lang));
     }
 
     const canProceed = await ensureMutePermissions({
@@ -57,12 +59,12 @@ module.exports = async function muteSlash(client, interaction) {
 
     const MAX_TIMEOUT_MS = 28 * 24 * 60 * 60 * 1000;
     if (durationMs > MAX_TIMEOUT_MS) {
-      return replyEphemeral(interaction, t('mute.maxDuration'));
+      return replyEphemeral(interaction, t('mute.maxDuration', lang));
     }
 
     const reason =
       (interaction.options.getString('reason') || '').trim() ||
-      t('common.noReason');
+      t('common.noReason', lang);
 
     await target.timeout(
       durationMs,
@@ -89,7 +91,7 @@ module.exports = async function muteSlash(client, interaction) {
 
     await interaction
       .reply({
-        content: t('mute.channelConfirm', null, {
+        content: t('mute.channelConfirm', lang, {
           tag: target.user.tag,
           duration: formatDuration(durationMs),
           reason
@@ -102,7 +104,7 @@ module.exports = async function muteSlash(client, interaction) {
       'Slash Mute',
       target.user,
       interaction.user,
-      t('log.actions.manualMute', null, {
+      t('log.actions.manualMute', lang, {
         duration: formatDuration(durationMs),
         reason,
         trust: dbUser?.trust ?? 'N/A'
@@ -113,7 +115,7 @@ module.exports = async function muteSlash(client, interaction) {
     console.error('[slash/mute] Error:', err);
     return safeReply(
       interaction,
-      { content: t('mute.failed') },
+      { content: t('mute.failed', lang) },
       { ephemeral: true }
     );
   }
