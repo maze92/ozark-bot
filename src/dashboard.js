@@ -104,19 +104,19 @@ const ModMuteSchema = z.object({
   userId: z.string().min(1).max(32),
   duration: z.string().min(1).max(32).optional(),
   reason: z.string().max(1000).optional()
-}).strict();
+});
 
 const ModWarnSchema = z.object({
   guildId: z.string().min(1).max(32),
   userId: z.string().min(1).max(32),
   reason: z.string().max(1000).optional()
-}).strict();
+});
 
 const ModUnmuteSchema = z.object({
   guildId: z.string().min(1).max(32),
   userId: z.string().min(1).max(32),
   reason: z.string().max(1000).optional()
-}).strict();
+});
 
 const GameNewsFeedSchema = z.object({
   name: z.string().min(1).max(100),

@@ -23,31 +23,29 @@ module.exports = async function registerSlashCommands(client) {
     const rest = new REST({ version: '10' }).setToken(token);
     const commands = buildSlashCommands(config.prefix || '!');
 
-    const guildId = slashCfg.guildId || process.env.SLASH_GUILD_ID || process.env.GUILD_ID;
-
-    // 1) Clear ALL global commands to avoid duplicates
-    try {
-      await rest.put(Routes.applicationCommands(clientId), { body: [] });
-      console.log('[slash/register] Cleared existing global slash commands.');
-    } catch (clearErr) {
-      console.warn('[slash/register] Failed to clear global commands (can be ignored if none exist):', clearErr);
+    if (!Array.isArray(commands) || commands.length === 0) {
+      console.warn('[slash/register] No slash commands to register.');
+      return;
     }
 
-    if (guildId) {
-      // 2) Clear guild commands for this guild, then register fresh
-      try {
-        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: [] });
-        console.log('[slash/register] Cleared existing guild slash commands for guild', guildId);
-      } catch (gErr) {
-        console.warn('[slash/register] Failed to clear guild commands (can be ignored on first run):', gErr);
-      }
+    const guildId = slashCfg.guildId || process.env.SLASH_GUILD_ID || process.env.GUILD_ID;
 
-      await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
-      console.log(`[slash/register] Registered ${commands.length} guild slash commands in guild ${guildId}.`);
-    } else {
-      // 3) If no guildId is configured, fall back to global registration only
+    // 1) Registar sempre comandos globais
+    try {
       await rest.put(Routes.applicationCommands(clientId), { body: commands });
       console.log(`[slash/register] Registered ${commands.length} global slash commands.`);
+    } catch (globalErr) {
+      console.error('[slash/register] Failed to register global slash commands:', globalErr);
+    }
+
+    // 2) Se houver guildId configurado, registar também para essa guild (efeito imediato)
+    if (guildId) {
+      try {
+        await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
+        console.log(`[slash/register] Registered ${commands.length} guild slash commands in guild ${guildId}.`);
+      } catch (guildErr) {
+        console.error('[slash/register] Failed to register guild slash commands:', guildErr);
+      }
     }
   } catch (err) {
     console.error('[slash/register] Error:', err);
