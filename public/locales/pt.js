@@ -1,3 +1,4 @@
+window.OzarkLocales = window.OzarkLocales || {};
 window.OzarkLocales.pt = {
   // === CLEANED I18N ===
   // === AUTO-CORRIGIDO I18N ===

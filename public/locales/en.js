@@ -1,3 +1,4 @@
+window.OzarkLocales = window.OzarkLocales || {};
 window.OzarkLocales.en = {
   // === CLEANED I18N ===
   'antispam.autoReason': 'Automatic anti-spam action (repeated or similar messages).',
