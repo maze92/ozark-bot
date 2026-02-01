@@ -13,8 +13,8 @@ const CLOSE_EMOJI = '🔒';
 /**
  * Cria uma nova thread de ticket a partir da mensagem-base
  * quando alguém reage com o emoji de abertura.
- * @param {import('discord.js').MessageReaction} reaction
- * @param {import('discord.js').User} user
+ * @param {impor'discord.js'.MessageReaction} reaction
+ * @param {impor'discord.js'.User} user
  */
 async function handleTicketOpen(reaction, user) {
   try {
@@ -97,8 +97,8 @@ async function handleTicketOpen(reaction, user) {
 
 /**
  * Fecha uma thread de ticket quando alguém reage com o emoji de fechar.
- * @param {import('discord.js').MessageReaction} reaction
- * @param {import('discord.js').User} user
+ * @param {impor'discord.js'.MessageReaction} reaction
+ * @param {impor'discord.js'.User} user
  */
 async function handleTicketClose(reaction, user) {
   try {

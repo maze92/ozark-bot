@@ -14,10 +14,10 @@ const { t } = require('./i18n');
  * Atualmente só trata de auto-mute escalonado; não faz kicks/bans.
  *
  * @param {Object} opts
- * @param {import('discord.js').Client} opts.client
- * @param {import('discord.js').Guild}  opts.guild
- * @param {import('discord.js').User}   opts.user
- * @param {import('discord.js').User}   opts.moderator
+ * @param {impor'discord.js'.Client} opts.client
+ * @param {impor'discord.js'.Guild}  opts.guild
+ * @param {impor'discord.js'.User}   opts.user
+ * @param {impor'discord.js'.User}   opts.moderator
  * @param {'WARN'|'MUTE'}               opts.type
  */
 async function handleInfractionAutomation(opts) {

@@ -11,8 +11,8 @@ const { MessageFlags } = require('discord.js');
  * - Otherwise uses reply
  * - Swallows network/Discord errors to avoid crashing the handler
  *
- * @param {import('discord.js').Interaction} interaction
- * @param {import('discord.js').InteractionReplyOptions|import('discord.js').MessagePayload|Object} payload
+ * @param {impor'discord.js'.Interaction} interaction
+ * @param {impor'discord.js'.InteractionReplyOptions|impor'discord.js'.MessagePayload|Object} payload
  * @param {{ ephemeral?: boolean }} [options]
  */
 function safeReply(interaction, payload = {}, options = {}) {

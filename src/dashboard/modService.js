@@ -13,10 +13,10 @@ class ModError extends Error {
 
 /**
  * Resolve guild + member from client cache.
- * @param {import('discord.js').Client} client
+ * @param {impor'discord.js'.Client} client
  * @param {string} guildId
  * @param {string} userId
- * @returns {Promise<{ guild: import('discord.js').Guild|null, member: import('discord.js').GuildMember|null }>}
+ * @returns {Promise<{ guild: impor'discord.js'.Guild|null, member: impor'discord.js'.GuildMember|null }>}
  */
 async function resolveGuildMember(client, guildId, userId) {
   if (!client) return { guild: null, member: null };
@@ -31,7 +31,7 @@ async function resolveGuildMember(client, guildId, userId) {
  * Implementa a mesma lógica da rota /api/mod/warn, mas agnóstica de HTTP.
  *
  * @param {object} params
- * @param {import('discord.js').Client} params.client
+ * @param {impor'discord.js'.Client} params.client
  * @param {string} params.guildId
  * @param {string} params.userId
  * @param {string} [params.reason]

@@ -16,7 +16,7 @@ try {
 
 /**
  * Verifica se a reação foi feita no canal configurado para tickets desta guild.
- * @param {import('discord.js').Message} message
+ * @param {impor'discord.js'.Message} message
  */
 async function isTicketChannel(message) {
   if (!message || !message.guild) return false;
