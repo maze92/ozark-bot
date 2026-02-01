@@ -430,6 +430,39 @@
 
                   </div>
 
+            </section>
+    
+
+        <section class="section" id="tab-user">
+        <div class="card">
+          <h2 data-i18n="users_title">Utilizadores</h2>
+          <p class="hint" data-i18n="users_hint">
+            Consulta rápida de utilizadores e histórico de moderação por utilizador.
+          </p>
+          <p class="hint users-members" id="usersMemberCount"></p>
+          <div class="user-layout">
+            <div class="list">
+              <div class="empty" data-i18n="users_empty">
+                Selecione um servidor para ver utilizadores.
+              </div>
+            </div>
+            <div class="user-detail mini-panel" id="userDetailPanel">
+              <div class="empty" data-i18n="users_detail_empty">
+                Selecione um utilizador para ver o histórico de moderação e tickets.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+        <section class="section" id="tab-config">
+        <div class="card">
+          <h2 data-i18n="config_title">Configuração do servidor</h2>
+          <p class="hint" data-i18n="config_hint">
+            Defina canais, cargos de staff e preferências de registo para este servidor.
+          </p>
+
+          <div class="config-form">
             <div class="card subcard">
               <h3 data-i18n="config_logs_section_title">Registos e canais de logs</h3>
               <p class="hint" data-i18n="config_logs_section_hint">
@@ -455,7 +488,7 @@
                 Controla que cargos do Discord podem aceder à dashboard. No futuro será possível gerir utilizadores dedicados.
               </p>
 
-            <div class="row gap row-spaced-top">
+            <div class="row gap" style="margin-top:12px;">
               <div class="col">
                 <label for="configStaffRoles" data-i18n="config_staff_roles">Cargos de staff</label>
                 <select id="configStaffRoles" class="select" multiple></select>
@@ -466,41 +499,13 @@
             </div>
 </div>
 
-            <div class="config-actions-row">
+            <div style="margin-top:16px; display:flex; justify-content:flex-end; gap:8px;">
               <button type="button" class="btn" id="btnReloadGuildConfig" data-i18n="config_reload">Recarregar</button>
               <button type="button" class="btn primary" id="btnSaveGuildConfig" data-i18n="config_save">Guardar configuração</button>
             </div>
-            <div class="card subcard">
-              <h3 data-i18n="config_json_section_title">Configuração (JSON)</h3>
-              <p class="hint" data-i18n="config_json_section_hint">
-                Exporta ou importa a configuração básica deste servidor em formato JSON.
-              </p>
-
-              <div class="row gap row-tight-top">
-                <div class="col">
-                  <label for="configJsonExport" data-i18n="config_json_export_label">Exportar configuração atual</label>
-                  <textarea id="configJsonExport" class="input" rows="4" readonly></textarea>
-                  <button type="button" class="btn xs" onclick="window.OzarkDashboard.exportGuildConfigJson()">
-                    <span data-i18n="config_json_export_btn">Gerar JSON</span>
-                  </button>
-                </div>
-                <div class="col">
-                  <label for="configJsonImport" data-i18n="config_json_import_label">Importar configuração (JSON)</label>
-                  <textarea id="configJsonImport" class="input" rows="4" placeholder="{
-  \"logChannelId\": \"123...\",
-  \"dashboardLogChannelId\": null,
-  \"ticketThreadChannelId\": null,
-  \"staffRoleIds\": []
-}"></textarea>
-                  <button type="button" class="btn xs" onclick="window.OzarkDashboard.importGuildConfigJson()">
-                    <span data-i18n="config_json_import_btn">Aplicar JSON</span>
-                  </button>
-                </div>
-              </div>
-            </div>
 
 
-            <div id="configStatus" class="hint hint-spaced-top"></div>
+            <div id="configStatus" class="hint" style="margin-top:8px;"></div>
 
                       <div class="card subcard">
   <h3 data-i18n="config_dashboard_users_title">Utilizadores da Dashboard</h3>
@@ -531,17 +536,15 @@
         <input id="dashboardUserUsername" type="text" class="input" />
       </div>
       <div class="col">
-        <form id="dashboardUserForm" autocomplete="off" onsubmit="return false;">
-          <label for="dashboardUserPassword" data-i18n="config_dashboard_users_password">Password</label>
-          <input id="dashboardUserPassword" type="password" class="input" autocomplete="new-password" />
-        </form>
+        <label for="dashboardUserPassword" data-i18n="config_dashboard_users_password">Password</label>
+        <input id="dashboardUserPassword" type="password" class="input" autocomplete="new-password" />
         <p class="hint" id="dashboardUserPasswordHint" data-i18n="config_dashboard_users_password_hint">
           Define uma password para o novo utilizador.
         </p>
       </div>
     </div>
 
-    <div class="row gap row-tight-top">
+    <div class="row gap" style="margin-top:8px;">
       <div class="col">
         <label for="dashboardUserRole" data-i18n="config_dashboard_users_role">Perfil</label>
         <select id="dashboardUserRole" class="select">
@@ -573,7 +576,8 @@
           </div>
         </div>
       </section>
-    </main>
+
+</main>
   </div>
 
 
