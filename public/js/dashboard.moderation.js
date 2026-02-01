@@ -86,7 +86,7 @@ async function loadLogs() {
       listEl.innerHTML = '';
       const empty = document.createElement('div');
       empty.className = 'empty';
-      empty.textContent = t('logs_error_generic');
+      empty.textContent = (err && err.apiMessage) ? err.apiMessage : t('logs_error_generic');
       listEl.appendChild(empty);
     } finally {
       logsAbortController = null;
@@ -235,7 +235,7 @@ async function loadLogs() {
       ticketsList.innerHTML = '';
       const li = document.createElement('li');
       li.className = 'empty';
-      li.textContent = t('logs_tickets_panel_error');
+      li.textContent = (err && err.apiMessage) ? err.apiMessage : t('logs_tickets_panel_error');
       ticketsList.appendChild(li);
     }
   }
