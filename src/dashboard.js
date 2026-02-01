@@ -93,11 +93,15 @@ function safeAuditPayload(payload) {
 // ------------------------------
 
 const GuildConfigSchema = z.object({
-  logChannelId: z.string().regex(/^\d+$/).nullable().optional(),
-  dashboardLogChannelId: z.string().regex(/^\d+$/).nullable().optional(),
-  ticketThreadChannelId: z.string().regex(/^\d+$/).nullable().optional(),
-  staffRoleIds: z.array(z.string().regex(/^\d+$/)).max(100).optional()
-}).strict();
+    logChannelId: z.string().regex(/^\d+$/).nullable().optional(),
+    dashboardLogChannelId: z.string().regex(/^\d+$/).nullable().optional(),
+    ticketThreadChannelId: z.string().regex(/^\d+$/).nullable().optional(),
+    staffRoleIds: z.array(z.string().regex(/^\d+$/)).max(100).optional(),
+
+    // Guild settings
+    language: z.enum(['auto', 'pt', 'en']).optional(),
+    timezone: z.string().max(64).nullable().optional()
+  }).strict();
 
 const ModMuteSchema = z.object({
   guildId: z.string().min(1).max(32),

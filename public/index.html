@@ -312,6 +312,10 @@
                           <label for="tempVoiceDeleteDelay" data-i18n="tempvoice_delete_delay_label">Tempo para apagar sala vazia (segundos)</label>
                           <input id="tempVoiceDeleteDelay" class="input" type="number" min="2" max="600" step="1" />
                         </div>
+                        <div class="field">
+                          <label for="tempVoiceMaxUsers" data-i18n="tempvoice_max_users_label">Limite máximo de utilizadores por sala</label>
+                          <input id="tempVoiceMaxUsers" class="input" type="number" min="1" max="99" step="1" placeholder="(opcional)" />
+                        </div>
 
                         <div class="field field-spaced-top">
                           <div class="tempvoice-active-header">
@@ -381,133 +385,50 @@
 
                       <div class="trust-form-row">
                         <label for="trustBaseInput" data-i18n="config_trust_base">Base level</label>
-                        <input id="trustBaseInput" type="number" class="input" />
+                        <input id="trustBaseInput" type="number" class="input" / readonly disabled>
                       </div>
 
                       <div class="trust-form-row">
                         <label data-i18n="config_trust_minmax">Minimum / Maximum</label>
                         <div class="row gap">
-                          <input id="trustMinInput" type="number" class="input" style="max-width:90px;" />
-                          <input id="trustMaxInput" type="number" class="input" style="max-width:90px;" />
+                          <input id="trustMinInput" type="number" class="input" style="max-width:90px;" / readonly disabled>
+                          <input id="trustMaxInput" type="number" class="input" style="max-width:90px;" / readonly disabled>
                         </div>
                       </div>
 
                       <div class="trust-form-row">
                         <label data-i18n="config_trust_penalties">Penalties</label>
                         <div class="row gap">
-                          <input id="trustWarnPenaltyInput" type="number" class="input" placeholder="WARN" style="max-width:90px;" />
-                          <input id="trustMutePenaltyInput" type="number" class="input" placeholder="MUTE" style="max-width:90px;" />
+                          <input id="trustWarnPenaltyInput" type="number" class="input" placeholder="WARN" style="max-width:90px;" / readonly disabled>
+                          <input id="trustMutePenaltyInput" type="number" class="input" placeholder="MUTE" style="max-width:90px;" / readonly disabled>
                         </div>
                       </div>
 
                       <div class="trust-form-row">
                         <label data-i18n="config_trust_regen">Regeneration</label>
                         <div class="row gap">
-                          <input id="trustRegenPerDayInput" type="number" class="input" placeholder="por dia" style="max-width:90px;" />
-                          <input id="trustRegenMaxDaysInput" type="number" class="input" placeholder="máx. dias" style="max-width:90px;" />
+                          <input id="trustRegenPerDayInput" type="number" class="input" placeholder="por dia" style="max-width:90px;" / readonly disabled>
+                          <input id="trustRegenMaxDaysInput" type="number" class="input" placeholder="máx. dias" style="max-width:90px;" / readonly disabled>
                         </div>
                       </div>
 
                       <div class="trust-form-row">
                         <label data-i18n="config_trust_risk">Thresholds</label>
                         <div class="row gap">
-                          <input id="trustLowThresholdInput" type="number" class="input" placeholder="baixo" style="max-width:90px;" />
-                          <input id="trustHighThresholdInput" type="number" class="input" placeholder="alto" style="max-width:90px;" />
+                          <input id="trustLowThresholdInput" type="number" class="input" placeholder="baixo" style="max-width:90px;" / readonly disabled>
+                          <input id="trustHighThresholdInput" type="number" class="input" placeholder="alto" style="max-width:90px;" / readonly disabled>
                         </div>
                       </div>
                     </div>
 
-                    <div class="trust-preview-block">
-                      <h4 data-i18n="config_trust_title">Trust system</h4>
-                      <div class="trust-config-grid">
-                        <div class="trust-config-item">
-                          <div class="label" data-i18n="config_trust_base">Base level</div>
-                          <div class="value" id="trustBaseValue">—</div>
-                        </div>
-                        <div class="trust-config-item">
-                          <div class="label" data-i18n="config_trust_minmax">Minimum / Maximum</div>
-                          <div class="value" id="trustMinMaxValue">—</div>
-                        </div>
-                        <div class="trust-config-item">
-                          <div class="label" data-i18n="config_trust_penalties">Penalties</div>
-                          <div class="value" id="trustPenaltiesValue">—</div>
-                        </div>
-                        <div class="trust-config-item">
-                          <div class="label" data-i18n="config_trust_regen">Regeneration</div>
-                          <div class="value" id="trustRegenValue">—</div>
-                        </div>
-                        <div class="trust-config-item">
-                          <div class="label" data-i18n="config_trust_risk">Thresholds</div>
-                          <div class="value" id="trustRiskValue">—</div>
-                        </div>
+                    <div class="trust-info-block">
+                      <h4 data-i18n="extras_trust_info_title">Como funciona</h4>
+                      <div class="trust-info" data-i18n="extras_trust_info_body">
+                        <!-- i18n -->
                       </div>
                     </div>
+
                   </div>
-
-                  <p class="hint" style="margin-top: 12px;" data-i18n="extras_trust_edit_hint">
-                    A configuração detalhada continua disponível na tab Configuração. Estes campos ainda são apenas de pré-visualização; em breve poderão ser guardados pela dashboard.
-                  </p>
-                </div>
-              </div>
-      </section>
-
-
-      <!-- Users -->
-      <section class="section" id="tab-user">
-        <div class="card">
-          <h2 data-i18n="users_title">Utilizadores</h2>
-          <p class="hint" data-i18n="users_hint">
-            Consulta rápida de utilizadores e histórico de moderação por utilizador.
-          </p>
-          <p class="hint users-members" id="usersMemberCount"></p>
-          <div class="user-layout">
-            <div class="list">
-              <div class="empty" data-i18n="users_empty">
-                Selecione um servidor para ver utilizadores.
-              </div>
-            </div>
-            <div class="user-detail mini-panel" id="userDetailPanel">
-              <div class="empty" data-i18n="users_detail_empty">
-                Selecione um utilizador para ver o histórico de moderação e tickets.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Config -->
-      <section class="section" id="tab-config">
-        <div class="card">
-          <h2 data-i18n="config_title">Configuração do servidor</h2>
-          <p class="hint" data-i18n="config_hint">
-            Defina canais, cargos de staff e preferências de registo para este servidor.
-          </p>
-
-<div class="config-form">
-            <div class="card subcard">
-              <h3 data-i18n="config_general_section_title">Definições gerais</h3>
-              <p class="hint" data-i18n="config_general_section_hint">
-                Idioma principal e fuso horário usados para logs, tickets e mensagens do bot neste servidor.
-              </p>
-
-              <div class="row gap">
-                <div class="col">
-                  <label for="configServerLanguage" data-i18n="config_server_language_label">Idioma principal do servidor</label>
-                  <select id="configServerLanguage" class="select">
-                    <option value="auto" data-i18n="config_server_language_auto">Automático</option>
-                    <option value="pt" data-i18n="config_server_language_pt">Português</option>
-                    <option value="en" data-i18n="config_server_language_en">Inglês</option>
-                  </select>
-                </div>
-                <div class="col">
-                  <label for="configServerTimezone" data-i18n="config_server_timezone_label">Timezone do servidor</label>
-                  <input id="configServerTimezone" class="input" placeholder="Ex: Europe/Lisbon" />
-                  <p class="hint" data-i18n="config_server_timezone_hint">
-                    Use um identificador IANA válido (ex.: Europe/Lisbon, UTC). Afeta apenas a apresentação de datas na dashboard.
-                  </p>
-                </div>
-              </div>
-            </div>
 
             <div class="card subcard">
               <h3 data-i18n="config_logs_section_title">Registos e canais de logs</h3>

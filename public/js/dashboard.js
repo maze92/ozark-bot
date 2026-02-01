@@ -13,7 +13,33 @@
     dashboardUsersEditingId: null
   };
 
-  const API_BASE = '/api';
+  
+  function formatDateTime(ts) {
+    if (!ts) return '—';
+    try {
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return '—';
+      const opts = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      };
+      const tz = state && state.guildTimezone ? state.guildTimezone : undefined;
+      const lang = state && state.lang ? state.lang : 'pt';
+      return new Intl.DateTimeFormat(lang === 'en' ? 'en-GB' : 'pt-PT', tz ? Object.assign({ timeZone: tz }, opts) : opts).format(d);
+    } catch {
+      try {
+        return new Date(ts).toLocaleString();
+      } catch {
+        return String(ts);
+      }
+    }
+  }
+
+const API_BASE = '/api';
   const TOKEN_KEY = 'DASHBOARD_TOKEN';
     const LANG_KEY = 'OZARK_DASH_LANG';
 
@@ -766,6 +792,8 @@ function setLang(newLang) {
       const dashLogSelect = document.getElementById('configDashboardLogChannel');
       const ticketSelect = document.getElementById('configTicketChannel');
       const staffSelect = document.getElementById('configStaffRoles');
+      const langSelect = document.getElementById('configServerLanguage');
+      const tzSelect = document.getElementById('configServerTimezone');
 
       if (logSelect) {
         logSelect.innerHTML = '';
@@ -1274,6 +1302,7 @@ function setLang(newLang) {
         var baseIdInput = document.getElementById('tempVoiceBaseId');
         var catInput = document.getElementById('tempVoiceCategoryId');
         var delayInput = document.getElementById('tempVoiceDeleteDelay');
+        var maxUsersInput = document.getElementById('tempVoiceMaxUsers');
 
         var baseIds = Array.isArray(cfg.baseChannelIds) ? cfg.baseChannelIds : [];
 
@@ -1832,6 +1861,15 @@ window.OzarkDashboard.apiGet = apiGet;
       try {
         const cfg = await apiGet('/guilds/' + encodeURIComponent(state.guildId) + '/config');
         const conf = cfg && cfg.config ? cfg.config : {};
+
+        state.guildLanguage = (conf && typeof conf.language === 'string') ? conf.language : 'auto';
+        state.guildTimezone = (conf && typeof conf.timezone === 'string' && conf.timezone.trim()) ? conf.timezone.trim() : null;
+
+        const langSelect = document.getElementById('configServerLanguage');
+        const tzSelect = document.getElementById('configServerTimezone');
+        if (langSelect) langSelect.value = state.guildLanguage || 'auto';
+        if (tzSelect) tzSelect.value = state.guildTimezone || '';
+
         const payload = {
           logChannelId: conf.logChannelId || null,
           dashboardLogChannelId: conf.dashboardLogChannelId || null,

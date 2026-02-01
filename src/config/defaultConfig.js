@@ -171,12 +171,6 @@ const baseConfig = {
       // Duração do mute automático
       muteDurationMs: 30 * 60 * 1000
     },
-
-    autoKick: {
-      enabled: true,
-      // Nº total de infrações (qualquer tipo) para aplicar kick automático
-      infractionsToKick: 5
-    }
   },
 
   gameNews: {

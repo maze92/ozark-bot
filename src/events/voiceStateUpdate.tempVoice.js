@@ -55,6 +55,9 @@ async function handleJoin(client, newState, cfg) {
       }
     }
 
+    // Limite máximo de utilizadores por sala (se definido)
+    const maxUsersPerRoom = typeof cfg.maxUsersPerRoom === 'number' ? cfg.maxUsersPerRoom : null;
+
     // Definir categoria onde criar
     let parentId = cfg.categoryId || null;
     if (parentId) {
@@ -108,6 +111,7 @@ async function handleJoin(client, newState, cfg) {
       name: channelName,
       type: ChannelType.GuildVoice,
       parent: parentId || undefined,
+      userLimit: maxUsersPerRoom || undefined,
       permissionOverwrites
     }).catch(() => null);
 

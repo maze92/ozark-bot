@@ -34,7 +34,7 @@ async function allocateCaseId(guildId) {
  * @param {Guild}  options.guild
  * @param {User}   options.user
  * @param {User}   options.moderator
- * @param {string} options.type           - 'WARN' | 'MUTE' | 'KICK' | 'BAN'
+ * @param {string} options.type           - 'WARN' | 'MUTE'
  * @param {string} [options.reason]
  * @param {number} [options.duration]     - em ms (para mutes)
  * @param {string} [options.source]       - origem (command, slash, automod, antispam, dashboard, system...)

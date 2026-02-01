@@ -97,7 +97,7 @@ window.OzarkLocales.pt = {
   'extras_trust_levels_body': 'Os utilizadores recebem automaticamente níveis Alto, Médio ou Baixo consoante a quantidade e a gravidade das infrações registadas.',
   'extras_trust_levels_title': 'Níveis de confiança',
   'extras_trust_tab': 'Trust system',
-  'extras_trust_title': 'Sistema de Trust',
+  'extras_trust_title': 'Moderação',
   'gamenews_add_feed': 'Adicionar',
   'gamenews_detail_action_remove': 'Remover',
   'gamenews_detail_action_save': 'Guardar',
@@ -253,5 +253,8 @@ window.OzarkLocales.pt = {
 
   'users_history_error_generic': 'Erro ao carregar histórico do utilizador.',
   'guilds_loading_option': 'A carregar servidores...',
-  'common_no_reason_provided': 'Sem motivo especificado.',
+  'common_no_reason_provided': 'Sem motivo especificado.',,
+  'extras_trust_info_title': "Como funciona",
+  'extras_trust_info_body': "O sistema de confiança (Trust) atribui um valor entre 0 e 100 a cada utilizador. WARN e MUTE reduzem esse valor (penalizações). Com o tempo, sem infrações, o valor recupera (regeneração). Valores baixos indicam maior risco e tornam a automoderação mais rígida; valores altos indicam utilizadores de menor risco.",
+  'tempvoice_max_users_label': "Limite máximo de utilizadores por sala"
 };
