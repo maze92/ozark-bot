@@ -364,23 +364,26 @@ const API_BASE = '/api';
 
 
 
-}
+})();
 
 function setLang(newLang) {
-        state.lang = (newLang || 'pt').toLowerCase();
+  state.lang = (newLang || 'pt').toLowerCase();
 
-        try {
-          localStorage.setItem(LANG_KEY, state.lang);
-        } catch (e) {}
+  try {
+    localStorage.setItem(LANG_KEY, state.lang);
+  } catch (e) {}
 
-        if (window.OzarkDashboard && window.OzarkDashboard.I18n && typeof window.OzarkDashboard.I18n.init === 'function') {
-          window.OzarkDashboard.I18n.init(state.lang).then(function () {
-            applyI18n();
-          });
-        } else {
-          applyI18n();
-        }
-      }
+  if (
+    window.OzarkDashboard &&
+    window.OzarkDashboard.I18n &&
+    typeof window.OzarkDashboard.I18n.init === 'function'
+  ) {
+    window.OzarkDashboard.I18n.init(state.lang).then(function () {
+      applyI18n();
+    });
+  } else {
+    applyI18n();
+  }
 
 // -----------------------------
   // Tab / layout helpers
