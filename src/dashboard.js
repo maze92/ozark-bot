@@ -1509,10 +1509,13 @@ app.get('/api/guilds/:guildId/config', requireDashboardAuth, async (req, res) =>
     const trustConfig = config.trust || null;
 
     if (!doc) {
+    if (!doc) {
       return res.json({
         ok: true,
         config: {
           guildId,
+          language: 'auto',
+          timezone: null,
           logChannelId: null,
           dashboardLogChannelId: null,
           ticketThreadChannelId: null,
@@ -1526,6 +1529,8 @@ app.get('/api/guilds/:guildId/config', requireDashboardAuth, async (req, res) =>
       ok: true,
       config: {
         guildId: doc.guildId,
+        language: doc.language || 'auto',
+        timezone: doc.timezone || null,
         logChannelId: doc.logChannelId || null,
         dashboardLogChannelId: doc.dashboardLogChannelId || null,
         ticketThreadChannelId: doc.ticketThreadChannelId || null,
@@ -1550,13 +1555,15 @@ app.post('/api/guilds/:guildId/config', requireDashboardAuth, rateLimit({ window
       return res.status(400).json({ ok: false, error: 'guildId is required' });
     }
 
-    const { logChannelId, dashboardLogChannelId, ticketThreadChannelId, staffRoleIds } = req.body || {};
+    const { logChannelId, dashboardLogChannelId, ticketThreadChannelId, staffRoleIds, language, timezone } = req.body || {};
 
     const payload = {
       guildId,
       logChannelId: sanitizeId(logChannelId) || null,
       dashboardLogChannelId: sanitizeId(dashboardLogChannelId) || null,
-      ticketThreadChannelId: sanitizeId(ticketThreadChannelId) || null
+      ticketThreadChannelId: sanitizeId(ticketThreadChannelId) || null,
+      language: typeof language === 'string' ? language : undefined,
+      timezone: typeof timezone === 'string' && timezone.trim() ? timezone.trim() : null
     };
 
     if (Array.isArray(staffRoleIds)) {
@@ -1568,7 +1575,9 @@ app.post('/api/guilds/:guildId/config', requireDashboardAuth, rateLimit({ window
       logChannelId: payload.logChannelId,
       dashboardLogChannelId: payload.dashboardLogChannelId,
       ticketThreadChannelId: payload.ticketThreadChannelId,
-      staffRoleIds: payload.staffRoleIds
+      staffRoleIds: payload.staffRoleIds,
+      language: payload.language,
+      timezone: payload.timezone
     };
 
     const parseResult = GuildConfigSchema.safeParse(candidate);
@@ -1579,17 +1588,25 @@ app.post('/api/guilds/:guildId/config', requireDashboardAuth, rateLimit({ window
       });
     }
 
-    const doc = await GuildConfig.findOneAndUpdate(
-      { guildId },
-      { $set: payload },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
-    ).lean();
+      const doc = await GuildConfig.findOneAndUpdate(
+        { guildId },
+        { $set: payload },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      ).lean();
 
-    return res.json({
-      ok: true,
-      config: {
-        guildId: doc.guildId,
-        logChannelId: doc.logChannelId || null,
+      // Also sync global language/timezone so Discord side follows the same preference
+      if (payload.language) {
+        config.language = payload.language;
+      }
+      if (typeof payload.timezone === 'string' && payload.timezone) {
+        config.timezone = payload.timezone;
+      }
+
+      return res.json({
+        ok: true,
+        config: {
+          guildId: doc.guildId,
+    logChannelId: doc.logChannelId || null,
         dashboardLogChannelId: doc.dashboardLogChannelId || null,
         ticketThreadChannelId: doc.ticketThreadChannelId || null,
         staffRoleIds: Array.isArray(doc.staffRoleIds) ? doc.staffRoleIds : []

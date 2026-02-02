@@ -861,21 +861,32 @@ function setLang(newLang) {
         if (lowThresholdInput) lowThresholdInput.value = lowT !== null ? String(lowT) : '';
         if (highThresholdInput) highThresholdInput.value = highT !== null ? String(highT) : '';
       } else if (baseEl && minMaxEl && penaltiesEl && regenEl && riskEl) {
-        baseEl.textContent = '—';
-        minMaxEl.textContent = '—';
-        penaltiesEl.textContent = '—';
-        regenEl.textContent = '—';
-        riskEl.textContent = '—';
+        // No guild-specific trust config found; show the global defaults so the UI is didactic.
+        var defaultBase = 50;
+        var defaultMin = 0;
+        var defaultMax = 100;
+        var defaultWarnPenalty = 10;
+        var defaultMutePenalty = 25;
+        var defaultRegenPerDay = 5;
+        var defaultRegenMaxDays = 14;
+        var defaultLowThreshold = 30;
+        var defaultHighThreshold = 70;
 
-        if (baseInput) baseInput.value = '';
-        if (minInput) minInput.value = '';
-        if (maxInput) maxInput.value = '';
-        if (warnInput) warnInput.value = '';
-        if (muteInput) muteInput.value = '';
-        if (regenPerDayInput) regenPerDayInput.value = '';
-        if (regenMaxDaysInput) regenMaxDaysInput.value = '';
-        if (lowThresholdInput) lowThresholdInput.value = '';
-        if (highThresholdInput) highThresholdInput.value = '';
+        baseEl.textContent = String(defaultBase);
+        minMaxEl.textContent = defaultMin + ' / ' + defaultMax;
+        penaltiesEl.textContent = 'WARN: -' + defaultWarnPenalty + ' • MUTE: -' + defaultMutePenalty;
+        regenEl.textContent = defaultRegenPerDay + ' / dia até ' + defaultRegenMaxDays + ' dias';
+        riskEl.textContent = '< ' + defaultLowThreshold + ' (risco) • > ' + defaultHighThreshold + ' (confiança)';
+
+        if (baseInput) baseInput.value = String(defaultBase);
+        if (minInput) minInput.value = String(defaultMin);
+        if (maxInput) maxInput.value = String(defaultMax);
+        if (warnInput) warnInput.value = String(defaultWarnPenalty);
+        if (muteInput) muteInput.value = String(defaultMutePenalty);
+        if (regenPerDayInput) regenPerDayInput.value = String(defaultRegenPerDay);
+        if (regenMaxDaysInput) regenMaxDaysInput.value = String(defaultRegenMaxDays);
+        if (lowThresholdInput) lowThresholdInput.value = String(defaultLowThreshold);
+        if (highThresholdInput) highThresholdInput.value = String(defaultHighThreshold);
       }
 
       if (statusEl) {
@@ -1193,45 +1204,62 @@ function setLang(newLang) {
 
 
 
-  async function saveGuildConfig() {
-    if (!state.guildId) return;
+    async function saveGuildConfig() {
+      if (!state.guildId) return;
 
-    const logSelect = document.getElementById('configLogChannel');
-    const dashLogSelect = document.getElementById('configDashboardLogChannel');
-    const ticketSelect = document.getElementById('configTicketChannel');
-    const staffSelect = document.getElementById('configStaffRoles');
-    const statusEl = document.getElementById('configStatus');
+      const logSelect = document.getElementById('configLogChannel');
+      const dashLogSelect = document.getElementById('configDashboardLogChannel');
+      const ticketSelect = document.getElementById('configTicketChannel');
+      const staffSelect = document.getElementById('configStaffRoles');
+      const statusEl = document.getElementById('configStatus');
+      const langSelect = document.getElementById('configServerLanguage');
+      const tzSelect = document.getElementById('configServerTimezone');
 
-    const logChannelId = logSelect && logSelect.value ? logSelect.value : null;
-    const dashLogChannelId = dashLogSelect && dashLogSelect.value ? dashLogSelect.value : null;
-    const ticketThreadChannelId = ticketSelect && ticketSelect.value ? ticketSelect.value : null;
+      const logChannelId = logSelect && logSelect.value ? logSelect.value : null;
+      const dashLogChannelId = dashLogSelect && dashLogSelect.value ? dashLogSelect.value : null;
+      const ticketThreadChannelId = ticketSelect && ticketSelect.value ? ticketSelect.value : null;
 
-    const staffRoleIds = [];
-    if (staffSelect) {
-      Array.prototype.forEach.call(staffSelect.selectedOptions || [], function (opt) {
-        if (opt.value) staffRoleIds.push(opt.value);
-      });
-    }
-
-    try {
-      await apiPost('/guilds/' + encodeURIComponent(state.guildId) + '/config', {
-        logChannelId: logChannelId,
-        dashboardLogChannelId: dashLogChannelId,
-        ticketThreadChannelId: ticketThreadChannelId,
-        staffRoleIds: staffRoleIds,
-      });
-      if (statusEl) {
-        statusEl.textContent = t('config_saved');
+      const staffRoleIds = [];
+      if (staffSelect) {
+        Array.prototype.forEach.call(staffSelect.selectedOptions || [], function (opt) {
+          if (opt.value) staffRoleIds.push(opt.value);
+        });
       }
-      toast(t('config_saved'));
-    } catch (err) {
-      console.error('Failed to save guild config', err);
-      if (statusEl) {
-        statusEl.textContent = t('config_error_generic');
+
+      const language = langSelect && langSelect.value ? langSelect.value : 'auto';
+      const timezone = tzSelect && tzSelect.value ? tzSelect.value.trim() || null : null;
+
+      try {
+        await apiPost('/guilds/' + encodeURIComponent(state.guildId) + '/config', {
+          logChannelId: logChannelId,
+          dashboardLogChannelId: dashLogChannelId,
+          ticketThreadChannelId: ticketThreadChannelId,
+          staffRoleIds: staffRoleIds,
+          language: language,
+          timezone: timezone,
+        });
+
+        state.guildLanguage = language;
+        state.guildTimezone = timezone;
+
+        if (state.guildLanguage && state.guildLanguage !== 'auto') {
+          setLang(state.guildLanguage);
+        } else {
+          setLang(state.lang || 'pt');
+        }
+
+        if (statusEl) {
+          statusEl.textContent = t('config_saved');
+        }
+        toast(t('config_saved'));
+      } catch (err) {
+        console.error('Failed to save guild config', err);
+        if (statusEl) {
+          statusEl.textContent = t('config_error_generic');
+        }
+        toast(t('config_error_save'));
       }
-      toast(t('config_error_save'));
     }
-  }
 
     async function loadTempVoiceConfig() {
       if (!state.guildId) return;

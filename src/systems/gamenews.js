@@ -338,7 +338,10 @@ async function emitStatusToDashboard(config) {
 
 module.exports = async function gameNewsSystem(client, config) {
   try {
-    if (!config?.gameNews?.enabled) return;
+    if (!config?.gameNews?.enabled) {
+      console.log('[GameNews] Game News system is disabled in config.');
+      return;
+    }
 
     if (started) {
       console.log('[GameNews] Already started. Skipping duplicate start.');
@@ -346,6 +349,7 @@ module.exports = async function gameNewsSystem(client, config) {
     }
     started = true;
 
+    console.log('[GameNews] Game News system starting...');
 
     const baseIntervalMs = Number(config.gameNews.interval ?? 30 * 60 * 1000);
     const safeBaseInterval =
