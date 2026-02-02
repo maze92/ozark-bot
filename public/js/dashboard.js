@@ -1796,21 +1796,11 @@ function addTempVoiceBaseChannel() {
 
 
       const payload = {
-        language: (langSelect && langSelect.value) ? langSelect.value : state.guildLanguage || 'auto',
-        timezone: (tzSelect && tzSelect.value && tzSelect.value.trim()) ? tzSelect.value.trim() : state.guildTimezone || null,
         logChannelId: conf.logChannelId || null,
         dashboardLogChannelId: conf.dashboardLogChannelId || null,
         ticketThreadChannelId: conf.ticketThreadChannelId || null,
         staffRoleIds: Array.isArray(conf.staffRoleIds) ? conf.staffRoleIds : []
       };
-        dashboardLogChannelId: conf.dashboardLogChannelId || null,
-        ticketThreadChannelId: conf.ticketThreadChannelId || null,
-        staffRoleIds: Array.isArray(conf.staffRoleIds) ? conf.staffRoleIds : []
-      };
-      const ta = document.getElementById('configJsonExport');
-      if (ta) {
-        ta.value = JSON.stringify(payload, null, 2);
-      }
       toast(t('config_saved'));
     } catch (err) {
       console.error('Failed to export guild config JSON', err);
