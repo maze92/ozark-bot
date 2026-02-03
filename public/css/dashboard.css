@@ -84,7 +84,7 @@ body {
 .select,
 .input {
   font: inherit;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--border-soft);
   background: rgba(7,9,14,0.95);
@@ -419,7 +419,7 @@ h2 {
 }
 
 .infractions-list .infraction-item {
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid transparent;
   cursor: pointer;
@@ -1365,7 +1365,7 @@ h2 {
 }
 
 #extras-trust-panel .trust-config-item {
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 6px;
   background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.04);
@@ -1445,16 +1445,18 @@ h2 {
 #tab-config .dashboard-users-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 #tab-config .dashboard-user-item {
   display: flex;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.03);
+
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 6px;
   background: rgba(255,255,255,0.02);
   border: 1px solid rgba(255,255,255,0.05);

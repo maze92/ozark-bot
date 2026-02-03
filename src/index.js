@@ -65,7 +65,7 @@ if (mongoose && mongoose.connection) {
 
 let startupDone = false;
 
-client.once('clientReady', async () => {
+client.once('ready', async () => {
   if (startupDone) return;
   startupDone = true;
 
