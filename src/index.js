@@ -60,12 +60,13 @@ if (mongoose && mongoose.connection) {
 }
 
 // -----------------------------
+// Orchestr// -----------------------------
 // Orchestrated Discord "ready"
 // -----------------------------
 
 let startupDone = false;
 
-client.once('ready', async () => {
+async function handleClientReady() {
   if (startupDone) return;
   startupDone = true;
 
@@ -87,15 +88,15 @@ client.once('ready', async () => {
       console.error('[Startup] Failed to start maintenance scheduler:', err);
     }
 
-          // Start Game News system (delegates "enabled" check to the module itself)
-      try {
-        await startGameNews(client, config);
-        console.log('📰 Game News system started.');
-        status.setGameNewsRunning(true);
-      } catch (err) {
-        console.error('[Startup] Failed to start Game News system:', err);
-        status.setGameNewsRunning(false);
-      }
+    // Start Game News system (delegates "enabled" check to the module itself)
+    try {
+      await startGameNews(client, config);
+      console.log('📰 Game News system started.');
+      status.setGameNewsRunning(true);
+    } catch (err) {
+      console.error('[Startup] Failed to start Game News system:', err);
+      status.setGameNewsRunning(false);
+    }
 
     // Basic presence as a fallback; can be refined later
     try {
@@ -111,7 +112,12 @@ client.once('ready', async () => {
   } catch (err) {
     console.error('[Startup] Unhandled error during ready orchestration:', err);
   }
-});
+}
+
+// Support both legacy 'ready' and the newer 'clientReady' events.
+// The startup guard ensures this only runs once.
+client.once('ready', handleClientReady);
+client.once('clientReady', handleClientReady);
 
 // Keep presence consistent on shard resume
 client.on('shardResume', async () => {
