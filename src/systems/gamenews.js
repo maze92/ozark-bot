@@ -744,5 +744,18 @@ async function sendFeedLog(client, feed, message) {
   }
 }
 
+
+
+async function getDashboardStatus(config) {
+  try {
+    const payload = await buildStatusPayload(config);
+    return Array.isArray(payload) ? payload : [];
+  } catch (err) {
+    logError('GameNews getDashboardStatus', err);
+    return [];
+  }
+}
+
 module.exports = gameNewsSystem;
 module.exports.testSendGameNews = testSendGameNews;
+module.exports.getDashboardStatus = getDashboardStatus;

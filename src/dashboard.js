@@ -2244,88 +2244,29 @@ app.get('/api/case', requireDashboardAuth, async (req, res) => {
 
 app.get('/api/gamenews-status', requireDashboardAuth, async (req, res) => {
   try {
+    // guildId is currently unused, but can be wired into GameNews later if per-guild status is needed.
     const guildId = sanitizeId(req.query.guildId || '');
 
-    if (!GameNewsModel) {
+    if (!gameNewsSystem || typeof gameNewsSystem.getDashboardStatus !== 'function') {
       return res.json({
         ok: true,
-        source: 'memory',
-        items: Array.isArray(gameNewsStatusCache) ? gameNewsStatusCache : []
+        source: 'disabled',
+        items: []
       });
     }
 
-    // Prefer DB-managed feeds if available; fallback to static config
-    let feeds = [];
-    if (GameNewsFeed) {
-      try {
-        const q = guildId ? { guildId } : {};
-        const docs = await GameNewsFeed.find(q).lean();
-        feeds = docs.map((d) => ({
-          guildId: d.guildId || null,
-          name: d.name || 'Feed',
-          feedUrl: d.feedUrl,
-          channelId: d.channelId,
-          logChannelId: d.logChannelId || null,
-          enabled: d.enabled !== false,
-          intervalMs: typeof d.intervalMs === 'number' ? d.intervalMs : null
-        }));
-      } catch (e) {
-        console.error('[Dashboard] /api/gamenews-status: failed loading GameNewsFeed:', e?.message || e);
-      }
-    }
-
-    if (!feeds.length && Array.isArray(config?.gameNews?.sources)) {
-      feeds = config.gameNews.sources.map((s) => ({
-        guildId: null,
-        name: s.name,
-        feedUrl: s.feed,
-        channelId: s.channelId,
-        logChannelId: null,
-        enabled: true,
-        intervalMs: null
-      }));
-    }
-
-    const names = feeds.map((s) => s?.name).filter(Boolean);
-    const docs = names.length ? await GameNewsModel.find({ source: { $in: names } }).lean() : [];
-
-    const map = new Map();
-    for (const d of docs) map.set(d.source, d);
-
-    const items = feeds.map((s) => {
-      const d = map.get(s.name);
-      return {
-        guildId: s.guildId || null,
-        source: s.name,
-        feedName: s.name,
-        feedUrl: s.feedUrl,
-        channelId: s.channelId,
-        logChannelId: s.logChannelId || null,
-        enabled: s.enabled !== false,
-        intervalMs: typeof s.intervalMs === 'number' ? s.intervalMs : null,
-
-        failCount: d?.failCount ?? 0,
-        pausedUntil: d?.pausedUntil ?? null,
-        lastSentAt: d?.lastSentAt ?? null,
-        lastHashesCount: Array.isArray(d?.lastHashes) ? d.lastHashes.length : 0,
-
-        updatedAt: d?.updatedAt ?? null
-      };
-    });
+    const items = await gameNewsSystem.getDashboardStatus(config);
 
     return res.json({
       ok: true,
-      source: GameNewsFeed ? (guildId ? 'mongo+feeds:guild' : 'mongo+feeds') : 'mongo+static',
-      items
+      source: 'system',
+      items: Array.isArray(items) ? items : []
     });
   } catch (err) {
-    console.error('[Dashboard] /api/gamenews-status error:', err);
+    console.error('[Dashboard] /api/gamenews-status error:', err?.message || err);
     return res.status(500).json({ ok: false, error: 'Internal Server Error' });
   }
-});
-
-
-// GameNews feeds configuration (for dashboard editor)
+});// GameNews feeds configuration (for dashboard editor)
 app.get('/api/gamenews/feeds', requireDashboardAuth, async (req, res) => {
   try {
     const guildId = sanitizeId(req.query.guildId || '');
