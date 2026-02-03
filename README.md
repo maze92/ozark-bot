@@ -7,7 +7,7 @@ Ozark Bot é um bot de **moderação para Discord** com uma **dashboard web** in
 - Integrar notícias via RSS (GameNews).
 - Gerir canais de **voz temporária** de forma automática.
 
-> Versão atual: **v1.1.0**
+> Versão atual: **v1.1.2**
 
 ---
 

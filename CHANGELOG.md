@@ -99,3 +99,18 @@ Para detalhes finos dessas versões, consultar o histórico de commits.
   - `systems/antiSpam`, `systems/autoModeration` e `systems/automation` para substituir `catch {}` silenciosos.
 - Logs técnicos de falhas em GameNews e automação passam a ter contexto claro (ex.: `GameNews sendFeedLog`, `AntiSpam`, `AutoModeration`, `Automation`).
 
+---
+
+## [v1.1.2] – Dashboard GameNews routes extraídas
+
+### Alterado
+- Extraídas as rotas da dashboard relacionadas com GameNews para um módulo dedicado:
+  - `src/dashboard/routes/gamenews.js` passa a concentrar:
+    - `GET /api/gamenews-status`
+    - `GET /api/gamenews/feeds`
+    - `POST /api/gamenews/feeds`
+    - `POST /api/gamenews/test`
+  - `src/dashboard.js` mantém apenas o registo destas rotas via `registerGameNewsRoutes(...)`, reduzindo o tamanho do ficheiro e tornando a responsabilidade mais clara.
+- Mantidos todos os endpoints e comportamentos existentes (sem alterações nos caminhos da API), apenas com reorganização interna.
+
+
