@@ -435,3 +435,27 @@ function initializeDashboard() {
 
   return server;
 }
+
+// No-op admin bootstrap to keep compatibility
+async function ensureDefaultDashboardAdmin() {
+  return;
+}
+
+// Used by subsystems (e.g. GameNews) to emit real-time events to the dashboard
+function sendToDashboard(event, payload) {
+  try {
+    io.emit(event, payload);
+  } catch (err) {
+    console.error('[Dashboard] sendToDashboard error', err);
+  }
+}
+
+module.exports = {
+  app,
+  server,
+  io,
+  initializeDashboard,
+  setClient,
+  ensureDefaultDashboardAdmin,
+  sendToDashboard
+};
