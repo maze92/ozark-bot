@@ -203,39 +203,42 @@ const API_BASE = '/api';
     const row = document.createElement('div');
     row.className = 'list-item';
 
+    // Título simples, cai para "Log" se não existir
     const title = log.title || 'Log';
-    const subtitleParts = [];
+
+    // Linha meta: utilizador, moderador, data/hora
+    const metaParts = [];
 
     if (log.user && log.user.tag) {
-      subtitleParts.push('User: ' + log.user.tag);
+      metaParts.push('User: ' + log.user.tag);
     }
     if (log.executor && log.executor.tag) {
-      subtitleParts.push('Mod: ' + log.executor.tag);
+      metaParts.push('Mod: ' + log.executor.tag);
     }
-    if (log.description) {
-      subtitleParts.push(log.description);
-    }
-
-    const createdAt = log.createdAt || log.time;
-    if (createdAt) {
+    if (log.time) {
       try {
-        const d = new Date(createdAt);
+        const d = new Date(log.time);
         if (!isNaN(d.getTime())) {
-          subtitleParts.push(d.toLocaleString());
+          metaParts.push(d.toLocaleString());
         }
       } catch (e) {
-        // ignore
+        // se der erro mantemos só os restantes campos
       }
     }
 
+    const metaText = metaParts.join(' • ');
+
+    // Descrição em linha separada (se existir)
+    const desc = log.description || '';
+
     row.innerHTML = `
         <div class="title">${escapeHtml(title)}</div>
-        <div class="subtitle">${escapeHtml(subtitleParts.join(' • '))}</div>
+        <div class="subtitle">${escapeHtml(metaText)}</div>
+        ${desc ? `<div class="subtitle small">${escapeHtml(desc)}</div>` : ''}
       `;
 
     return row;
   }
-
   function createCaseRow(c) {
     const row = document.createElement('div');
     row.className = 'list-item';
