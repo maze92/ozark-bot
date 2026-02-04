@@ -142,7 +142,7 @@ if (typeof dashboard.initializeDashboard === 'function') {
 }
 
 const portFromConfig = config.dashboard?.port;
-const PORT = Number(process.env.PORT || portFromConfig || 3000);
+const PORT = Number(process.env.PORT || portFromConfig || 8000);
 
 dashboard.server.listen(PORT, () => {
   console.log(`🚀 Dashboard running on port ${PORT}`);
