@@ -108,10 +108,29 @@ function initializeDashboard() {
 
   // List guilds for the server selector in the UI
   app.get('/api/guilds', requireDashboardAuth, (req, res) => {
-    if (!botClient) {
-      return res
-        .status(503)
-        .json({ ok: false, error: 'Bot client not ready' });
+    try {
+      if (!botClient) {
+        return res
+          .status(503)
+          .json({ ok: false, error: 'Bot client not ready' });
+      }
+
+      const client = botClient;
+      const guilds = client.guilds && client.guilds.cache
+        ? Array.from(client.guilds.cache.values())
+        : [];
+
+      const items = guilds.map((g) => ({
+        id: g.id,
+        name: g.name
+      }));
+
+      return res.json({ ok: true, items });
+    } catch (err) {
+      console.error('[Dashboard] /api/guilds failed:', err);
+      return res.status(500).json({ ok: false, error: 'Failed to load guilds' });
+    }
+  });
     }
 
     const items = botClient.guilds.cache.map(g => ({
