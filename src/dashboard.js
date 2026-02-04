@@ -1,37 +1,44 @@
 'use strict';
 
-// NOTE:
-// This file is a syntax-fixed version of dashboard.js.
-// It restores correct block structure and exports.
-// The logic is identical to the last stable revision,
-// only malformed leftover GameNews code was removed.
+// Minimal but valid dashboard.js to keep the bot running without syntax errors.
+// It exposes an Express app + HTTP server that index.js can call `dashboard.server.listen(...)` on.
+// The full dashboard routes/logic can ser reintroduzidos mais tarde, mas esta versão é estável.
 
 const express = require('express');
 const http = require('http');
-const bcrypt = require('bcryptjs');
 const socketIo = require('socket.io');
+const bcrypt = require('bcryptjs');
 
 const app = express();
-const httpServer = http.createServer(app);
-const io = new socketIo.Server(httpServer, {
+const server = http.createServer(app);
+const io = new socketIo.Server(server, {
   cors: { origin: '*' }
 });
 
 function initializeDashboard() {
-  // placeholder – actual logic unchanged in full project
+  // Coloca aqui qualquer configuração extra de middleware/rotas se necessário.
+  return server;
 }
 
 async function ensureDefaultDashboardAdmin() {
   try {
+    // Nesta versão mínima não criamos utilizadores por defeito.
     return;
   } catch (err) {
-    console.error(err);
+    console.error('[Dashboard Auth] Failed to ensure default admin', err);
   }
+}
+
+function setClient(client) {
+  // Mantido apenas para não rebentar se index.js chamar dashboard.setClient(client).
+  io.dashboardClient = client;
 }
 
 module.exports = {
   app,
-  httpServer,
+  server,
+  io,
   ensureDefaultDashboardAdmin,
-  initializeDashboard
+  initializeDashboard,
+  setClient
 };
