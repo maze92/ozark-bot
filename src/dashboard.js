@@ -4,6 +4,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 let status = null;
 try {
   status = require('./systems/status');
@@ -222,14 +223,10 @@ function initializeDashboard() {
       process.env.DASHBOARD_ADMIN_PASS ||
       'admin';
 
-    const staticToken = process.env.DASHBOARD_TOKEN || null;
-
-    if (!staticToken) {
-      return res.status(500).json({
-        ok: false,
-        error: 'Dashboard token is not configured on the server.'
-      });
-    }
+    const jwtSecret =
+      process.env.DASHBOARD_JWT_SECRET ||
+      process.env.JWT_SECRET ||
+      'change-me-dashboard-secret';
 
     if (!username || !password) {
       return res.status(400).json({
@@ -252,12 +249,28 @@ function initializeDashboard() {
       });
     }
 
-    // In this version we use a static token from env; backend endpoints
-    // currently do not enforce it, but the frontend uses it to gate access.
-    res.json({
-      ok: true,
-      token: staticToken
-    });
+    try {
+      const payload = {
+        sub: username,
+        role: 'ADMIN',
+        iat: Math.floor(Date.now() / 1000)
+      };
+
+      const token = jwt.sign(payload, jwtSecret, {
+        expiresIn: '12h'
+      });
+
+      res.json({
+        ok: true,
+        token
+      });
+    } catch (err) {
+      console.error('[Dashboard] Failed to sign dashboard JWT', err);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to generate dashboard token.'
+      });
+    }
   });
 
   // Temporary voice configuration (stub)
