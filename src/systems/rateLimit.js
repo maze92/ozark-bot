@@ -2,7 +2,7 @@
 
 // Pequeno rate limit em memória, por IP
 // NOTA: se usares muitos processos / múltiplas instâncias, idealmente usavas Redis.
-// Para 1 instância (Railway, etc) isto chega bem.
+// Para 1 instância (Koyeb, etc) isto chega bem.
 
 const buckets = new Map();
 

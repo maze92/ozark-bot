@@ -145,7 +145,7 @@ npm start
 ```
 
 - Inicia o bot com `NODE_ENV=production`.
-- Ideal para deploy em serviços como **Railway**, **Render**, etc.
+- Ideal para deploy em serviços como **Koyeb**, **Render**, etc.
 
 ---
 
