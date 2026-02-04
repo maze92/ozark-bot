@@ -25,12 +25,11 @@ function initializeDashboard() {
 
   const publicDir = path.join(__dirname, '../public');
 
-  // Explicit root handler to avoid any ambiguity
+  // Root and static files
   app.get('/', (req, res) => {
     res.sendFile(path.join(publicDir, 'index.html'));
   });
 
-  // Serve all static assets (JS, CSS, etc.) from public/
   app.use(express.static(publicDir));
 
   // Health endpoint used by the status badge in the UI
@@ -38,9 +37,25 @@ function initializeDashboard() {
     const discordReady =
       !!(botClient && typeof botClient.isReady === 'function' && botClient.isReady());
 
+    let mongoConnected = undefined;
+    let gameNewsRunning = undefined;
+
+    try {
+      if (status && typeof status.getMongoConnected === 'function') {
+        mongoConnected = status.getMongoConnected();
+      }
+      if (status && typeof status.getGameNewsRunning === 'function') {
+        gameNewsRunning = status.getGameNewsRunning();
+      }
+    } catch (err) {
+      console.error('[Dashboard] Failed to read status flags', err);
+    }
+
     res.json({
       ok: true,
-      discordReady
+      discordReady,
+      mongoConnected,
+      gameNewsRunning
     });
   });
 
@@ -141,8 +156,6 @@ function initializeDashboard() {
     });
   });
 
-
-
   // Guild configuration (stub)
   app.get('/api/guilds/:guildId/config', (req, res) => {
     const { guildId } = req.params;
@@ -151,7 +164,6 @@ function initializeDashboard() {
     }
 
     // TODO: load real configuration from database.
-    // For now return a minimal default structure so the UI can render.
     res.json({
       ok: true,
       guildId,
@@ -165,9 +177,8 @@ function initializeDashboard() {
       return res.status(400).json({ ok: false, error: 'guildId is required' });
     }
 
-    // TODO: validate and persist configuration.
-    // For now we just echo the payload back.
     const payload = req.body || {};
+    // TODO: validate and persist configuration.
     res.json({
       ok: true,
       guildId,
@@ -231,142 +242,14 @@ function initializeDashboard() {
     });
   });
 
-
-
-  // -----------------------------
-  // Users (stub)
-  // -----------------------------
-  app.get('/api/users', (req, res) => {
+  // GameNews status (stub)
+  app.get('/api/gamenews-status', (req, res) => {
     const guildId = req.query.guildId;
     if (!guildId) {
       return res.status(400).json({ ok: false, error: 'guildId is required' });
     }
 
-    // TODO: load real users from Discord cache + DB enrichment.
-    res.json({
-      ok: true,
-      items: []
-    });
-  });
-
-  app.get('/api/users/:userId', (req, res) => {
-    const { userId } = req.params;
-    const guildId = req.query.guildId;
-
-    if (!guildId || !userId) {
-      return res.status(400).json({ ok: false, error: 'guildId and userId are required' });
-    }
-
-    // TODO: load real user profile and stats.
-    res.json({
-      ok: true,
-      user: {
-        id: userId
-      }
-    });
-  });
-
-  // -----------------------------
-  // Logs (stub)
-  // -----------------------------
-  app.get('/api/logs', (req, res) => {
-    const guildId = req.query.guildId;
-    if (!guildId) {
-      return res.status(400).json({ ok: false, error: 'guildId is required' });
-    }
-
-    // Optional filters
-    const { type, limit } = req.query;
-
-    // TODO: load logs from database.
-    res.json({
-      ok: true,
-      items: [],
-      meta: {
-        type: type || null,
-        limit: limit ? Number(limit) : null
-      }
-    });
-  });
-
-  // -----------------------------
-  // Cases (stub)
-  // -----------------------------
-  app.get('/api/cases', (req, res) => {
-    const guildId = req.query.guildId;
-    if (!guildId) {
-      return res.status(400).json({ ok: false, error: 'guildId is required' });
-    }
-
-    // Optional filter by userId
-    const { userId } = req.query;
-
-    // TODO: load cases from database.
-    res.json({
-      ok: true,
-      items: [],
-      meta: {
-        userId: userId || null
-      }
-    });
-  });
-
-  app.get('/api/cases/:caseId', (req, res) => {
-    const { caseId } = req.params;
-
-    if (!caseId) {
-      return res.status(400).json({ ok: false, error: 'caseId is required' });
-    }
-
-    // TODO: load real case details.
-    res.json({
-      ok: true,
-      case: {
-        id: caseId
-      }
-    });
-  });
-
-
-
-  // Guild users listing
-  app.get('/api/guilds/:guildId/users', (req, res) => {
-    const { guildId } = req.params;
-    if (!guildId) {
-      return res.status(400).json({ ok: false, error: 'guildId is required' });
-    }
-    if (!botClient) {
-      return res.status(503).json({ ok: false, error: 'Bot client not ready' });
-    }
-
-    const guild = botClient.guilds.cache.get(guildId);
-    if (!guild) {
-      return res.status(404).json({
-        ok: false, error: 'Guild not found' });
-    }
-
-    try {
-      const members = guild.members.cache;
-      const items = Array.from(members.values()).map(m => {
-        const roles = Array.from(m.roles.cache.values())
-          .filter(r => r.id !== guild.id)
-          .map(r => ({ id: r.id, name: r.name }));
-
-        return {
-          id: m.id,
-          username: m.user && m.user.username,
-          tag: m.user && m.user.tag,
-          bot: !!(m.user && m.user.bot),
-          roles
-        };
-      });
-
-      res.json({ ok: true, items });
-    } catch (err) {
-      console.error('[Dashboard] Failed to read guild members from cache', err);
-      res.status(500).json({ ok: false, error: 'Failed to read guild members' });
-    }
-  });
+    // TODO: wire to real GameNews tracking data.
     res.json({
       ok: true,
       items: []
@@ -408,12 +291,79 @@ function initializeDashboard() {
     });
   });
 
-  // Favicon stub to avoid 404 noise
-  app.get('/favicon.ico', (req, res) => {
-    res.status(204).end();
+  // Cases list and details (stub)
+  app.get('/api/cases', (req, res) => {
+    const guildId = req.query.guildId;
+    if (!guildId) {
+      return res.status(400).json({ ok: false, error: 'guildId is required' });
+    }
+
+    const { userId } = req.query;
+
+    // TODO: load cases from database.
+    res.json({
+      ok: true,
+      items: [],
+      meta: {
+        userId: userId || null
+      }
+    });
   });
 
+  app.get('/api/cases/:caseId', (req, res) => {
+    const { caseId } = req.params;
 
+    if (!caseId) {
+      return res.status(400).json({ ok: false, error: 'caseId is required' });
+    }
+
+    // TODO: load real case details.
+    res.json({
+      ok: true,
+      case: {
+        id: caseId
+      }
+    });
+  });
+
+  // Guild users listing
+  app.get('/api/guilds/:guildId/users', (req, res) => {
+    const { guildId } = req.params;
+    if (!guildId) {
+      return res.status(400).json({ ok: false, error: 'guildId is required' });
+    }
+    if (!botClient) {
+      return res.status(503).json({ ok: false, error: 'Bot client not ready' });
+    }
+
+    const guild = botClient.guilds.cache.get(guildId);
+    if (!guild) {
+      return res.status(404).json({
+        ok: false, error: 'Guild not found' });
+    }
+
+    try {
+      const members = guild.members.cache;
+      const items = Array.from(members.values()).map(m => {
+        const roles = Array.from(m.roles.cache.values())
+          .filter(r => r.id !== guild.id)
+          .map(r => ({ id: r.id, name: r.name }));
+
+        return {
+          id: m.id,
+          username: m.user && m.user.username,
+          tag: m.user && m.user.tag,
+          bot: !!(m.user && m.user.bot),
+          roles
+        };
+      });
+
+      res.json({ ok: true, items });
+    } catch (err) {
+      console.error('[Dashboard] Failed to read guild members from cache', err);
+      res.status(500).json({ ok: false, error: 'Failed to read guild members' });
+    }
+  });
 
   // Single user + DB info (stub)
   app.get('/api/user', (req, res) => {
@@ -478,29 +428,10 @@ function initializeDashboard() {
     });
   });
 
+  // Favicon stub to avoid 404 noise
+  app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
+  });
+
   return server;
 }
-
-// No-op admin bootstrap to keep compatibility
-async function ensureDefaultDashboardAdmin() {
-  return;
-}
-
-// Used by subsystems (e.g. GameNews) to emit real-time events to the dashboard
-function sendToDashboard(event, payload) {
-  try {
-    io.emit(event, payload);
-  } catch (err) {
-    console.error('[Dashboard] sendToDashboard error', err);
-  }
-}
-
-module.exports = {
-  app,
-  server,
-  io,
-  initializeDashboard,
-  setClient,
-  ensureDefaultDashboardAdmin,
-  sendToDashboard
-};
