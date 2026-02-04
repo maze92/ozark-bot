@@ -16,13 +16,14 @@
   const escapeHtml = D.escapeHtml;
 
 
-async function loadUsers() {
+  async function loadUsers() {
     const listEl = document.querySelector('#tab-user .list');
     if (!listEl) return;
 
-    listEl.innerHTML = '';
+    // Mostra estado de carregamento enquanto a API responde
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
 
-    // Update member count label (if we know it)
+    // Atualizar contador de membros (se soubermos)
     var membersLabel = document.getElementById('usersMemberCount');
     if (membersLabel) {
       var guildInfo = Array.isArray(state.guilds)
@@ -40,35 +41,39 @@ async function loadUsers() {
     }
 
     if (!state.guildId) {
-      const div = document.createElement('div');
-      div.className = 'empty';
-      div.textContent = t('users_empty');
-      listEl.appendChild(div);
+      // Sem servidor selecionado, mostrar mensagem contextual
+      listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_empty'))}</div>`;
       return;
     }
 
-    const loading = document.createElement('div');
-    loading.className = 'empty';
-    loading.textContent = t('loading');
-    listEl.appendChild(loading);
-
     try {
-      const res = await apiGet('/guilds/' + encodeURIComponent(state.guildId) + '/users');
-      const items = (res && res.items) || [];
-      listEl.innerHTML = '';
-
-      if (!items.length) {
+      const data = await apiGet('/guilds/' + encodeURIComponent(state.guildId) + '/users');
+      if (!data || data.ok === false) {
+        console.error('Failed to load users', data && data.error);
+        listEl.innerHTML = '';
         const empty = document.createElement('div');
         empty.className = 'empty';
-        empty.textContent = t('users_empty');
+        empty.textContent = t('users_error_generic');
         listEl.appendChild(empty);
         return;
       }
+
+      const items = Array.isArray(data.items) ? data.items : [];
+
+      listEl.innerHTML = '';
 
       const detailEl = document.getElementById('userDetailPanel');
       // Limpar painel de detalhe quando se recarrega a lista
       if (detailEl) {
         detailEl.innerHTML = `<div class="empty">${escapeHtml(t('users_detail_empty'))}</div>`;
+      }
+
+      if (items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = t('users_empty');
+        listEl.appendChild(empty);
+        return;
       }
 
       items.forEach(function (u) {
@@ -96,19 +101,11 @@ async function loadUsers() {
         `;
 
         row.addEventListener('click', function () {
-          // Marcar seleção visual
-          document.querySelectorAll('#tab-user .list .list-item').forEach(function (el) {
-            el.classList.remove('active');
-          });
+          const previouslyActive = listEl.querySelector('.list-item.active');
+          if (previouslyActive) previouslyActive.classList.remove('active');
           row.classList.add('active');
 
-          window.OzarkDashboard.loadUserHistory({
-            id: u.id,
-            username: u.username || u.tag || u.id || '',
-            bot: !!u.bot
-          }).catch(function (err) {
-            console.error('Failed to load user history', err);
-          });
+          loadUserHistory(u);
         });
 
         listEl.appendChild(row);
@@ -122,7 +119,6 @@ async function loadUsers() {
       listEl.appendChild(empty);
     }
   }
-
 async function loadUserHistory(user) {
     const detailEl = document.getElementById('userDetailPanel');
     if (!detailEl) return;
