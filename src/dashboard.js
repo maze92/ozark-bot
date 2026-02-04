@@ -13,27 +13,20 @@ const io = new Server(server, {
 
 let botClient = null;
 
-/**
- * Chamado a partir do index.js depois de o client do Discord estar pronto.
- */
+// Called from index.js once the Discord client is ready
 function setClient(client) {
   botClient = client;
 }
 
-/**
- * Inicializa a dashboard:
- * - middleware base
- * - ficheiros estáticos (public/)
- * - endpoints mínimos usados pelo frontend no load
- */
+// Initialize middleware, static files and basic API routes used by the frontend
 function initializeDashboard() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: false }));
 
-  // Serve a pasta public (index.html, JS, CSS) na root "/"
+  // Serve dashboard static frontend from /public
   app.use(express.static(path.join(__dirname, '../public')));
 
-  // Endpoint de health usado para o badge de status do bot
+  // Health endpoint used by the status badge in the UI
   app.get('/health', (req, res) => {
     const discordReady =
       !!(botClient && typeof botClient.isReady === 'function' && botClient.isReady());
@@ -44,7 +37,7 @@ function initializeDashboard() {
     });
   });
 
-  // Lista de guilds para o selector de servidores na dashboard
+  // List guilds for the server selector in the UI
   app.get('/api/guilds', (req, res) => {
     if (!botClient) {
       return res
@@ -60,7 +53,7 @@ function initializeDashboard() {
     res.json({ ok: true, items });
   });
 
-  // Overview simples: nº de servidores e utilizadores
+  // Simple overview: number of guilds and users
   app.get('/api/overview', (req, res) => {
     if (!botClient) {
       return res.json({
@@ -89,18 +82,12 @@ function initializeDashboard() {
   return server;
 }
 
-/**
- * Compatibilidade: nesta versão mínima não criamos admin default.
- */
+// No-op admin bootstrap to keep compatibility
 async function ensureDefaultDashboardAdmin() {
   return;
 }
 
-/**
- * Usado pelo sistema de GameNews / outros para enviar eventos em tempo-real
- * para a dashboard via WebSocket. Mesmo que não uses ainda, evita warnings
- * de propriedade inexistente.
- */
+// Used by subsystems (e.g. GameNews) to emit real-time events to the dashboard
 function sendToDashboard(event, payload) {
   try {
     io.emit(event, payload);
