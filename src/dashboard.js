@@ -4,6 +4,13 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+let status = null;
+try {
+  status = require('./systems/status');
+} catch (err) {
+  // status module optional for /health
+}
+
 
 const app = express();
 const server = http.createServer(app);
