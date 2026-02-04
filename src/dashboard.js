@@ -141,6 +141,96 @@ function initializeDashboard() {
     });
   });
 
+
+
+  // Guild configuration (stub)
+  app.get('/api/guilds/:guildId/config', (req, res) => {
+    const { guildId } = req.params;
+    if (!guildId) {
+      return res.status(400).json({ ok: false, error: 'guildId is required' });
+    }
+
+    // TODO: load real configuration from database.
+    // For now return a minimal default structure so the UI can render.
+    res.json({
+      ok: true,
+      guildId,
+      config: {}
+    });
+  });
+
+  app.post('/api/guilds/:guildId/config', (req, res) => {
+    const { guildId } = req.params;
+    if (!guildId) {
+      return res.status(400).json({ ok: false, error: 'guildId is required' });
+    }
+
+    // TODO: validate and persist configuration.
+    // For now we just echo the payload back.
+    const payload = req.body || {};
+    res.json({
+      ok: true,
+      guildId,
+      saved: payload
+    });
+  });
+
+  // Dashboard auth users (stub)
+  app.get('/api/auth/users', (req, res) => {
+    // TODO: return real dashboard user accounts.
+    res.json({
+      ok: true,
+      items: []
+    });
+  });
+
+  app.post('/api/auth/users', (req, res) => {
+    const payload = req.body || {};
+    // TODO: create/update dashboard users.
+    res.json({
+      ok: true,
+      saved: payload
+    });
+  });
+
+  // Temporary voice configuration (stub)
+  app.get('/api/temp-voice/config', (req, res) => {
+    const guildId = req.query.guildId;
+    if (!guildId) {
+      return res.status(400).json({ ok: false, error: 'guildId is required' });
+    }
+
+    // TODO: load real temp-voice configuration.
+    res.json({
+      ok: true,
+      guildId,
+      config: {}
+    });
+  });
+
+  app.post('/api/temp-voice/config', (req, res) => {
+    const payload = req.body || {};
+    // TODO: validate and persist.
+    res.json({
+      ok: true,
+      saved: payload
+    });
+  });
+
+  app.get('/api/temp-voice/active', (req, res) => {
+    const guildId = req.query.guildId;
+    if (!guildId) {
+      return res.status(400).json({ ok: false, error: 'guildId is required' });
+    }
+
+    // TODO: return real list of active temp voice channels.
+    res.json({
+      ok: true,
+      guildId,
+      rooms: []
+    });
+  });
+
   return server;
 }
 
