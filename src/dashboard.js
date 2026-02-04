@@ -366,7 +366,7 @@ function initializeDashboard() {
       console.error('[Dashboard] Failed to read guild members from cache', err);
       res.status(500).json({ ok: false, error: 'Failed to read guild members' });
     }
-  });s tracking data.
+  });
     res.json({
       ok: true,
       items: []
