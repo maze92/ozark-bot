@@ -382,6 +382,12 @@ function renderGameNewsFeedDetail(feed) {
         } else if (action === 'test') {
           // Manual test: ask backend to send one recent news item for this feed
           const guildParam = getGuildParam();
+
+    // Estado de carregamento enquanto os feeds/status são carregados
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
+    if (detailEl) {
+      detailEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
+    }
           const feedId = target.id || target._id || target._mongoId || null;
           if (!feedId) {
             toast(t('gamenews_test_missing_id') || 'Não foi possível identificar este feed.');
@@ -464,6 +470,12 @@ function renderGameNewsFeedDetail(feed) {
     };
 
     const guildParam = getGuildParam();
+
+    // Estado de carregamento enquanto os feeds/status são carregados
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
+    if (detailEl) {
+      detailEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
+    }
     const res = await apiPost('/gamenews/feeds' + guildParam, body);
     if (res && res.ok) {
       toast(t('gamenews_save_success'));
@@ -504,6 +516,12 @@ function renderGameNewsFeedDetail(feed) {
     }
 
     const guildParam = getGuildParam();
+
+    // Estado de carregamento enquanto os feeds/status são carregados
+    listEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
+    if (detailEl) {
+      detailEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
+    }
 
     try {
       const [feedsRes, statusRes] = await Promise.all([
