@@ -112,6 +112,7 @@ function formatIntervalMinutes(ms) {
       const enabled = f.enabled !== false;
 
       row.innerHTML = `
+          <div class="user-row-header">
         <div class="user-row-header">
           <div class="title">${escapeHtml(name)}</div>
           <div class="user-type-badge ${enabled ? 'human' : 'bot'}">
