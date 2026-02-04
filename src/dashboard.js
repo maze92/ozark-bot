@@ -1,3 +1,4 @@
+const config = require('./config/defaultConfig');
 'use strict';
 
 const express = require('express');
