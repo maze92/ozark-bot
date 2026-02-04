@@ -11,6 +11,11 @@ try {
   // status module optional for /health
 }
 
+const Infraction = require('./database/models/Infraction');
+const TicketLog = require('./database/models/TicketLog');
+const UserModel = require('./database/models/User');
+const DashboardAudit = require('./database/models/DashboardAudit');
+
 
 const app = express();
 const server = http.createServer(app);
@@ -430,20 +435,63 @@ function initializeDashboard() {
     });
   });
 
-  // User history (infractions, counts, tickets) - stub
-  app.get('/api/guilds/:guildId/users/:userId/history', (req, res) => {
+  // User history (infractions, counts, tickets) - real data
+  app.get('/api/guilds/:guildId/users/:userId/history', async (req, res) => {
     const { guildId, userId } = req.params;
     if (!guildId || !userId) {
-      return res.status(400).json({ ok: false, error: 'guildId and userId are required' });
+      return res
+        .status(400)
+        .json({ ok: false, error: 'guildId and userId are required' });
     }
 
-    // TODO: plug into infractions/tickets collections.
-    res.json({
-      ok: true,
-      infractions: [],
-      counts: {},
-      tickets: []
-    });
+    try {
+      // Last 50 infractions for this user in this guild
+      const infractions = await Infraction.find({ guildId, userId })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean()
+        .exec();
+
+      // Aggregate simple counts by type
+      const counts = { warn: 0, mute: 0 };
+      infractions.forEach((inf) => {
+        const t = (inf.type || '').toUpperCase();
+        if (t === 'WARN') counts.warn++;
+        else if (t === 'MUTE') counts.mute++;
+      });
+
+      // Ticket history: last 20 tickets
+      const tickets = await TicketLog.find({ guildId, userId })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean()
+        .exec();
+
+      res.json({
+        ok: true,
+        infractions: infractions.map((inf) => ({
+          id: String(inf._id),
+          type: inf.type,
+          reason: inf.reason,
+          moderatorId: inf.moderatorId,
+          // createdAt is enough for UI; it will format it
+          createdAt: inf.createdAt,
+          duration: typeof inf.duration === 'number' ? inf.duration : null
+        })),
+        counts,
+        tickets: tickets.map((tkt) => ({
+          ticketNumber: tkt.ticketNumber,
+          openedAt: tkt.createdAt,
+          closedAt: tkt.closedAt,
+          closedById: tkt.closedById
+        }))
+      });
+    } catch (err) {
+      console.error('[Dashboard] Failed to load user history', err);
+      res
+        .status(500)
+        .json({ ok: false, error: 'Failed to load user history' });
+    }
   });
 
 
@@ -484,22 +532,80 @@ function initializeDashboard() {
     });
   });
 
-  // Logs endpoint (stub)
-  app.get('/api/logs', (req, res) => {
+  // Logs endpoint (DashboardAudit data)
+  app.get('/api/logs', async (req, res) => {
     const guildId = req.query.guildId;
     if (!guildId) {
-      return res.status(400).json({ ok: false, error: 'guildId is required' });
+      return res
+        .status(400)
+        .json({ ok: false, error: 'guildId is required' });
     }
 
-    // Query params: type, limit, page, userId, action, etc.
-    // For now we simply return an empty list with basic paging metadata.
-    res.json({
-      ok: true,
-      items: [],
-      page: 1,
-      totalPages: 1,
-      totalItems: 0
-    });
+    const type = req.query.type || 'all';
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const search = (req.query.search || '').trim();
+    const actionFilter = req.query.action || null;
+    const userIdFilter = req.query.userId || null;
+
+    const query = { guildId };
+
+    if (type && type !== 'all') {
+      query.type = type;
+    }
+
+    if (actionFilter) {
+      query.action = actionFilter;
+    }
+
+    if (userIdFilter) {
+      query.targetUserId = userIdFilter;
+    }
+
+    if (search) {
+      query.$or = [
+        { details: { $regex: search, $options: 'i' } },
+        { route: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    try {
+      const totalItems = await DashboardAudit.countDocuments(query).exec();
+      const totalPages = Math.max(Math.ceil(totalItems / limit) || 1, 1);
+      const skip = (page - 1) * limit;
+
+      const docs = await DashboardAudit.find(query)
+        .sort({ at: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec();
+
+      const items = docs.map((doc) => ({
+        id: String(doc._id),
+        at: doc.at,
+        route: doc.route,
+        method: doc.method,
+        action: doc.action,
+        actor: doc.actor,
+        type: doc.type || null,
+        targetUserId: doc.targetUserId || null,
+        details: doc.details || null
+      }));
+
+      res.json({
+        ok: true,
+        items,
+        page,
+        totalPages,
+        totalItems
+      });
+    } catch (err) {
+      console.error('[Dashboard] Failed to load logs', err);
+      res
+        .status(500)
+        .json({ ok: false, error: 'Failed to load logs' });
+    }
   });
 
   // GameNews test endpoint (stub)
