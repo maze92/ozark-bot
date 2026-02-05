@@ -290,6 +290,37 @@ const API_BASE = '/api';
     }, 2400);
   }
 
+
+  function withLoading(promiseFactory, opts) {
+    opts = opts || {};
+    var onStart = typeof opts.onStart === 'function' ? opts.onStart : null;
+    var onError = typeof opts.onError === 'function' ? opts.onError : null;
+    var onFinally = typeof opts.onFinally === 'function' ? opts.onFinally : null;
+    var toastOnError = opts.toastOnError || null;
+
+    if (onStart) {
+      try { onStart(); } catch (e) { console.error(e); }
+    }
+
+    return Promise.resolve()
+      .then(function () { return promiseFactory(); })
+      .catch(function (err) {
+        console.error(err);
+        if (toastOnError) {
+          toast(toastOnError);
+        }
+        if (onError) {
+          try { onError(err); } catch (e2) { console.error(e2); }
+        }
+        throw err;
+      })
+      .finally(function () {
+        if (onFinally) {
+          try { onFinally(); } catch (e3) { console.error(e3); }
+        }
+      });
+  }
+
  
   function showPanelLoading(panelId) {
     var panel = document.getElementById(panelId);
