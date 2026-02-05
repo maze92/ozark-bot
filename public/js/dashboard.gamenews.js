@@ -410,7 +410,7 @@ function renderGameNewsFeedDetail(feed) {
             toast(t('gamenews_test_missing_id') || 'Não foi possível identificar este feed.');
             return;
           }
-          apiPost('/gamenews/test' + guildParam, {
+          apiPost('/api/gamenews/test' + guildParam, {
             guildId: state.guildId,
             feedId: feedId
           })
@@ -493,7 +493,7 @@ function renderGameNewsFeedDetail(feed) {
     if (detailEl) {
       detailEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
     }
-    const res = await apiPost('/gamenews/feeds' + guildParam, body);
+    const res = await apiPost('/api/gamenews/feeds' + guildParam, body);
     if (res && res.ok) {
       toast(t('gamenews_save_success'));
       // Atualizar state.gameNewsFeeds com o que vier da DB
@@ -536,8 +536,8 @@ function renderGameNewsFeedDetail(feed) {
 
     return window.OzarkDashboard.withLoading(function () {
       return Promise.all([
-        apiGet('/gamenews/feeds' + guildParam),
-        apiGet('/gamenews-status' + guildParam)
+        apiGet('/api/gamenews/feeds' + guildParam),
+        apiGet('/api/gamenews-status' + guildParam)
       ]).then(function (results) {
         const feedsRes = results[0];
         const statusRes = results[1];
