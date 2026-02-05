@@ -192,23 +192,10 @@ const baseConfig = {
       maxFails: 3,
       pauseMs: 30 * 60 * 1000
     },
-    sources: [
-      {
-        name: 'GameSpot/Reviews',
-        feed: 'https://www.gamespot.com/feeds/reviews',
-        channelId: null
-      },
-      {
-        name: 'GameSpot/News',
-        feed: 'https://www.gamespot.com/feeds/game-news',
-        channelId: null
-      },
-      {
-        name: 'GameSpot/NewGames',
-        feed: 'https://www.gamespot.com/feeds/new-games',
-        channelId: null
-      }
-    ]
+    // Definição de feeds passou a ser 100% guardada na base de dados
+    // (coleção GameNewsFeeds). Mantemos aqui um array vazio apenas para
+    // não criar feeds pré-configurados em servidores novos.
+    sources: []
   },
 
 

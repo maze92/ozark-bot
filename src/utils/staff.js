@@ -1,30 +1,26 @@
 // src/utils/staff.js
 
 const { PermissionsBitField } = require('discord.js');
-const config = require('../config/defaultConfig');
 const { getGuildConfig } = require('../systems/guildConfigService');
 
 /**
- * Obtém a lista de roles de staff para uma guild:
- * 1) staffRoleIds configurados na GuildConfig (via dashboard)
- * 2) caso não exista, usa config.staffRoles (ex.: STAFF_ROLE_IDS no .env)
+ * Obtém a lista de roles de staff para uma guild,
+ * baseada apenas na configuração gravada na base de dados (GuildConfig).
+ *
+ * Nota: isto significa que, a partir de agora, STAFF_ROLE_IDS/.env deixam
+ * de ser usados como fallback em tempo de execução. Se precisares de
+ * definir roles de staff, usa a aba "Acesso e cargos de staff" na dashboard.
  */
 async function getStaffRoleIdsForGuild(guildId) {
   if (!guildId) return [];
 
-  // 1) GuildConfig (dashboard)
   try {
     const guildCfg = await getGuildConfig(guildId);
     if (guildCfg && Array.isArray(guildCfg.staffRoleIds) && guildCfg.staffRoleIds.length) {
       return guildCfg.staffRoleIds.map((id) => String(id));
     }
   } catch (err) {
-    console.error('[Staff] Failed to load GuildConfig for staff roles:', err);
-  }
-
-  // 2) Fallback global (config)
-  if (Array.isArray(config.staffRoles) && config.staffRoles.length) {
-    return config.staffRoles.map((id) => String(id));
+    console.error('[Staff] Failed to read GuildConfig for staff roles:', err);
   }
 
   return [];
@@ -34,7 +30,7 @@ async function getStaffRoleIdsForGuild(guildId) {
  * Verifica se o membro é considerado STAFF.
  * Regra:
  *  - Administradores são sempre staff
- *  - Roles configuradas na dashboard (ou config.staffRoles) contam como staff
+ *  - Roles configuradas na dashboard (GuildConfig.staffRoleIds) contam como staff
  */
 async function isStaff(member) {
   if (!member) return false;

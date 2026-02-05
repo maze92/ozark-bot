@@ -345,7 +345,9 @@ async function sendOneNewsAndUpdate({ client, feed, channel, record, item, keepN
 }
 
 async function getEffectiveFeeds(config) {
-  // DB is the single source of truth for GameNews feeds.
+  // Single source of truth: GameNewsFeed collection.
+  // Se não existirem feeds na DB, o sistema não envia nada
+  // até o utilizador configurar feeds na dashboard.
   const dbFeeds = await getFeedsFromDb();
   const activeDb = dbFeeds.filter((f) => f.enabled && f.feed && f.channelId);
   return activeDb;
