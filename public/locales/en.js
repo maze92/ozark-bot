@@ -214,4 +214,7 @@ window.OzarkLocales.en = {
   'tempvoice_max_users_label': "Max users per room",
   'config_guild_settings_title': "⚙️ Server preferences",
   'config_guild_settings_hint': "Set the primary language and timezone used by the dashboard for this guild."
+  'logs_user_label': 'User',
+  'logs_mod_label': 'Moderator',
+  'logs_default_title': 'Moderation log',
 };

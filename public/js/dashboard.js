@@ -203,17 +203,21 @@ const API_BASE = '/api';
     const row = document.createElement('div');
     row.className = 'list-item';
 
-    // Título simples, cai para "Log" se não existir
-    const title = log.title || 'Log';
+    // Título simples; cai para i18n ou "Log" se não existir
+    const fallbackTitle = (typeof t === 'function' && t('logs_default_title')) || 'Log';
+    const title = log.title || fallbackTitle;
 
-    // Linha meta: utilizador, moderador, data/hora
+    // Linha meta: utilizador, moderador, data/hora (localizada)
     const metaParts = [];
 
+    const userLabel = (typeof t === 'function' && t('logs_user_label')) || 'User';
+    const modLabel = (typeof t === 'function' && t('logs_mod_label')) || 'Mod';
+
     if (log.user && log.user.tag) {
-      metaParts.push('User: ' + log.user.tag);
+      metaParts.push(userLabel + ': ' + log.user.tag);
     }
     if (log.executor && log.executor.tag) {
-      metaParts.push('Mod: ' + log.executor.tag);
+      metaParts.push(modLabel + ': ' + log.executor.tag);
     }
     if (log.time) {
       try {

@@ -263,4 +263,7 @@ window.OzarkLocales.pt = {
   'gamenews_feed_status_off': 'Desativado',
   'gamenews_empty_list': 'Ainda não existem feeds configurados para este servidor.',
   'moderation_logs_empty': 'Ainda não existem registos de moderação para este período.',
+  'logs_user_label': 'Utilizador',
+  'logs_mod_label': 'Moderador',
+  'logs_default_title': 'Registo de moderação',
 };
