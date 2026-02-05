@@ -517,7 +517,7 @@ function renderGameNewsFeedDetail(feed) {
 
     const guildParam = getGuildParam();
 
-    return withLoading(function () {
+    return window.OzarkDashboard.withLoading(function () {
       return Promise.all([
         apiGet('/gamenews/feeds' + guildParam),
         apiGet('/gamenews-status' + guildParam)

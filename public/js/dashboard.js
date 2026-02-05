@@ -320,6 +320,7 @@ const API_BASE = '/api';
         }
       });
   }
+  window.OzarkDashboard.withLoading = withLoading;
 
  
   function showPanelLoading(panelId) {
