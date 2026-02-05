@@ -41,6 +41,19 @@ const jwt = require('jsonwebtoken');
 const DashboardUserModel = require('./database/models/DashboardUser');
 const rateLimit = require('./systems/rateLimit');
 
+// Single source of truth for dashboard role permissions.
+// Reuse this everywhere instead of duplicating literals.
+const ADMIN_PERMISSIONS = Object.freeze({
+  canViewLogs: true,
+  canActOnCases: true,
+  canManageTickets: true,
+  canManageGameNews: true,
+  canViewConfig: true,
+  canEditConfig: true,
+  canManageUsers: true
+});
+
+
 
 if (process.env.NODE_ENV === 'production' && !process.env.DASHBOARD_JWT_SECRET) {
   console.warn('[Dashboard Auth] DASHBOARD_JWT_SECRET is not set in production. Please configure a strong secret.');
@@ -323,28 +336,11 @@ function extractToken(req) {
  * Decodes the dashboard auth token.
  * Supports:
  *  - JWT tokens (preferred)
- *  - Legacy static DASHBOARD_TOKEN (treated as ADMIN)
+ *  - JWT token issued by /api/auth/login
  */
 async function decodeDashboardToken(rawToken) {
   if (!rawToken) return null;
 
-  // Legacy static token path – keep for backwards compat.
-  if (process.env.DASHBOARD_TOKEN && rawToken === process.env.DASHBOARD_TOKEN) {
-    return {
-      _id: null,
-      username: 'admin',
-      role: 'ADMIN',
-      permissions: {
-        canViewLogs: true,
-        canActOnCases: true,
-        canManageTickets: true,
-        canManageGameNews: true,
-        canViewConfig: true,
-        canEditConfig: true,
-        canManageUsers: true
-      }
-    };
-  }
 
   // JWT path
   try {
@@ -2513,7 +2509,7 @@ io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Unauthorized'));
 
-    // Accept BOTH: legacy env DASHBOARD_TOKEN and JWT tokens
+    // Accept dashboard JWT tokens for Socket.IO connections
     const user = await decodeDashboardToken(String(token).trim());
     if (!user) return next(new Error('Unauthorized'));
 
@@ -3033,15 +3029,7 @@ async function ensureDefaultDashboardAdmin() {
       username,
       passwordHash,
       role: 'ADMIN',
-      permissions: {
-        canViewLogs: true,
-        canActOnCases: true,
-        canManageTickets: true,
-        canManageGameNews: true,
-        canViewConfig: true,
-        canEditConfig: true,
-        canManageUsers: true
-      }
+      permissions: ADMIN_PERMISSIONS
     });
 
     console.log('[Dashboard Auth] Created default admin user', user.username);
