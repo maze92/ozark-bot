@@ -415,41 +415,6 @@ async function buildStatusPayload(config) {
   });
 }
 
-          }
-  if (!feeds.length) return [];
-
-  const names = feeds.map(f => f?.name).filter(Boolean);
-  const docs = await GameNews.find({ source: { $in: names } }).lean();
-
-  const map = new Map();
-  for (const d of docs) map.set(d.source, d);
-
-  const now = Date.now();
-  const baseIntervalMs = clampNumber(Number(config?.gameNews?.interval ?? 30 * 60 * 1000), 60_000, 7 * 24 * 60 * 60 * 1000) ?? (30 * 60 * 1000);
-
-  return feeds.map((f) => {
-    const d = map.get(f.name);
-
-    const pausedUntil = d?.pausedUntil ? new Date(d.pausedUntil) : null;
-    const paused = pausedUntil ? pausedUntil.getTime() > now : false;
-
-    const intervalOverride = Number(f.intervalMs ?? 0);
-    const safeBase = Number.isFinite(baseIntervalMs) && baseIntervalMs > 0 ? baseIntervalMs : 30 * 60 * 1000;
-    const effectiveIntervalMs = Number.isFinite(intervalOverride) && intervalOverride > 0 ? intervalOverride : safeBase;
-
-    return {
-      source: f.name,
-      feedName: f.name,
-      feedUrl: f.feed,
-      channelId: f.channelId,
-
-      failCount: d?.failCount ?? 0,
-      pausedUntil: d?.pausedUntil ?? null,
-      lastSentAt: d?.lastSentAt ?? null,
-      lastHashesCount: Array.isArray(d?.lastHashes) ? d.lastHashes.length : 0,
-
-      paused,
-      updatedAt: d?.updatedAt ?? null,
 
       intervalMs: effectiveIntervalMs,
       intervalOverrideMs: Number.isFinite(intervalOverride) && intervalOverride > 0 ? intervalOverride : null
