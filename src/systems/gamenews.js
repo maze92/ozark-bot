@@ -415,7 +415,6 @@ async function buildStatusPayload(config) {
   });
 }
 
-}
 
 async function emitStatusToDashboard(config) {
   try {
