@@ -114,8 +114,9 @@ async function handleClientReady() {
   }
 }
 
-// Listen only to the modern 'clientReady' event to avoid Node deprecation warnings.
-// The startup guard ensures this only runs once.
+// Support both legacy 'ready' and the newer 'clientReady' events.
+// The startup guard ensures this only runs once, so it's safe to listen to both.
+client.once('ready', handleClientReady);
 client.once('clientReady', handleClientReady);
 
 // Keep presence consistent on shard resume
