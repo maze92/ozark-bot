@@ -415,11 +415,6 @@ async function buildStatusPayload(config) {
   });
 }
 
-
-      intervalMs: effectiveIntervalMs,
-      intervalOverrideMs: Number.isFinite(intervalOverride) && intervalOverride > 0 ? intervalOverride : null
-    };
-  });
 }
 
 async function emitStatusToDashboard(config) {
