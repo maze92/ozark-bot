@@ -261,4 +261,6 @@ window.OzarkLocales.pt = {
   'config_guild_settings_hint': "Defina o idioma principal e a timezone usados pela dashboard para este servidor.",
   'gamenews_feed_status_on': 'Ativo',
   'gamenews_feed_status_off': 'Desativado',
+  'gamenews_empty_list': 'Ainda não existem feeds configurados para este servidor.',
+  'moderation_logs_empty': 'Ainda não existem registos de moderação para este período.',
 };
