@@ -116,129 +116,163 @@ async function loadLogs() {
       return;
     }
 
-    // Painel de análises (moderação)
-    try {
-      insightsContent.innerHTML = '';
-      const loading = document.createElement('div');
-      loading.className = 'empty';
-      loading.textContent = t('logs_server_insights_loading');
-      insightsContent.appendChild(loading);
+    const rangeParam =
+      '?range=' + encodeURIComponent(modServerRange || '24h') +
+      '&guildId=' + encodeURIComponent(guildId);
 
-      const res = await apiGet(
-        '/mod/overview?guildId=' + encodeURIComponent(guildId) + '&range=' + encodeURIComponent(modServerRange)
-      );
+    return window.OzarkDashboard.withLoading(function () {
+      return Promise.resolve()
+        .then(function () {
+          // Painel de "Server Insights"
+          insightsContent.innerHTML = '';
+          const loading = document.createElement('div');
+          loading.className = 'empty';
+          loading.textContent = t('logs_server_insights_loading');
+          insightsContent.appendChild(loading);
 
-      insightsContent.innerHTML = '';
+          return apiGet('/mod/overview' + rangeParam)
+            .then(function (res) {
+              insightsContent.innerHTML = '';
+              const data = (res && res.data) || {};
+              const stats = data.stats || {};
+              const cards = [
+                {
+                  key: 'totalActions',
+                  labelKey: 'logs_server_insights_total_actions',
+                  value: stats.totalActions || 0
+                },
+                {
+                  key: 'warns',
+                  labelKey: 'logs_server_insights_warns',
+                  value: stats.warns || 0
+                },
+                {
+                  key: 'mutes',
+                  labelKey: 'logs_server_insights_mutes',
+                  value: stats.mutes || 0
+                },
+                {
+                  key: 'bans',
+                  labelKey: 'logs_server_insights_bans',
+                  value: stats.bans || 0
+                }
+              ];
 
-      if (!res || !res.ok) {
-        const errBox = document.createElement('div');
-        errBox.className = 'empty';
-        errBox.textContent = t('logs_server_insights_error');
-        insightsContent.appendChild(errBox);
-      } else {
-        const counts = (res && res.moderationCounts) || {};
-        const list = document.createElement('ul');
-        list.className = 'simple-list';
+              const list = document.createElement('ul');
+              list.className = 'insights-list';
 
-        const rows = [
-          { key: 'warn', label: t('logs_server_insights_warn'), value: counts.warn || 0 },
-          { key: 'mute', label: t('logs_server_insights_mute'), value: counts.mute || 0 },
-          { key: 'unmute', label: t('logs_server_insights_unmute'), value: counts.unmute || 0 },
-          { key: 'kick', label: t('logs_server_insights_kick'), value: counts.kick || 0 },
-          { key: 'ban', label: t('logs_server_insights_ban'), value: counts.ban || 0 },
-          { key: 'other', label: t('logs_server_insights_other'), value: counts.other || 0 }
-        ];
+              cards.forEach(function (c) {
+                const li = document.createElement('li');
+                li.className = 'insights-item';
+                const value = typeof c.value === 'number' ? c.value : 0;
+                li.innerHTML =
+                  '<div class="insights-label">' + escapeHtml(t(c.labelKey)) + '</div>' +
+                  '<div class="insights-value">' + escapeHtml(String(value)) + '</div>';
+                list.appendChild(li);
+              });
 
-        let total = 0;
-        rows.forEach(function (r) { total += r.value; });
+              // Breakdown de riscos, se existir
+              if (Array.isArray(data.riskBreakdown) && data.riskBreakdown.length) {
+                const breakdownTitle = document.createElement('div');
+                breakdownTitle.className = 'insights-section-title';
+                breakdownTitle.textContent = t('logs_server_insights_risk_breakdown_title');
+                insightsContent.appendChild(breakdownTitle);
 
-        if (!total) {
-          const empty = document.createElement('div');
-          empty.className = 'empty';
-          empty.textContent = t('logs_server_insights_empty');
-          insightsContent.appendChild(empty);
-        } else {
-          rows.forEach(function (r) {
-            const li = document.createElement('li');
-            li.innerHTML = '<strong>' + escapeHtml(String(r.label)) + ':</strong> ' + String(r.value);
-            list.appendChild(li);
-          });
+                const breakdownList = document.createElement('ul');
+                breakdownList.className = 'insights-breakdown-list';
 
-          insightsContent.appendChild(list);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load moderation overview', err);
-      insightsContent.innerHTML = '';
-      const errBox = document.createElement('div');
-      errBox.className = 'empty';
-      errBox.textContent = t('logs_server_insights_error');
-      insightsContent.appendChild(errBox);
-    }
+                data.riskBreakdown.forEach(function (r) {
+                  const li = document.createElement('li');
+                  li.className = 'insights-breakdown-item';
+                  li.innerHTML =
+                    '<strong>' + escapeHtml(String(r.label)) + ':</strong> ' +
+                    String(r.value);
+                  breakdownList.appendChild(li);
+                });
 
-    // Painel de análises de tickets (com intervalo e paginação)
-    try {
-      ticketsList.innerHTML = '';
-      const loadingTickets = document.createElement('li');
-      loadingTickets.className = 'empty';
-      loadingTickets.textContent = t('logs_tickets_panel_loading');
-      ticketsList.appendChild(loadingTickets);
+                insightsContent.appendChild(breakdownList);
+              }
 
-      const resTickets = await apiGet(
-        '/logs?type=tickets&limit=4&page=' +
-          encodeURIComponent(String(modTicketsPage)) +
-          '&guildId=' +
-          encodeURIComponent(guildId)
-      );
+              insightsContent.appendChild(list);
+            })
+            .catch(function (err) {
+              console.error('Failed to load moderation overview', err);
+              insightsContent.innerHTML = '';
+              const errBox = document.createElement('div');
+              errBox.className = 'empty';
+              errBox.textContent = t('logs_server_insights_error');
+              insightsContent.appendChild(errBox);
+            });
+        })
+        .then(function () {
+          // Painel de análises de tickets (com intervalo e paginação)
+          ticketsList.innerHTML = '';
+          const loadingTickets = document.createElement('li');
+          loadingTickets.className = 'empty';
+          loadingTickets.textContent = t('logs_tickets_panel_loading');
+          ticketsList.appendChild(loadingTickets);
 
-      const rawItems = (resTickets && resTickets.items) || [];
+          return apiGet(
+            '/logs?type=tickets&limit=4&page=' +
+              encodeURIComponent(String(modTicketsPage)) +
+              '&guildId=' +
+              encodeURIComponent(guildId)
+          )
+            .then(function (resTickets) {
+              ticketsList.innerHTML = '';
+              const rawItems = (resTickets && resTickets.items) || [];
 
-      const now = Date.now();
-      let windowMs = 24 * 60 * 60 * 1000;
-      if (modTicketsRange === '7d') windowMs = 7 * 24 * 60 * 60 * 1000;
-      else if (modTicketsRange === '30d') windowMs = 30 * 24 * 60 * 60 * 1000;
-      else if (modTicketsRange === '1y') windowMs = 365 * 24 * 60 * 60 * 1000;
-      const cutoff = now - windowMs;
+              const now = Date.now();
+              let windowMs = 24 * 60 * 60 * 1000;
+              if (modTicketsRange === '7d') windowMs = 7 * 24 * 60 * 60 * 1000;
+              else if (modTicketsRange === '30d') windowMs = 30 * 24 * 60 * 60 * 1000;
+              else if (modTicketsRange === '1y') windowMs = 365 * 24 * 60 * 60 * 1000;
+              const cutoff = now - windowMs;
 
-      const items = rawItems.filter(function (it) {
-        const tsStr = it.createdAt || it.timestamp || it.time;
-        if (!tsStr) return true;
-        const ts = Date.parse(tsStr);
-        if (!Number.isFinite(ts)) return true;
-        return ts >= cutoff;
-      });
+              const items = rawItems.filter(function (it) {
+                const tsStr = it.createdAt || it.timestamp || it.time;
+                if (!tsStr) return true;
+                const ts = Date.parse(tsStr);
+                if (Number.isNaN(ts)) return true;
+                return ts >= cutoff;
+              });
 
-      ticketsList.innerHTML = '';
-
-      if (!items.length) {
-        const li = document.createElement('li');
-        li.className = 'empty';
-        li.textContent =
-          t('logs_tickets_panel_empty_range') ||
-          t('logs_tickets_panel_empty');
-        ticketsList.appendChild(li);
-      } else {
-        items.forEach(function (it) {
-          const li = document.createElement('li');
-          const title = it.title || 'Ticket';
-          const desc = it.description || '';
-          li.innerHTML =
-            '<div class="title">' +
-            escapeHtml(String(title)) +
-            '</div>' +
-            (desc ? '<div class="subtitle">' + escapeHtml(String(desc)) + '</div>' : '');
-          ticketsList.appendChild(li);
+              if (!items.length) {
+                const li = document.createElement('li');
+                li.className = 'empty';
+                li.textContent = t('logs_tickets_panel_empty');
+                ticketsList.appendChild(li);
+              } else {
+                items.forEach(function (it) {
+                  const li = document.createElement('li');
+                  const title = it.title || 'Ticket';
+                  const desc = it.description || '';
+                  li.innerHTML =
+                    '<div class="title">' +
+                    escapeHtml(String(title)) +
+                    '</div>' +
+                    (desc
+                      ? '<div class="subtitle">' + escapeHtml(String(desc)) + '</div>'
+                      : '');
+                  ticketsList.appendChild(li);
+                });
+              }
+            })
+            .catch(function (err) {
+              console.error('Failed to load moderation tickets panel', err);
+              ticketsList.innerHTML = '';
+              const li = document.createElement('li');
+              li.className = 'empty';
+              li.textContent =
+                (err && err.apiMessage) ? err.apiMessage : t('logs_tickets_panel_error');
+              ticketsList.appendChild(li);
+            });
         });
-      }
-    } catch (err) {
-      console.error('Failed to load moderation tickets panel', err);
-      ticketsList.innerHTML = '';
-      const li = document.createElement('li');
-      li.className = 'empty';
-      li.textContent = (err && err.apiMessage) ? err.apiMessage : t('logs_tickets_panel_error');
-      ticketsList.appendChild(li);
-    }
+    }, {
+      // Aqui podemos, no futuro, ligar um spinner global da tab de moderação se quisermos.
+    });
   }
+
 
 
   document.addEventListener('DOMContentLoaded', function () {

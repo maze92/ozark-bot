@@ -20,9 +20,6 @@
     const listEl = document.querySelector('#tab-user .list');
     if (!listEl) return;
 
-    // Mostra estado de carregamento enquanto a API responde
-    listEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
-
     // Atualizar contador de membros (se soubermos)
     var membersLabel = document.getElementById('usersMemberCount');
     if (membersLabel) {
@@ -41,54 +38,46 @@
     }
 
     if (!state.guildId) {
-      // Sem servidor selecionado, mostrar mensagem contextual
-      listEl.innerHTML = `<div class="empty">${escapeHtml(t('users_empty'))}</div>`;
+      listEl.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = t('users_select_guild');
+      listEl.appendChild(empty);
       return;
     }
 
-    try {
-      const data = await apiGet('/guilds/' + encodeURIComponent(state.guildId) + '/users');
-      if (!data || data.ok === false) {
-        console.error('Failed to load users', data && data.error);
-        listEl.innerHTML = '';
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = t('users_error_generic');
-        listEl.appendChild(empty);
-        return;
-      }
+    const guildId = state.guildId;
 
-      const items = Array.isArray(data.items) ? data.items : [];
+    return window.OzarkDashboard.withLoading(function () {
+      return apiGet('/guilds/' + encodeURIComponent(guildId) + '/users')
+        .then(function (res) {
+          const items = Array.isArray(res.items) ? res.items : [];
 
-      listEl.innerHTML = '';
+          state.users = items;
 
-      const detailEl = document.getElementById('userDetailPanel');
-      // Limpar painel de detalhe quando se recarrega a lista
-      if (detailEl) {
-        detailEl.innerHTML = `<div class="empty">${escapeHtml(t('users_detail_empty'))}</div>`;
-      }
+          listEl.innerHTML = '';
 
-      if (items.length === 0) {
-        const empty = document.createElement('div');
-        empty.className = 'empty';
-        empty.textContent = t('users_empty');
-        listEl.appendChild(empty);
-        return;
-      }
+          if (!items.length) {
+            const empty = document.createElement('div');
+            empty.className = 'empty';
+            empty.textContent = t('users_empty_generic');
+            listEl.appendChild(empty);
+            return;
+          }
 
-      items.forEach(function (u) {
-        if (u && u.bot) return;
-        const row = document.createElement('div');
-        row.className = 'list-item';
-        row.dataset.userId = u.id || '';
-        row.dataset.username = u.username || u.tag || u.id || '';
+          items.forEach(function (u) {
+            if (u && u.bot) return;
+            const row = document.createElement('div');
+            row.className = 'list-item';
+            row.dataset.userId = u.id || '';
+            row.dataset.username = u.username || u.tag || u.id || '';
 
-        const name = u.username || u.tag || u.id;
-        const roles = (u.roles || []).map(function (r) { return r.name; }).join(', ');
+            const name = u.username || u.tag || u.id;
+            const roles = (u.roles || []).map(function (r) { return r.name; }).join(', ');
 
-        const isBot = !!u.bot;
+            const isBot = !!u.bot;
 
-        row.innerHTML = `
+            row.innerHTML = `
           <div class="user-row-header">
             <div class="title">${escapeHtml(name)}</div>
             <div class="user-type-badge ${isBot ? 'bot' : 'human'}">
@@ -100,24 +89,32 @@
           </div>
         `;
 
-        row.addEventListener('click', function () {
-          const previouslyActive = listEl.querySelector('.list-item.active');
-          if (previouslyActive) previouslyActive.classList.remove('active');
-          row.classList.add('active');
+            row.addEventListener('click', function () {
+              const previouslyActive = listEl.querySelector('.list-item.active');
+              if (previouslyActive) {
+                previouslyActive.classList.remove('active');
+              }
+              row.classList.add('active');
 
-          loadUserHistory(u);
+              state.selectedUserId = u.id || null;
+              loadUserHistory(u);
+            });
+
+            listEl.appendChild(row);
+          });
         });
-
-        listEl.appendChild(row);
-      });
-    } catch (err) {
-      console.error('Failed to load users', err);
-      listEl.innerHTML = '';
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = t('users_error_generic');
-      listEl.appendChild(empty);
-    }
+    }, {
+      onStart: function () {
+        listEl.innerHTML = `<div class="empty">${escapeHtml(t('loading'))}</div>`;
+      },
+      onError: function () {
+        listEl.innerHTML = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = t('users_error_generic');
+        listEl.appendChild(empty);
+      }
+    });
   }
 async function loadUserHistory(user) {
     const detailEl = document.getElementById('userDetailPanel');
