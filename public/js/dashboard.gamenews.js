@@ -25,19 +25,36 @@
   }
 
       function makeStatusKey(obj) {
+  // Key used to correlate a feed configuration with its status entry.
+  // We need to support both:
+  //  - feed objects from /api/gamenews/feeds   -> { name, feedUrl, channelId }
+  //  - status objects from /api/gamenews-status -> { feedName, feedUrl, channelId }
   if (!obj) return '';
   let feedUrl = '';
   let channelId = '';
   let name = '';
 
   try {
-    feedUrl = (obj.feedUrl != null ? String(obj.feedUrl) : '').trim();
+    // Some callers use feedUrl, others still expose the DB field as "feed".
+    feedUrl = (
+      obj.feedUrl != null
+        ? String(obj.feedUrl)
+        : obj.feed != null
+          ? String(obj.feed)
+          : ''
+    ).trim();
   } catch (e) {}
   try {
     channelId = (obj.channelId != null ? String(obj.channelId) : '').trim();
   } catch (e) {}
   try {
-    name = obj.name != null ? String(obj.name) : '';
+    // Prefer "name", but fall back to "feedName" (used by status payloads).
+    name =
+      obj.name != null
+        ? String(obj.name)
+        : obj.feedName != null
+          ? String(obj.feedName)
+          : '';
   } catch (e) {}
 
   return JSON.stringify({
