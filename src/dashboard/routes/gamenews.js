@@ -149,13 +149,20 @@ app.post('/api/gamenews/feeds', requireDashboardAuth, async (req, res) => {
     for (const f of feeds) {
       if (!f) continue;
 
+      // Normalize common "empty" values coming from the dashboard UI.
+      // Using ?? would keep "" (empty string), which then fails zod min() checks.
+      const rawChannelId = (f.channelId != null ? String(f.channelId) : "").trim();
+      const rawLogChannelId = (f.logChannelId != null ? String(f.logChannelId) : "").trim();
+      const normalizedChannelId = rawChannelId || null;
+      const normalizedLogChannelId = rawLogChannelId || null;
+
       const candidate = {
         name: typeof f.name === 'string' && f.name.trim() ? f.name : 'Feed',
         // canonical field is feedUrl; fall back to legacy "feed"
         feedUrl: typeof f.feedUrl === 'string' && f.feedUrl.trim() ? f.feedUrl : (f.feed || ''),
         feed: typeof f.feed === 'string' && f.feed.trim() ? f.feed : undefined,
-        channelId: f.channelId ?? null,
-        logChannelId: f.logChannelId ?? null,
+        channelId: normalizedChannelId,
+        logChannelId: normalizedLogChannelId,
         enabled: f.enabled !== false,
         intervalMs: typeof f.intervalMs === 'number' ? f.intervalMs : null,
         language: typeof f.language === 'string' ? f.language : undefined
