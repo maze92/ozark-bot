@@ -1572,6 +1572,15 @@ function addTempVoiceBaseChannel() {
         var name = sub.getAttribute('data-subtab');
         if (!name) return;
 
+        // Load tickets list when opening the Tickets subtab
+        if (name === 'tickets' && window.OzarkDashboard && typeof window.OzarkDashboard.loadTickets === 'function') {
+          try {
+            window.OzarkDashboard.loadTickets(true);
+          } catch (e) {
+            console.error('Failed to load tickets', e);
+          }
+        }
+
         // Reset estado da voz temporária sempre que se entra na subtab
         if (name === 'tempvoice') {
           try {
@@ -1639,6 +1648,15 @@ function addTempVoiceBaseChannel() {
             window.OzarkDashboard.loadGameNews().catch(function () {});
             loadTempVoiceConfig().catch(function () {});
             loadTempVoiceActive().catch(function () {});
+
+            // If Tickets subtab is open, refresh ticket list
+            try {
+              var activeSub = document.querySelector('#tab-gamenews .subtabs .subtab.active');
+              var subName = activeSub ? activeSub.getAttribute('data-subtab') : '';
+              if (subName === 'tickets' && window.OzarkDashboard && typeof window.OzarkDashboard.loadTickets === 'function') {
+                window.OzarkDashboard.loadTickets(true);
+              }
+            } catch (e) {}
           } else if (state.currentTab === 'user') {
             window.OzarkDashboard.loadUsers().catch(function () {});
           } else if (state.currentTab === 'config') {

@@ -368,6 +368,33 @@
                       Esta secção utiliza o sistema de logs de tickets existente. Os registos aparecem em "Análises de Tickets" e em "Registos do Servidor" na tab Hub de moderação.
                     </p>
                   </div>
+
+                  <div class="card" style="margin-top:12px;">
+                    <div class="users-layout">
+                      <div class="users-left">
+                        <div class="toolbar" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                          <div class="title" data-i18n="tickets_manage_title">Tickets ativos</div>
+                          <div style="display:flex; gap:6px; align-items:center;">
+                            <select id="ticketsStatusFilter" class="select" style="min-width:120px;">
+                              <option value="open" data-i18n="tickets_filter_open">Abertos</option>
+                              <option value="closed" data-i18n="tickets_filter_closed">Fechados</option>
+                              <option value="all" data-i18n="tickets_filter_all">Todos</option>
+                            </select>
+                            <button id="btnReloadTickets" class="btn xs" type="button" data-i18n="reload">Recarregar</button>
+                          </div>
+                        </div>
+                        <div class="list" id="ticketsList">
+                          <div class="empty" data-i18n="tickets_select_guild">Selecione um servidor para ver tickets.</div>
+                        </div>
+                      </div>
+
+                      <div class="users-right">
+                        <div id="ticketDetailPanel" class="mini-panel">
+                          <div class="empty" data-i18n="tickets_detail_empty">Selecione um ticket para ver detalhes.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="subtab-panel" id="extras-trust-panel">
@@ -646,6 +673,8 @@
   <script src="/js/dashboard.users.js" defer></script>
   <script src="/js/dashboard.moderation.js" defer></script>
   <script src="/js/dashboard.gamenews.js" defer></script>
+  <script src="/js/dashboard.tickets.js" defer></script>
+  <script src="/js/dashboard.tickets.js" defer></script>
 
 <!-- Moderation Action Modal -->
 <div id="modActionModal" class="modal hidden">
