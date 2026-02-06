@@ -15,6 +15,21 @@
   let _loading = false;
   let _detailTimeout = null;
 
+  function waitForI18nReady(maxMs) {
+    const deadline = Date.now() + (typeof maxMs === 'number' ? maxMs : 4000);
+    return new Promise((resolve) => {
+      (function tick() {
+        try {
+          const I = D && D.I18n;
+          const ok = I && I.translations && Object.keys(I.translations).length > 0;
+          if (ok) return resolve(true);
+        } catch (e) {}
+        if (Date.now() >= deadline) return resolve(false);
+        setTimeout(tick, 50);
+      })();
+    });
+  }
+
   function getGuildId() {
     return state.guildId ? String(state.guildId) : '';
   }
@@ -132,7 +147,7 @@
 
       <div class="history-section">
         <h3>${escapeHtml(t('tickets_detail_messages'))}</h3>
-        <div id="ticketsMessagesBox" class="ticket-messages" style="max-height:260px; overflow:auto; padding:8px; border:1px solid rgba(255,255,255,0.06); border-radius:12px;">
+        <div id="ticketsMessagesBox" class="ticket-messages">
           <div class="empty">${escapeHtml(t('loading'))}</div>
         </div>
       </div>
@@ -151,9 +166,9 @@
 
       <div class="history-section user-actions">
         <h3>${escapeHtml(t('tickets_detail_actions'))}</h3>
-        <div class="badge-row user-actions-buttons" style="align-items:stretch;">
-          <textarea id="ticketReplyContent" class="input" style="min-height:70px; resize:vertical; width:100%;" placeholder="${escapeHtml(t('tickets_reply_placeholder'))}"></textarea>
-          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;">
+        <div class="ticket-actions">
+          <textarea id="ticketReplyContent" class="input ticket-reply" placeholder="${escapeHtml(t('tickets_reply_placeholder'))}"></textarea>
+          <div class="ticket-actions-row">
             <button type="button" class="btn xs" id="btnTicketSendReply">${escapeHtml(t('tickets_action_reply'))}</button>
             ${canClose ? `<button type="button" class="btn xs" id="btnTicketClose">${escapeHtml(t('tickets_action_close'))}</button>` : ''}
             ${canReopen ? `<button type="button" class="btn xs" id="btnTicketReopen">${escapeHtml(t('tickets_action_reopen'))}</button>` : ''}
@@ -182,11 +197,11 @@
           const when = m.createdAt ? fmtDate(m.createdAt) : '';
           const content = (m.content || '').toString();
           return `
-            <div style="margin-bottom:10px;">
-              <div style="opacity:0.8; font-size:12px; margin-bottom:2px;">
+            <div class="ticket-msg">
+              <div class="ticket-msg-meta">
                 <strong>${escapeHtml(who)}</strong>${when ? ' • ' + escapeHtml(when) : ''}${m.isBot ? ' • bot' : ''}
               </div>
-              <div style="white-space:pre-wrap;">${escapeHtml(content) || '<span style="opacity:0.7">(sem texto)</span>'}</div>
+              <div class="ticket-msg-body">${escapeHtml(content) || '<span style="opacity:0.7">(sem texto)</span>'}</div>
             </div>
           `;
         }).join('');
@@ -278,6 +293,7 @@
     _loading = true;
 
     try {
+      await waitForI18nReady();
       const guildId = getGuildId();
       if (!guildId) {
         renderList([]);

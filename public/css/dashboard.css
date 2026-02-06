@@ -1906,3 +1906,60 @@ h2 {
 
 /* Utility */
 .hidden{display:none !important;}
+
+/* Tickets UI refinements */
+.details-summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+.details-summary::-webkit-details-marker { display: none; }
+.details-summary:before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 8px;
+  opacity: 0.8;
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+.details-summary:hover { opacity: 0.95; }
+
+details[open] > .details-summary:before {
+  transform: rotate(90deg);
+}
+
+.ticket-messages {
+  max-height: 300px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.02);
+}
+
+.ticket-messages .ticket-msg {
+  margin-bottom: 12px;
+}
+
+.ticket-messages .ticket-msg-meta {
+  opacity: 0.85;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.ticket-messages .ticket-msg-body {
+  white-space: pre-wrap;
+  line-height: 1.35;
+}
+
+.ticket-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ticket-actions .ticket-actions-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
