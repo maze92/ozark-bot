@@ -3,6 +3,7 @@
 
 const { EmbedBuilder, ChannelType } = require('discord.js');
 const TicketLog = require('../database/models/TicketLog');
+const Ticket = require('../database/models/Ticket');
 const { isStaff } = require('../utils/staff');
 const { fetchMember } = require('../services/discordFetchCache');
 
@@ -49,12 +50,27 @@ async function handleTicketOpen(reaction, user) {
     // Adicionar o utilizador que abriu o ticket
     await thread.members.add(user.id).catch(() => {});
 
-    // Registar log
-    await TicketLog.create({
+    // Persistir ticket (para dashboard e replies)
+    const ticketDoc = await Ticket.create({
       ticketNumber,
       guildId: guild.id,
+      channelId: thread.id,
       userId: user.id,
-      username: user.username || user.tag || user.id
+      username: user.username || user.tag || user.id,
+      status: 'open',
+      createdAt: new Date(),
+      lastMessageAt: new Date()
+    });
+
+    // Registar log (mantido por compatibilidade, agora com ligações)
+    await TicketLog.create({
+      ticketNumber,
+      ticketId: ticketDoc._id,
+      guildId: guild.id,
+      channelId: thread.id,
+      userId: user.id,
+      username: user.username || user.tag || user.id,
+      createdAt: new Date()
     });
 
     // Embed de boas-vindas dentro da thread
@@ -133,14 +149,50 @@ async function handleTicketClose(reaction, user) {
     const ticketNumberStr = channel.name.replace('ticket-', '');
     const ticketNumber = parseInt(ticketNumberStr, 10);
 
+    const closedAt = new Date();
+
     if (!Number.isNaN(ticketNumber)) {
       await TicketLog.findOneAndUpdate(
         { guildId: guild.id, ticketNumber },
         {
           $set: {
-            closedAt: new Date(),
+            closedAt,
             closedById: user.id,
             closedByUsername: user.username || user.tag || user.id
+          }
+        }
+      ).catch(() => {});
+
+      // Update persistent ticket
+      await Ticket.findOneAndUpdate(
+        { guildId: guild.id, ticketNumber },
+        {
+          $set: {
+            status: 'closed',
+            closedAt,
+            closedById: user.id,
+            closedByUsername: user.username || user.tag || user.id,
+            lastMessageAt: closedAt,
+            lastResponderId: user.id,
+            lastResponderName: user.username || user.tag || user.id,
+            lastResponderAt: closedAt
+          }
+        }
+      ).catch(() => {});
+    } else {
+      // Fallback: locate by channelId
+      await Ticket.findOneAndUpdate(
+        { guildId: guild.id, channelId: channel.id },
+        {
+          $set: {
+            status: 'closed',
+            closedAt,
+            closedById: user.id,
+            closedByUsername: user.username || user.tag || user.id,
+            lastMessageAt: closedAt,
+            lastResponderId: user.id,
+            lastResponderName: user.username || user.tag || user.id,
+            lastResponderAt: closedAt
           }
         }
       ).catch(() => {});

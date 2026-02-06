@@ -6,7 +6,13 @@ const ticketLogSchema = new Schema(
   {
     ticketNumber: { type: Number, required: true },
 
+    // Link to the persistent Ticket document (added in perf8)
+    ticketId: { type: Schema.Types.ObjectId, ref: 'Ticket', default: null },
+
     guildId: { type: String, required: true },
+
+    // Thread/channel id for the ticket (so dashboard can reply even with only TicketLog)
+    channelId: { type: String, default: null },
 
     userId: { type: String, required: true },
     username: { type: String, default: null },

@@ -34,6 +34,47 @@ const registerSlashCommands = require('./slash/register');
 const { startMaintenance } = require('./systems/maintenance');
 const startGameNews = require('./systems/gamenews');
 
+// Ensure critical MongoDB indexes (autoIndex is disabled in production).
+async function ensureMongoIndexes() {
+  try {
+    if (!mongoose || !mongoose.connection) return;
+    if (mongoose.connection.readyState !== 1) return;
+
+    // Require models lazily to avoid circular deps
+    const models = [];
+    const safeRequire = (p) => {
+      try { return require(p); } catch (e) { return null; }
+    };
+
+    const Ticket = safeRequire('./database/models/Ticket');
+    const TicketLog = safeRequire('./database/models/TicketLog');
+    const Infraction = safeRequire('./database/models/Infraction');
+    const DashboardLog = safeRequire('./database/models/DashboardLog');
+    const DashboardAudit = safeRequire('./database/models/DashboardAudit');
+    const User = safeRequire('./database/models/User');
+    const GameNewsFeed = safeRequire('./database/models/GameNewsFeed');
+    const GameNews = safeRequire('./database/models/GameNews');
+
+    [Ticket, TicketLog, Infraction, DashboardLog, DashboardAudit, User, GameNewsFeed, GameNews]
+      .filter(Boolean)
+      .forEach((m) => models.push(m));
+
+    for (const m of models) {
+      try {
+        if (typeof m.ensureIndexes === 'function') {
+          await m.ensureIndexes();
+        }
+      } catch (e) {
+        console.warn(`[Mongo] Failed to ensure indexes for ${m?.modelName || 'unknown'}:`, e?.message || e);
+      }
+    }
+
+    console.log('🧱 MongoDB indexes ensured.');
+  } catch (err) {
+    console.warn('[Mongo] ensureMongoIndexes error:', err?.message || err);
+  }
+}
+
 // -----------------------------
 // Mongo status wiring
 // -----------------------------
@@ -44,10 +85,13 @@ if (mongoose && mongoose.connection) {
   status.setMongoConnected(conn.readyState === 1);
   if (conn.readyState === 1) {
     status.setMongoConnected(true);
+    ensureMongoIndexes().catch(() => null);
   }
 
   conn.on('connected', () => {
     status.setMongoConnected(true);
+    // Best-effort index creation after connect
+    ensureMongoIndexes().catch(() => null);
   });
 
   conn.on('disconnected', () => {

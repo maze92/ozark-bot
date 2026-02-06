@@ -41,6 +41,7 @@ let UserModel = null;
 let GuildConfig = null;
 let DashboardAudit = null;
 let TicketLog = null;
+let Ticket = null;
 let Infraction = null;
 
 // In-memory cache para controlar fetch de membros por guild na dashboard
@@ -258,6 +259,12 @@ try {
   TicketLog = require('./database/models/TicketLog');
 } catch (e) {
   console.warn('[Dashboard] TicketLog model not loaded (did you create src/database/models/TicketLog.js?)');
+}
+
+try {
+  Ticket = require('./database/models/Ticket');
+} catch (e) {
+  console.warn('[Dashboard] Ticket model not loaded (did you create src/database/models/Ticket.js?)');
 }
 
 
@@ -1002,9 +1009,7 @@ registerTicketsRoutes({
   getActorFromRequest,
   recordAudit,
   _getClient: () => _client,
-  // There is no persistent Ticket model in this codebase (only TicketLog).
-  // Keep endpoint stubbed with a clear 503 response.
-  _getModels: () => ({ TicketModel: null })
+  _getModels: () => ({ TicketModel: Ticket })
 });
 
 app.get('/api/case', requireDashboardAuth, async (req, res) => {
