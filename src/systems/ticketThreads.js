@@ -12,6 +12,26 @@ const OPEN_EMOJI = '🎫';
 // Emoji para fechar tickets dentro da thread
 const CLOSE_EMOJI = '🔒';
 
+// In-memory debounce to avoid duplicated reaction events creating multiple threads.
+// Key: guildId:messageId:userId
+const _openDebounce = new Map();
+const OPEN_DEBOUNCE_MS = 5000;
+
+function debounceKey(message, user) {
+  const guildId = message && message.guild ? message.guild.id : 'noguild';
+  const mid = message ? message.id : 'nomsg';
+  const uid = user ? user.id : 'nouser';
+  return `${guildId}:${mid}:${uid}`;
+}
+
+function setDebounce(key) {
+  _openDebounce.set(key, Date.now());
+  setTimeout(() => {
+    const ts = _openDebounce.get(key);
+    if (ts && Date.now() - ts >= OPEN_DEBOUNCE_MS) _openDebounce.delete(key);
+  }, OPEN_DEBOUNCE_MS + 250).unref?.();
+}
+
 /**
  * Cria uma nova thread de ticket a partir da mensagem-base
  * quando alguém reage com o emoji de abertura.
@@ -30,12 +50,34 @@ async function handleTicketOpen(reaction, user) {
     const emojiName = reaction.emoji.name || reaction.emoji.id;
     if (!emojiName || emojiName !== OPEN_EMOJI) return;
 
+    // Debounce duplicated reaction events
+    const dKey = debounceKey(message, user);
+    const lastDebounce = _openDebounce.get(dKey);
+    if (lastDebounce && Date.now() - lastDebounce < OPEN_DEBOUNCE_MS) return;
+    setDebounce(dKey);
+
+    // If the user already has an open ticket in this guild, do not create another thread.
+    // This also prevents "ghost" threads if reaction events are duplicated.
+    const existing = await Ticket.findOne({ guildId: guild.id, userId: user.id, status: 'open' })
+      .lean()
+      .catch(() => null);
+    if (existing && existing.channelId) {
+      // Try to send a hint message to the existing thread.
+      try {
+        const ch = await guild.channels.fetch(existing.channelId).catch(() => null);
+        if (ch && ch.isThread && ch.isThread()) {
+          await ch.send(`ℹ️ ${user}, já tens um ticket aberto aqui.`).catch(() => {});
+        }
+      } catch (_) {}
+      return;
+    }
+
     // Buscar último ticket desta guild para incrementar numeração
-    const last = await TicketLog.findOne({ guildId: guild.id })
+    const lastLog = await TicketLog.findOne({ guildId: guild.id })
       .sort({ ticketNumber: -1 })
       .lean();
 
-    const ticketNumber = last ? last.ticketNumber + 1 : 1;
+    const ticketNumber = lastLog ? lastLog.ticketNumber + 1 : 1;
     const ticketName = `ticket-${String(ticketNumber).padStart(3, '0')}`;
 
     // Criar thread privada no canal (não ligada diretamente à mensagem base)
@@ -47,20 +89,33 @@ async function handleTicketOpen(reaction, user) {
       reason: `Ticket aberto por ${user.tag || user.id}`
     });
 
-    // Adicionar o utilizador que abriu o ticket
-    await thread.members.add(user.id).catch(() => {});
+    // Send welcome/control message FIRST, then add member.
+    // If Discord emits an "added X" system message, at least the thread isn't empty.
 
     // Persistir ticket (para dashboard e replies)
-    const ticketDoc = await Ticket.create({
-      ticketNumber,
-      guildId: guild.id,
-      channelId: thread.id,
-      userId: user.id,
-      username: user.username || user.tag || user.id,
-      status: 'open',
-      createdAt: new Date(),
-      lastMessageAt: new Date()
-    });
+    let ticketDoc = null;
+    try {
+      ticketDoc = await Ticket.create({
+        ticketNumber,
+        guildId: guild.id,
+        channelId: thread.id,
+        userId: user.id,
+        username: user.username || user.tag || user.id,
+        status: 'open',
+        createdAt: new Date(),
+        lastMessageAt: new Date()
+      });
+    } catch (e) {
+      // If another handler already created an open ticket for this user, avoid leaving an empty/ghost thread.
+      if (e && (e.code === 11000 || String(e.message || '').includes('E11000'))) {
+        try {
+          await thread.send(`ℹ️ ${user}, já existe um ticket aberto. Este tópico será arquivado.`).catch(() => {});
+          await thread.setArchived(true, 'Duplicate ticket prevented').catch(() => {});
+        } catch (_) {}
+        return;
+      }
+      throw e;
+    }
 
     // Registar log (mantido por compatibilidade, agora com ligações)
     await TicketLog.create({
@@ -104,6 +159,9 @@ async function handleTicketOpen(reaction, user) {
       .setTimestamp();
 
     const controlMessage = await thread.send({ embeds: [embed] });
+
+    // Add the user who opened the ticket
+    await thread.members.add(user.id).catch(() => {});
 
     // Adicionar reação de fecho
     await controlMessage.react(CLOSE_EMOJI).catch(() => {});
