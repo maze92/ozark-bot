@@ -418,7 +418,9 @@ const _rateBuckets = new Map();
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ✅ Global rate limit for all /api routes
-app.use('/api', rateLimit({ windowMs: 60_000, max: 100, keyPrefix: 'rl:api:' }));
+// Global API limiter: dashboard is behind auth; keep it high enough to avoid UX 429s
+// when multiple panels refresh and the operator clicks actions quickly.
+app.use('/api', rateLimit({ windowMs: 60_000, max: 300, keyPrefix: 'rl:api:' }));
 
 
 // ==============================

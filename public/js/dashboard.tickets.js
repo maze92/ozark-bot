@@ -131,6 +131,13 @@
       <div class="subtitle">#${escapeHtml(num)} • ${escapeHtml(subject)}</div>
 
       <div class="history-section">
+        <h3>${escapeHtml(t('tickets_detail_messages'))}</h3>
+        <div id="ticketsMessagesBox" class="ticket-messages" style="max-height:260px; overflow:auto; padding:8px; border:1px solid rgba(255,255,255,0.06); border-radius:12px;">
+          <div class="empty">${escapeHtml(t('loading'))}</div>
+        </div>
+      </div>
+
+      <div class="history-section">
         <h3>${escapeHtml(t('tickets_detail_info'))}</h3>
         <div class="row gap">
           <div class="badge">${escapeHtml(t('tickets_detail_user'))}: ${escapeHtml(username)}</div>
@@ -158,6 +165,36 @@
 
     const guildId = getGuildId();
     const ticketId = ticket._id;
+
+    // Load recent messages for context (so you can reply with history).
+    (async () => {
+      try {
+        const box = panel.querySelector('#ticketsMessagesBox');
+        if (!box) return;
+        const res = await apiGet(`/tickets/${encodeURIComponent(ticketId)}/messages?guildId=${encodeURIComponent(guildId)}&limit=25`);
+        const items = (res && Array.isArray(res.items)) ? res.items : [];
+        if (!items.length) {
+          box.innerHTML = `<div class="empty">${escapeHtml(t('tickets_messages_empty'))}</div>`;
+          return;
+        }
+        box.innerHTML = items.map((m) => {
+          const who = m.authorUsername || m.authorId || '';
+          const when = m.createdAt ? fmtDate(m.createdAt) : '';
+          const content = (m.content || '').toString();
+          return `
+            <div style="margin-bottom:10px;">
+              <div style="opacity:0.8; font-size:12px; margin-bottom:2px;">
+                <strong>${escapeHtml(who)}</strong>${when ? ' • ' + escapeHtml(when) : ''}${m.isBot ? ' • bot' : ''}
+              </div>
+              <div style="white-space:pre-wrap;">${escapeHtml(content) || '<span style="opacity:0.7">(sem texto)</span>'}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        const box = panel.querySelector('#ticketsMessagesBox');
+        if (box) box.innerHTML = `<div class="empty">${escapeHtml(t('tickets_messages_error'))}</div>`;
+      }
+    })();
 
     const btnSend = panel.querySelector('#btnTicketSendReply');
     if (btnSend) {

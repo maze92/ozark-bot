@@ -71,12 +71,89 @@ function registerTicketsRoutes(opts) {
   );
 
   // -----------------------------
+  // Ticket messages (for dashboard view)
+  // GET /api/tickets/:ticketId/messages?guildId=...&limit=...
+  // Returns the most recent messages from the ticket thread.
+  // -----------------------------
+  app.get(
+    '/api/tickets/:ticketId/messages',
+    requireDashboardAuth,
+    rateLimit({ windowMs: 60_000, max: 240, keyPrefix: 'rl:tickets:msgs:' }),
+    async (req, res) => {
+      try {
+        const { TicketModel } = _getModels ? _getModels() : {};
+        if (!TicketModel) return res.status(503).json({ ok: false, error: 'Ticket model not available' });
+
+        const ticketId = (req.params.ticketId || '').toString().trim();
+        if (!ticketId) return res.status(400).json({ ok: false, error: 'ticketId is required' });
+
+        const ticket = await TicketModel.findById(ticketId).lean();
+        if (!ticket) return res.status(404).json({ ok: false, error: 'Ticket not found' });
+
+        const guildId = (req.query.guildId || req.body?.guildId || ticket.guildId || '').toString().trim();
+        if (!guildId) return res.status(400).json({ ok: false, error: 'guildId is required' });
+
+        let limit = Number(req.query.limit || 25);
+        if (!Number.isFinite(limit) || limit <= 0) limit = 25;
+        limit = Math.max(1, Math.min(50, Math.floor(limit)));
+
+        const client = _getClient ? _getClient() : null;
+        if (!client) return res.status(503).json({ ok: false, error: 'Discord client not available' });
+
+        const guild = client.guilds.cache.get(guildId);
+        if (!guild) return res.status(404).json({ ok: false, error: 'Guild not found' });
+
+        const channelId = ticket.channelId;
+        if (!channelId) return res.status(400).json({ ok: false, error: 'Ticket channelId is missing' });
+
+        // Fetch the thread channel and its recent messages.
+        let ch = guild.channels.cache.get(channelId) || null;
+        if (!ch) {
+          try {
+            ch = await guild.channels.fetch(channelId);
+          } catch (e) {
+            ch = null;
+          }
+        }
+        if (!ch || !ch.messages || typeof ch.messages.fetch !== 'function') {
+          return res.status(404).json({ ok: false, error: 'Ticket thread not accessible' });
+        }
+
+        const msgs = await ch.messages.fetch({ limit });
+        const items = Array.from(msgs.values())
+          .sort((a, b) => a.createdTimestamp - b.createdTimestamp)
+          .map((m) => {
+            const authorUsername = m.author ? (m.author.username || '') : '';
+            const authorId = m.author ? m.author.id : '';
+            const raw = (m.content || '').toString();
+            const clean = sanitizeText ? sanitizeText(raw, { maxLen: 2000, stripHtml: true }) : raw.slice(0, 2000);
+            return {
+              id: m.id,
+              authorId,
+              authorUsername,
+              isBot: !!(m.author && m.author.bot),
+              createdAt: m.createdAt ? m.createdAt.toISOString() : null,
+              content: clean
+            };
+          });
+
+        return res.json({ ok: true, items });
+      } catch (err) {
+        console.error('[Dashboard] GET /api/tickets/:ticketId/messages error:', err);
+        return res.status(500).json({ ok: false, error: 'Internal Server Error' });
+      }
+    }
+  );
+
+  // -----------------------------
   // Close/reopen ticket
   // -----------------------------
   app.post(
     '/api/tickets/:ticketId/close',
     requireDashboardAuth,
-    rateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'rl:tickets:close:' }),
+    // Keep UX smooth: allow normal operator usage without tripping 429 on repeated clicks.
+    // Still protected by global /api limiter + per-IP keying.
+    rateLimit({ windowMs: 60_000, max: 120, keyPrefix: 'rl:tickets:close:' }),
     async (req, res) => {
       try {
         const { TicketModel } = _getModels ? _getModels() : {};
@@ -144,7 +221,7 @@ function registerTicketsRoutes(opts) {
   app.post(
     '/api/tickets/:ticketId/reopen',
     requireDashboardAuth,
-    rateLimit({ windowMs: 60_000, max: 30, keyPrefix: 'rl:tickets:reopen:' }),
+    rateLimit({ windowMs: 60_000, max: 120, keyPrefix: 'rl:tickets:reopen:' }),
     async (req, res) => {
       try {
         const { TicketModel } = _getModels ? _getModels() : {};
@@ -211,7 +288,7 @@ function registerTicketsRoutes(opts) {
   app.post(
     '/api/tickets/:ticketId/reply',
     requireDashboardAuth,
-    rateLimit({ windowMs: 60_000, max: 10, keyPrefix: 'rl:tickets:reply:' }),
+    rateLimit({ windowMs: 60_000, max: 240, keyPrefix: 'rl:tickets:reply:' }),
     async (req, res) => {
       try {
         const { TicketModel } = _getModels ? _getModels() : {};
