@@ -158,9 +158,8 @@ async function handleClientReady() {
   }
 }
 
-// Support both legacy 'ready' and the newer 'clientReady' events.
-// The startup guard ensures this only runs once, so it's safe to listen to both.
-client.once('ready', handleClientReady);
+// discord.js v15 renames the 'ready' event to 'clientReady'.
+// Listen only to 'clientReady' to avoid the deprecation warning on v14+ and remain forward-compatible.
 client.once('clientReady', handleClientReady);
 
 // Keep presence consistent on shard resume
