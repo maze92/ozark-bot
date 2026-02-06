@@ -106,10 +106,10 @@
                 </div>
               </div>
               <div class="chips" id="modServerInsightsRange">
-                  <button class="chip chip-active" data-range="24h">24h</button>
-                  <button class="chip" data-range="7d">7d</button>
-                  <button class="chip" data-range="30d">30d</button>
-                  <button class="chip" data-range="1y">1 ano</button>
+                  <button class="chip chip-active" data-range="24h" data-i18n="range_24h">24h</button>
+                  <button class="chip" data-range="7d" data-i18n="range_7d">7d</button>
+                  <button class="chip" data-range="30d" data-i18n="range_30d">30d</button>
+                  <button class="chip" data-range="1y" data-i18n="range_1y">1 ano</button>
               </div>
               <div id="modServerInsightsContent">
                 <div class="empty" data-i18n="logs_server_insights_empty">
@@ -128,10 +128,10 @@
                 </div>
               </div>
               <div class="chips" id="modTicketsRange">
-                  <button class="chip chip-active" data-range="24h">24h</button>
-                  <button class="chip" data-range="7d">7d</button>
-                  <button class="chip" data-range="30d">30d</button>
-                  <button class="chip" data-range="1y">1 ano</button>
+                  <button class="chip chip-active" data-range="24h" data-i18n="range_24h">24h</button>
+                  <button class="chip" data-range="7d" data-i18n="range_7d">7d</button>
+                  <button class="chip" data-range="30d" data-i18n="range_30d">30d</button>
+                  <button class="chip" data-range="1y" data-i18n="range_1y">1 ano</button>
               </div>
               <ul class="simple-list" id="modTicketsList">
                 <li class="empty" data-i18n="logs_tickets_panel_empty">
@@ -150,10 +150,10 @@
                 Vista rápida dos utilizadores mais presentes no servidor.
               </p>
               <div class="chips" id="modTopOnlineRange">
-                <button class="chip chip-active" data-range="24h">24h</button>
-                <button class="chip" data-range="7d">7d</button>
-                <button class="chip" data-range="30d">30d</button>
-                <button class="chip" data-range="1y">1 ano</button>
+                <button class="chip chip-active" data-range="24h" data-i18n="range_24h">24h</button>
+                <button class="chip" data-range="7d" data-i18n="range_7d">7d</button>
+                <button class="chip" data-range="30d" data-i18n="range_30d">30d</button>
+                <button class="chip" data-range="1y" data-i18n="range_1y">1 ano</button>
               </div>
               <ul class="simple-list" id="modTopOnlineList">
                 <li class="empty" data-i18n="logs_top_online_soon">
@@ -176,11 +176,11 @@
             >
             <select id="logType" class="select">
               <option value="" data-i18n="logs_filter_all">Todos os tipos</option>
-              <option value="warn">Warn</option>
-              <option value="mute">Mute</option>
-              <option value="unmute">Unmute</option>
-              <option value="kick">Kick</option>
-              <option value="ban">Ban</option>
+              <option value="warn" data-i18n="logs_filter_warn">Warn</option>
+              <option value="mute" data-i18n="logs_filter_mute">Mute</option>
+              <option value="unmute" data-i18n="logs_filter_unmute">Unmute</option>
+              <option value="kick" data-i18n="logs_filter_kick">Kick</option>
+              <option value="ban" data-i18n="logs_filter_ban">Ban</option>
               <option value="tickets" data-i18n="logs_filter_tickets">Tickets</option>
             </select>
             <select id="logLimit" class="select">
@@ -475,8 +475,8 @@
                     <label for="configServerLanguage" data-i18n="config_server_language_label">Idioma principal do servidor</label>
                     <select id="configServerLanguage" class="input">
                       <option value="auto" data-i18n="config_server_language_auto">Automático (seguir idioma do cliente)</option>
-                      <option value="pt">Português</option>
-                      <option value="en">English</option>
+                      <option value="pt" data-i18n="config_server_language_pt">Português</option>
+                      <option value="en" data-i18n="config_server_language_en">English</option>
                     </select>
                   </div>
 
@@ -559,13 +559,7 @@
 
   <div class="dashboard-users-toolbar">
     <div class="left">
-      <button type="button" class="b
-            <div class="config-actions-footer">
-              <button type="button" class="btn small" id="btnReloadGuildConfig" data-i18n="config_reload">Recarregar</button>
-              <button type="button" class="btn small primary" id="btnSaveGuildConfig" data-i18n="config_save">Guardar configuração</button>
-            </div>
-            <div id="configStatus" class="hint" style="margin-top:8px;"></div>
-tn small" id="btnDashboardUsersReload" data-i18n="config_dashboard_users_reload_button">Recarregar</button>
+      <button type="button" class="btn small" id="btnDashboardUsersReload" data-i18n="config_dashboard_users_reload_button">Recarregar</button>
       <button type="button" class="btn primary small" id="btnDashboardUsersAdd" data-i18n="config_dashboard_users_add_button">Adicionar</button>
     </div>
     <div class="right">
@@ -626,7 +620,14 @@ tn small" id="btnDashboardUsersReload" data-i18n="config_dashboard_users_reload_
 
           </div>
         </div>
-      </section>
+      
+
+            <div class="config-actions-footer">
+              <button type="button" class="btn small" id="btnReloadGuildConfig" data-i18n="config_reload">Recarregar</button>
+              <button type="button" class="btn small primary" id="btnSaveGuildConfig" data-i18n="config_save">Guardar configuração</button>
+            </div>
+            <div id="configStatus" class="hint" style="margin-top:8px;"></div>
+</section>
 
 </main>
   </div>

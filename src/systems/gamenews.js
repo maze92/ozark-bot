@@ -4,6 +4,7 @@ const Parser = require('rss-parser');
 const crypto = require('crypto');
 const { URL } = require('url');
 const { EmbedBuilder } = require('discord.js');
+const { fetchChannel } = require('../services/discordFetchCache');
 
 const GameNews = require('../database/models/GameNews');
 let GameNewsFeed = null;
@@ -229,7 +230,7 @@ function pushHashAndTrim(record, hash, keepN) {
   }
 }
 
-async function parseWithRetry(url, retryCfg) {
+async function parseWithRetry(url, retryCfg, record, timeoutMs = 15_000) {
   const attempts = Number(retryCfg?.attempts ?? 2);
   const baseDelayMs = Number(retryCfg?.baseDelayMs ?? 1200);
   const jitterMs = Number(retryCfg?.jitterMs ?? 800);
@@ -242,12 +243,40 @@ async function parseWithRetry(url, retryCfg) {
 
   for (let i = 1; i <= safeAttempts; i++) {
     try {
-      const res = await fetch(url, { headers: FEED_HEADERS, redirect: 'follow' });
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+
+      // Conditional GET support (ETag / Last-Modified) to avoid re-downloading feeds.
+      const headers = { ...FEED_HEADERS };
+      if (record?.etag) headers['If-None-Match'] = record.etag;
+      if (record?.lastModified) headers['If-Modified-Since'] = record.lastModified;
+
+      let res;
+      try {
+        res = await fetch(url, { headers, redirect: 'follow', signal: controller.signal });
+      } finally {
+        clearTimeout(t);
+      }
+
+      // 304 means nothing changed; caller can treat as "no new items".
+      if (res.status === 304) {
+        return null;
+      }
+
       if (!res.ok) {
         const err = new Error(`Status code ${res.status}`);
         err.statusCode = res.status;
         throw err;
       }
+
+      // Update cache hints if present.
+      const newEtag = res.headers.get('etag');
+      const newLastMod = res.headers.get('last-modified');
+      if (record) {
+        record.etag = newEtag || record.etag || null;
+        record.lastModified = newLastMod || record.lastModified || null;
+      }
+
       const xml = await res.text();
       return await parser.parseString(xml);
     } catch (err) {
@@ -295,7 +324,7 @@ async function sendOneNewsAndUpdate({ client, feed, channel, record, item, keepN
   // Cache-first channel resolution + permission check
   let ch = channel;
   if (!ch) {
-    ch = client.channels.cache.get(feed.channelId) || await client.channels.fetch(feed.channelId).catch(() => null);
+    ch = client.channels.cache.get(feed.channelId) || await fetchChannel(client, feed.channelId);
   }
   if (!ch || !ch.isTextBased?.() || !hasSendPerm(ch, client)) {
     await sendFeedLog(client, feed, '⚠️ GameNews: sem permissão para enviar mensagens no canal.').catch(() => null);
@@ -538,7 +567,7 @@ async function gameNewsSystem(client, config) {
           }
 
           try {
-            const parsed = await parseWithRetry(feed.feed, retryCfg);
+            const parsed = await parseWithRetry(feed.feed, retryCfg, record);
             let items = parsed?.items || [];
             if (!Array.isArray(items) || items.length === 0) {
               await registerFeedSuccess(record).catch(() => null);
@@ -578,7 +607,7 @@ async function gameNewsSystem(client, config) {
             }
 
             const newItems = recentNewItems;
-            const channel = await client.channels.fetch(feed.channelId).catch(() => null);
+            const channel = await fetchChannel(client, feed.channelId);
             if (!channel) {
               console.warn(`[GameNews] Channel not found: ${feed.channelId} (${feedName})`);
               await registerFeedSuccess(record).catch(() => null);
@@ -717,16 +746,22 @@ async function testSendGameNews({ client, config, guildId, feedId }) {
 
   const retryCfg = cfg.gameNews.retry || { attempts: 2, baseDelayMs: 1200, jitterMs: 800 };
 
-  // Fetch RSS feed once
-  const parsed = await parseWithRetry(feed.feed, retryCfg);
+  // Load / create GameNews record for this source (also holds HTTP cache hints)
+  const record = await getOrCreateFeedRecord(feed);
+
+  // Fetch RSS feed once (conditional GET may return null when 304 Not Modified)
+  const parsed = await parseWithRetry(feed.feed, retryCfg, record);
   const items = Array.isArray(parsed?.items) ? parsed.items.slice() : [];
+
+  if (!parsed) {
+    // Nothing changed; still persist any cache hint changes safely.
+    await registerFeedSuccess(record).catch(() => null);
+    return { ok: true, feedName: feed.name, title: null, link: null, note: 'Not modified (304)' };
+  }
 
   if (!items.length) {
     throw new Error('RSS feed returned no items');
   }
-
-  // Load / create GameNews record for this source
-  const record = await getOrCreateFeedRecord(feed);
 
   const newItems = getNewItemsByHashes(items, record.lastHashes);
   const candidates = newItems.length ? newItems : [items[0]];
@@ -745,7 +780,7 @@ async function testSendGameNews({ client, config, guildId, feedId }) {
 
   const channel =
     client.channels.cache.get(feed.channelId) ||
-    (await client.channels.fetch(feed.channelId).catch(() => null));
+    (await fetchChannel(client, feed.channelId));
 
   if (!channel || !channel.isTextBased?.()) {
     throw new Error('Configured channel not found or not text-based');
@@ -777,7 +812,7 @@ async function sendFeedLog(client, feed, message) {
     if (!feed?.logChannelId) return;
     const channel =
       client.channels.cache.get(feed.logChannelId) ||
-      (await client.channels.fetch(feed.logChannelId).catch(() => null));
+      (await fetchChannel(client, feed.logChannelId));
 
     if (!channel || !channel.isTextBased?.() || !hasSendPerm(channel, client)) return;
 

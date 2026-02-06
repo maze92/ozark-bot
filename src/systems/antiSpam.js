@@ -11,6 +11,7 @@ const infractionsService = require('./infractionsService');
 const logger = require('./logger');
 const warningsService = require('./warningsService');
 const { t } = require('./i18n');
+const { fetchMember } = require('../services/discordFetchCache');
 const {
   getTrustConfig,
   getEffectiveMaxMessages,
@@ -105,6 +106,7 @@ function levenshtein(a, b) {
 function similarity(a, b) {
   if (!a && !b) return 1;
   if (!a || !b) return 0;
+  if (a === b) return 1;
   const dist = levenshtein(a, b);
   const maxLen = Math.max(a.length, b.length) || 1;
   return 1 - dist / maxLen;
@@ -130,7 +132,7 @@ async function antiSpam(message, client) {
     const guild = message.guild;
 
     // Resolver membro
-    const member = message.member || (await guild.members.fetch(message.author.id).catch(() => null));
+    const member = message.member || (await fetchMember(guild, message.author.id));
     if (!member) return;
 
     // Bypass admins / bypass roles
@@ -201,19 +203,37 @@ async function antiSpam(message, client) {
       return;
     }
 
-    // Contar quantas mensagens semelhantes existem na janela
+    // Contar quantas mensagens semelhantes existem na janela.
+    // Otimizações:
+    //  - Comparar apenas as últimas N mensagens (reduz CPU sob carga)
+    //  - Atalho para igualdade exata (evita Levenshtein)
+    //  - Early-break quando já atingimos o threshold base
+    const COMPARE_LAST_N = 8;
     let similarCount = 1; // esta mensagem
-    for (let i = 0; i < state.entries.length - 1; i++) {
+    const startIdx = Math.max(0, state.entries.length - 1 - COMPARE_LAST_N);
+    for (let i = startIdx; i < state.entries.length - 1; i++) {
       const e = state.entries[i];
       if (!e.norm) continue;
-      const sim = similarity(norm, e.norm);
-      if (!isFinite(sim) || Number.isNaN(sim)) continue;
-      if (sim >= similarityThreshold) {
+      if (e.norm === norm) {
         similarCount++;
+      } else {
+        const sim = similarity(norm, e.norm);
+        if (!isFinite(sim) || Number.isNaN(sim)) continue;
+        if (sim >= similarityThreshold) {
+          similarCount++;
+        }
       }
+      if (similarCount >= maxMessages) break;
     }
 
-    // Trust integration para thresholds / duração
+    // Fast-path: se ainda não atingiu o threshold base, não precisamos de ir à BD.
+    // Isto reduz drasticamente I/O em servidores com muito tráfego.
+    if (similarCount < maxMessages) {
+      messageMap.set(key, state);
+      return;
+    }
+
+    // Trust integration (apenas quando o utilizador já está perto de ação punitiva)
     const trustCfg = getTrustConfig();
     let trustValue = typeof trustCfg.base === 'number' ? trustCfg.base : 0;
     try {

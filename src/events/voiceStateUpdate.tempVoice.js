@@ -10,6 +10,7 @@
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const GuildConfig = require('../database/models/GuildConfig');
 const TempVoiceChannel = require('../database/models/TempVoiceChannel');
+const { fetchMember } = require('../services/discordFetchCache');
 
 const pendingDeletes = new Map(); // key: channelId, value: timeoutId
 const creationLocks = new Set(); // userIds currently creating a temp voice channel
@@ -23,17 +24,14 @@ function normalizeDelaySeconds(raw) {
 
 async function handleJoin(client, newState, cfg) {
   const guild = newState.guild;
-    if (!guild) return;
+  if (!guild) return;
 
-    const userId = newState.id;
-    if (creationLocks.has(userId)) return;
-    creationLocks.add(userId);
+  const userId = newState.id;
+  if (creationLocks.has(userId)) return;
+  creationLocks.add(userId);
 
-    try {
-  const guild = newState.guild;
-    if (!guild) return;
-
-    const user = await guild.members.fetch(newState.id).catch(() => null);
+  try {
+    const user = await fetchMember(guild, newState.id);
     if (!user || user.user.bot) return;
 
     const baseId = newState.channelId;

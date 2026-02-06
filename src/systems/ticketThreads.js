@@ -4,6 +4,7 @@
 const { EmbedBuilder, ChannelType } = require('discord.js');
 const TicketLog = require('../database/models/TicketLog');
 const { isStaff } = require('../utils/staff');
+const { fetchMember } = require('../services/discordFetchCache');
 
 // Emoji a usar para abrir tickets
 const OPEN_EMOJI = '🎫';
@@ -116,7 +117,7 @@ async function handleTicketClose(reaction, user) {
     if (!emojiName || emojiName !== CLOSE_EMOJI) return;
 
     // Verificar permissões
-    const member = await guild.members.fetch(user.id).catch(() => null);
+    const member = await fetchMember(guild, user.id);
     if (!member) return;
 
     const canClose = await isStaff(member).catch(() => false);

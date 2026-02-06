@@ -7,6 +7,7 @@ const { getTrustConfig, getEffectiveMuteDuration } = require('../utils/trust');
 const infractionsService = require('./infractionsService');
 const warningsService = require('./warningsService');
 const logger = require('./logger');
+const { fetchMember } = require('../services/discordFetchCache');
 const { t } = require('./i18n');
 
 /**
@@ -72,7 +73,7 @@ async function handleInfractionAutomation(opts) {
 
     const durationMs = getEffectiveMuteDuration(baseDurationMs, trustCfg, trustValue);
 
-    const member = await guild.members.fetch(user.id).catch(() => null);
+    const member = await fetchMember(guild, user.id);
     if (!member) return;
 
     // Se já estiver em timeout, não fazemos nada

@@ -9,6 +9,10 @@ const { ChannelType } = require('discord.js');
 const helmet = require('helmet');
 const cors = require('cors');
 const { z } = require('zod');
+const { fetchChannel } = require('./services/discordFetchCache');
+
+const { registerAuthRoutes } = require('./dashboard/routes/auth');
+const { registerGameNewsRoutes } = require('./dashboard/routes/gamenews');
 
 const status = require('./systems/status');
 const config = require('./config/defaultConfig');
@@ -1623,228 +1627,21 @@ app.post('/api/guilds/:guildId/config', requireDashboardAuth, rateLimit({ window
 
 
 
-// ------------------------------
-// Dashboard Auth API (JWT + roles)
-// ------------------------------
 
-app.post('/api/auth/login', express.json(), async (req, res) => {
-  try {
-    const { username, password } = req.body || {};
-    const safeUsername = sanitizeText(username, { maxLen: 64, stripHtml: true });
-    const safePassword = typeof password === 'string' ? password : '';
-    console.log('[Dashboard Auth] Login attempt', safeUsername);
 
-    if (!safeUsername || !safePassword) {
-      return res.status(400).json({ ok: false, error: 'Invalid credentials' });
-    }
-    if (!username || !password) {
-      return res.status(400).json({ ok: false, error: 'MISSING_CREDENTIALS' });
-    }
-
-    const envUser = process.env.DASHBOARD_ADMIN_USER;
-    const envPass = process.env.DASHBOARD_ADMIN_PASS;
-
-    let user = await DashboardUserModel.findOne({ username }).lean();
-
-    // Se não existir user mas as credenciais batem certo com as envs, cria/admin padrão em runtime.
-    if (!user && envUser && envPass && username === envUser && password === envPass) {
-      const passwordHash = await bcrypt.hash(password, 10);
-      const created = await DashboardUserModel.create({
-        username,
-        passwordHash,
-        role: 'ADMIN',
-        permissions: {
-          canViewLogs: true,
-          canActOnCases: true,
-          canManageTickets: true,
-          canManageGameNews: true,
-          canViewConfig: true,
-          canEditConfig: true,
-          canManageUsers: true
-        }
-      });
-      user = created.toObject();
-      console.log('[Dashboard Auth] Created admin from env on login', username);
-    }
-
-    if (!user) {
-      return res.status(401).json({ ok: false, error: 'INVALID_LOGIN' });
-    }
-
-    let match = false;
-    try {
-      match = await bcrypt.compare(password, user.passwordHash || '');
-    } catch {
-      match = false;
-    }
-
-    // Se o hash não coincidir mas as envs batem, atualiza o hash e permite login.
-    if (!match && envUser && envPass && username === envUser && password === envPass) {
-      const passwordHash = await bcrypt.hash(password, 10);
-      await DashboardUserModel.updateOne({ _id: user._id }, { $set: { passwordHash } }).exec();
-      match = true;
-      console.log('[Dashboard Auth] Updated admin hash from env on login', username);
-    }
-
-    if (!match) {
-      return res.status(401).json({ ok: false, error: 'INVALID_LOGIN' });
-    }
-
-    const payload = {
-      id: user._id.toString(),
-      role: user.role,
-      permissions: user.permissions || {},
-      username: user.username
-    };
-
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
-
-    return res.json({
-      ok: true,
-      token
-    });
-  } catch (err) {
-    console.error('[Dashboard Auth] login error', err);
-    return res.status(500).json({ ok: false, error: 'SERVER_ERROR' });
-  }
+// Dashboard routes (modular)
+registerAuthRoutes({
+  app,
+  express,
+  requireDashboardAuth,
+  DashboardUserModel,
+  bcrypt,
+  jwt,
+  JWT_SECRET,
+  sanitizeText,
+  rateLimit,
+  ADMIN_PERMISSIONS
 });
-
-app.get('/api/auth/me', requireDashboardAuth, async (req, res) => {
-  const u = req.dashboardUser;
-  if (!u) {
-    return res.status(401).json({ ok: false, error: 'NO_USER' });
-  }
-
-  return res.json({
-    ok: true,
-    user: {
-      id: u._id || null,
-      username: u.username || 'env-token',
-      role: u.role || 'ADMIN',
-      permissions: u.permissions || {}
-    }
-  });
-});
-
-// Create / list users (ADMIN / canManageUsers only).
-app.get('/api/auth/users', requireDashboardAuth, async (req, res) => {
-  const u = req.dashboardUser;
-  const perms = (u && u.permissions) || {};
-  const isAdmin = u && u.role === 'ADMIN';
-  if (!isAdmin && !perms.canManageUsers) {
-    return res.status(403).json({ ok: false, error: 'NO_PERMISSION' });
-  }
-
-  const users = await DashboardUserModel.find({})
-    .select('-passwordHash')
-    .sort({ username: 1 })
-    .lean();
-
-  return res.json({ ok: true, users });
-});
-
-app.post('/api/auth/users', requireDashboardAuth, express.json(), async (req, res) => {
-  const u = req.dashboardUser;
-  const perms = (u && u.permissions) || {};
-  const isAdmin = u && u.role === 'ADMIN';
-  if (!isAdmin && !perms.canManageUsers) {
-    return res.status(403).json({ ok: false, error: 'NO_PERMISSION' });
-  }
-
-  try {
-    const { username, password, role, permissions } = req.body || {};
-    if (!username || !password) {
-      return res.status(400).json({ ok: false, error: 'MISSING_FIELDS' });
-    }
-
-    const existing = await DashboardUserModel.findOne({ username }).lean();
-    if (existing) {
-      return res.status(409).json({ ok: false, error: 'USERNAME_EXISTS' });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-    const user = await DashboardUserModel.create({
-      username,
-      passwordHash,
-      role: role === 'ADMIN' ? 'ADMIN' : 'MOD',
-      permissions: permissions || {}
-    });
-
-    return res.json({
-      ok: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        role: user.role,
-        permissions: user.permissions
-      }
-    });
-  } catch (err) {
-    console.error('[Dashboard Auth] create user error', err);
-    return res.status(500).json({ ok: false, error: 'SERVER_ERROR' });
-  }
-});
-
-app.patch('/api/auth/users/:id', requireDashboardAuth, express.json(), async (req, res) => {
-  const u = req.dashboardUser;
-  const perms = (u && u.permissions) || {};
-  const isAdmin = u && u.role === 'ADMIN';
-  if (!isAdmin && !perms.canManageUsers) {
-    return res.status(403).json({ ok: false, error: 'NO_PERMISSION' });
-  }
-
-  try {
-    const userId = req.params.id;
-    const { role, permissions } = req.body || {};
-
-    const update = {};
-    if (role && (role === 'ADMIN' || role === 'MOD')) {
-      update.role = role;
-    }
-    if (permissions && typeof permissions === 'object') {
-      update.permissions = permissions;
-    }
-
-    const updated = await DashboardUserModel.findByIdAndUpdate(
-      userId,
-      { $set: update },
-      { new: true }
-    ).select('-passwordHash');
-
-    if (!updated) {
-      return res.status(404).json({ ok: false, error: 'NOT_FOUND' });
-    }
-
-    return res.json({ ok: true, user: updated });
-  } catch (err) {
-    console.error('[Dashboard Auth] update user error', err);
-    return res.status(500).json({ ok: false, error: 'SERVER_ERROR' });
-  }
-});
-
-app.delete('/api/auth/users/:id', requireDashboardAuth, async (req, res) => {
-  const u = req.dashboardUser;
-  const perms = (u && u.permissions) || {};
-  const isAdmin = u && u.role === 'ADMIN';
-  if (!isAdmin && !perms.canManageUsers) {
-    return res.status(403).json({ ok: false, error: 'NO_PERMISSION' });
-  }
-
-  try {
-    const userId = req.params.id;
-    const existing = await DashboardUserModel.findById(userId).lean();
-    if (!existing) {
-      return res.status(404).json({ ok: false, error: 'NOT_FOUND' });
-    }
-
-    await DashboardUserModel.deleteOne({ _id: userId });
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error('[Dashboard Auth] delete user error', err);
-    return res.status(500).json({ ok: false, error: 'SERVER_ERROR' });
-  }
-});
-
 
 app.get('/api/logs', requireDashboardAuth, async (req, res) => {
   const parsed = LogsQuerySchema.safeParse(req.query || {});
@@ -2243,281 +2040,23 @@ app.get('/api/case', requireDashboardAuth, async (req, res) => {
   }
 });
 
-app.get('/api/gamenews-status', requireDashboardAuth, async (req, res) => {
-  try {
-    const guildId = sanitizeId(req.query.guildId || '');
-
-    if (!GameNewsModel) {
-      return res.json({
-        ok: true,
-        source: 'memory',
-        items: Array.isArray(gameNewsStatusCache) ? gameNewsStatusCache : []
-      });
-    }
-
-    // Prefer DB-managed feeds if available; fallback to static config
-    let feeds = [];
-    if (GameNewsFeed) {
-      try {
-        const q = guildId ? { guildId } : {};
-        const docs = await GameNewsFeed.find(q).lean();
-        feeds = docs.map((d) => ({
-          guildId: d.guildId || null,
-          name: d.name || 'Feed',
-          feedUrl: d.feedUrl,
-          channelId: d.channelId,
-          logChannelId: d.logChannelId || null,
-          enabled: d.enabled !== false,
-          intervalMs: typeof d.intervalMs === 'number' ? d.intervalMs : null
-        }));
-      } catch (e) {
-        console.error('[Dashboard] /api/gamenews-status: failed loading GameNewsFeed:', e?.message || e);
-      }
-    }
-
-    if (!feeds.length && Array.isArray(config?.gameNews?.sources)) {
-      feeds = config.gameNews.sources.map((s) => ({
-        guildId: null,
-        name: s.name,
-        feedUrl: s.feed,
-        channelId: s.channelId,
-        logChannelId: null,
-        enabled: true,
-        intervalMs: null
-      }));
-    }
-
-    const names = feeds.map((s) => s?.name).filter(Boolean);
-    const docs = names.length ? await GameNewsModel.find({ source: { $in: names } }).lean() : [];
-
-    const map = new Map();
-    for (const d of docs) map.set(d.source, d);
-
-    const items = feeds.map((s) => {
-      const d = map.get(s.name);
-      return {
-        guildId: s.guildId || null,
-        source: s.name,
-        feedName: s.name,
-        feedUrl: (s.feedUrl || s.feed),
-        channelId: s.channelId,
-        logChannelId: s.logChannelId || null,
-        enabled: s.enabled !== false,
-        intervalMs: typeof s.intervalMs === 'number' ? s.intervalMs : null,
-
-        failCount: d?.failCount ?? 0,
-        pausedUntil: d?.pausedUntil ?? null,
-        lastSentAt: d?.lastSentAt ?? null,
-        lastHashesCount: Array.isArray(d?.lastHashes) ? d.lastHashes.length : 0,
-
-        updatedAt: d?.updatedAt ?? null
-      };
-    });
-
-    return res.json({
-      ok: true,
-      source: GameNewsFeed ? (guildId ? 'mongo+feeds:guild' : 'mongo+feeds') : 'mongo+static',
-      items
-    });
-  } catch (err) {
-    console.error('[Dashboard] /api/gamenews-status error:', err);
-    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
-  }
-});
 
 
-// GameNews feeds configuration (for dashboard editor)
-app.get('/api/gamenews/feeds', requireDashboardAuth, async (req, res) => {
-  try {
-    const guildId = sanitizeId(req.query.guildId || '');
-
-    // If there is no GameNewsFeed model at all, fall back to static config feeds (read-only).
-    if (!GameNewsFeed) {
-      const items = Array.isArray(config?.gameNews?.sources)
-        ? config.gameNews.sources.map((s, idx) => ({
-            id: String(idx),
-            guildId: null,
-            name: s.name,
-            feedUrl: s.feed,
-            channelId: s.channelId,
-            logChannelId: null,
-            enabled: true,
-            intervalMs: null
-          }))
-        : [];
-      return res.json({ ok: true, items, source: 'static' });
-    }
-
-    // Load feeds for a guild when specified, else all.
-    const q = guildId ? { guildId } : {};
-    const docs = await GameNewsFeed.find(q).sort({ createdAt: 1 }).lean();
-
-    const items = docs.map((d) => ({
-      id: d._id.toString(),
-      guildId: d.guildId || null,
-      name: d.name || 'Feed',
-      feedUrl: (d.feedUrl || d.feed),
-      channelId: d.channelId,
-      logChannelId: d.logChannelId || null,
-      enabled: d.enabled !== false,
-      intervalMs: typeof d.intervalMs === 'number' ? d.intervalMs : null
-    }));
-
-    return res.json({ ok: true, items, source: 'mongo' });
-  } catch (err) {
-    console.error('[Dashboard] /api/gamenews/feeds GET error:', err);
-    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
-  }
-});
-
-
-app.post('/api/gamenews/feeds', requireDashboardAuth, async (req, res) => {
-  try {
-    if (!GameNewsFeed) {
-      return res.status(503).json({ ok: false, error: 'GameNewsFeed model not available on this deployment.' });
-    }
-
-    const guildId = sanitizeId(req.body?.guildId || req.query.guildId || '');
-    if (!guildId) {
-      return res.status(400).json({ ok: false, error: 'guildId is required' });
-    }
-
-    const feeds = Array.isArray(req.body?.feeds) ? req.body.feeds : [];
-    const sanitized = [];
-
-    for (const f of feeds) {
-      if (!f) continue;
-
-      const candidate = {
-        name: typeof f.name === 'string' && f.name.trim() ? f.name : 'Feed',
-        // canonical field is feedUrl; fall back to legacy "feed"
-        feedUrl: typeof f.feedUrl === 'string' && f.feedUrl.trim() ? f.feedUrl : (f.feed || ''),
-        feed: typeof f.feed === 'string' && f.feed.trim() ? f.feed : undefined,
-        channelId: f.channelId ?? null,
-        logChannelId: f.logChannelId ?? null,
-        enabled: f.enabled !== false,
-        intervalMs: typeof f.intervalMs === 'number' ? f.intervalMs : null,
-        language: typeof f.language === 'string' ? f.language : undefined
-      };
-
-      const parsedResult = GameNewsFeedSchema.safeParse(candidate);
-      if (!parsedResult.success) {
-        continue;
-      }
-
-      const parsed = parsedResult.data;
-
-      const name = sanitizeText(parsed.name || 'Feed', { maxLen: 64, stripHtml: true }) || 'Feed';
-      const feedUrl = sanitizeText(parsed.feedUrl, { maxLen: 512, stripHtml: true });
-      const channelId = sanitizeId(parsed.channelId);
-      const logChannelId = sanitizeId(parsed.logChannelId) || null;
-      const enabled = parsed.enabled !== false;
-
-      const intervalRaw = Number(parsed.intervalMs ?? 0);
-      const intervalMs = Number.isFinite(intervalRaw) && intervalRaw > 0 ? intervalRaw : null;
-
-      if (!feedUrl || !channelId) continue;
-
-      sanitized.push({
-        guildId,
-        name,
-        feedUrl,
-        feed: feedUrl,
-        channelId,
-        logChannelId,
-        enabled,
-        intervalMs
-      });
-    }
-
-    await GameNewsFeed.deleteMany({ guildId });
-    if (sanitized.length) {
-      await GameNewsFeed.insertMany(sanitized);
-    }
-
-    const docs = await GameNewsFeed.find({ guildId }).sort({ createdAt: 1 }).lean();
-    const items = docs.map((d) => ({
-      id: d._id.toString(),
-      guildId: d.guildId || null,
-      name: d.name || 'Feed',
-      feedUrl: d.feedUrl || d.feed,
-      channelId: d.channelId,
-      logChannelId: d.logChannelId || null,
-      enabled: d.enabled !== false,
-      intervalMs: typeof d.intervalMs === 'number' ? d.intervalMs : null
-    }));
-
-    await recordAudit({
-      req,
-      action: 'gamenews.feeds.save',
-      guildId,
-      targetUserId: null,
-      actor: getActorFromRequest(req),
-      payload: { count: items.length }
-    });
-
-    return res.json({ ok: true, items });
-  } catch (err) {
-    console.error('[Dashboard] /api/gamenews/feeds POST error:', err);
-    return res.status(500).json({ ok: false, error: 'Internal Server Error' });
-  }
-});
-
-// Manual GameNews test: send one recent news item for a specific feed.
-app.post('/api/gamenews/test', requireDashboardAuth, async (req, res) => {
-  try {
-    if (!_client) {
-      return res.status(503).json({ ok: false, error: 'Bot client not ready' });
-    }
-
-    const guildId = sanitizeId(req.body?.guildId || req.query.guildId || '');
-    const rawFeedId = (req.body?.feedId || req.params?.feedId || '').toString().trim();
-    const feedId = rawFeedId.slice(0, 64); // allow hex ObjectId
-
-    if (!guildId) {
-      return res.status(400).json({ ok: false, error: 'guildId is required' });
-    }
-    if (!feedId) {
-      return res.status(400).json({ ok: false, error: 'feedId is required' });
-    }
-
-    if (!gameNewsSystem || typeof gameNewsSystem.testSendGameNews !== 'function') {
-      return res.status(503).json({ ok: false, error: 'GameNews test not available on this deployment' });
-    }
-
-    const mergedCfg = configManager.getPublicConfig
-      ? configManager.getPublicConfig()
-      : config;
-
-    const result = await gameNewsSystem.testSendGameNews({
-      client: _client,
-      config: mergedCfg,
-      guildId,
-      feedId
-    });
-
-    await recordAudit({
-      req,
-      action: 'gamenews.feed.test',
-      guildId,
-      targetUserId: null,
-      actor: getActorFromRequest(req),
-      payload: { feedId, feedName: result?.feedName || null }
-    });
-
-    return res.json({
-      ok: true,
-      result: {
-        feedName: result.feedName,
-        title: result.title,
-        link: result.link
-      }
-    });
-  } catch (err) {
-    console.error('[Dashboard] /api/gamenews/test error:', err);
-    const message = err && err.message ? String(err.message) : 'Internal Server Error';
-    return res.status(500).json({ ok: false, error: message });
-  }
+registerGameNewsRoutes({
+  app,
+  requireDashboardAuth,
+  config,
+  configManager,
+  gameNewsSystem,
+  sanitizeId,
+  sanitizeText,
+  recordAudit,
+  getActorFromRequest,
+  GameNewsModel,
+  GameNewsFeed,
+  GameNewsFeedSchema,
+  getClient: () => _client,
+  gameNewsStatusCache
 });
 
 io.use(async (socket, next) => {
@@ -2800,7 +2339,7 @@ app.post('/api/admin/selftest', requireDashboardAuth, express.json(), async (req
       return res.status(404).json({ ok: false, error: 'GUILD_NOT_FOUND' });
     }
 
-    const channel = await guild.channels.fetch(channelId).catch(() => null);
+    const channel = await fetchChannel(_client, channelId);
     if (!channel || !channel.isTextBased?.()) {
       return res.status(400).json({ ok: false, error: 'CHANNEL_NOT_TEXT' });
     }

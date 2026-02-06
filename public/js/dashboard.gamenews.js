@@ -392,10 +392,14 @@ function renderGameNewsFeedDetail(feed) {
         const action = btn.getAttribute('data-action');
         if (action === 'save') {
           syncFromInputs();
-          saveGameNewsFeeds().catch(function () {});
+          saveGameNewsFeeds().catch(function (e) {
+            toast((e && e.apiMessage) || t('gamenews_error_generic'));
+          });
         } else if (action === 'toggle-enabled') {
           target.enabled = !target.enabled;
-          saveGameNewsFeeds().catch(function () {});
+          saveGameNewsFeeds().catch(function (e) {
+            toast((e && e.apiMessage) || t('gamenews_error_generic'));
+          });
         } else if (action === 'test') {
           // Manual test: ask backend to send one recent news item for this feed
           const guildParam = getGuildParam();
@@ -420,10 +424,22 @@ function renderGameNewsFeedDetail(feed) {
               toast(t('gamenews_test_error') || 'Falha ao testar o feed.');
             });
         } else if (action === 'remove') {
-          // Remove do state e volta a carregar lista + detalhe
+          // Remove do state, ajusta seleção e persiste na BD
           state.gameNewsFeeds.splice(idx, 1);
-          renderGameNewsFeedsList(state.gameNewsFeeds);
-          detailEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_detail_empty'))}</div>`;
+
+          if (!state.gameNewsFeeds.length) {
+            state.activeGameNewsFeedIndex = null;
+            renderGameNewsFeedsList(state.gameNewsFeeds);
+            detailEl.innerHTML = `<div class="empty">${escapeHtml(t('gamenews_detail_empty'))}</div>`;
+          } else {
+            const nextIndex = Math.max(0, Math.min(idx, state.gameNewsFeeds.length - 1));
+            renderGameNewsFeedsList(state.gameNewsFeeds);
+            selectGameNewsFeedByIndex(nextIndex);
+          }
+
+          saveGameNewsFeeds().catch(function (e) {
+            toast((e && e.apiMessage) || t('gamenews_error_generic'));
+          });
         }
       });
     });
@@ -590,6 +606,7 @@ function renderGameNewsFeedDetail(feed) {
           intervalMs: null
         });
         renderGameNewsFeedsList(state.gameNewsFeeds);
+        selectGameNewsFeedByIndex(state.gameNewsFeeds.length - 1);
       });
     }
   });

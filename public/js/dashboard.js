@@ -102,9 +102,10 @@ const API_BASE = '/api';
     if (status === 401) {
       clearToken();
       try {
-        showLogin();
+        // Sessão expirada ou token inválido: recarrega para voltar ao ecrã de login.
+        window.location.reload();
       } catch (e) {
-        console.error('Failed to show login after 401', e);
+        console.error('Failed to reload after 401', e);
       }
     }
   }

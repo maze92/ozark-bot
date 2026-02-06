@@ -14,6 +14,39 @@ const {
 } = require('../utils/trust');
 const { incrementAutoModActions } = require('./status');
 
+// Precompile banned-word regexes once at startup.
+// Creating RegExp objects per message is expensive and scales poorly.
+function buildBannedWordMatchers(cfg) {
+  const words = [
+    ...((cfg.bannedWords && cfg.bannedWords.pt) || []),
+    ...((cfg.bannedWords && cfg.bannedWords.en) || [])
+  ].filter(Boolean);
+
+  const out = [];
+  for (const w of words) {
+    const raw = String(w).trim();
+    if (!raw) continue;
+
+    // Allow common leetspeak substitutions.
+    const pattern = raw
+      .replace(/a/gi, '[a4@]')
+      .replace(/e/gi, '[e3]')
+      .replace(/i/gi, '[i1!]')
+      .replace(/o/gi, '[o0]')
+      .replace(/u/gi, '[uü]')
+      .replace(/s/gi, '[s5$]');
+
+    try {
+      out.push({ word: raw, re: new RegExp(`\\b${pattern}\\b`, 'i') });
+    } catch {
+      // ignore invalid regex patterns
+    }
+  }
+  return out;
+}
+
+const BANNED_MATCHERS = buildBannedWordMatchers(config);
+
 // DM helper is shared in src/utils/dm.js
 
 function minutesFromMs(ms) {
@@ -59,11 +92,6 @@ module.exports = async function autoModeration(message, client) {
       return;
     }
 
-    const bannedWords = [
-      ...(config.bannedWords?.pt || []),
-      ...(config.bannedWords?.en || [])
-    ];
-
     const baseMaxWarnings = config.maxWarnings ?? 3;
     const baseMuteDuration = config.muteDuration ?? (10 * 60 * 1000);
 
@@ -75,17 +103,14 @@ module.exports = async function autoModeration(message, client) {
       .replace(/[^\w\s]/g, '')
       .toLowerCase();
 
-    const foundWord = bannedWords.find(word => {
-      const pattern = String(word)
-        .replace(/a/gi, '[a4@]')
-        .replace(/e/gi, '[e3]')
-        .replace(/i/gi, '[i1!]')
-        .replace(/o/gi, '[o0]')
-        .replace(/u/gi, '[uü]')
-        .replace(/s/gi, '[s5$]');
-
-      return new RegExp(`\\b${pattern}\\b`, 'i').test(cleanContent);
-    });
+    let foundWord = null;
+    for (const m of BANNED_MATCHERS) {
+      if (!m?.re) continue;
+      if (m.re.test(cleanContent)) {
+        foundWord = m.word;
+        break;
+      }
+    }
 
     if (!foundWord) return;
 

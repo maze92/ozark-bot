@@ -3,6 +3,7 @@ const infractionsService = require('../systems/infractionsService');
 const logger = require('../systems/logger');
 const { handleInfractionAutomation } = require('../systems/automation');
 const { getTrustConfig } = require('../utils/trust');
+const { fetchMember } = require('../services/discordFetchCache');
 
 class ModError extends Error {
   constructor(code, message) {
@@ -22,7 +23,7 @@ async function resolveGuildMember(client, guildId, userId) {
   if (!client) return { guild: null, member: null };
   const guild = client.guilds.cache.get(guildId) || null;
   if (!guild) return { guild: null, member: null };
-  const member = await guild.members.fetch(userId).catch(() => null);
+  const member = await fetchMember(guild, userId);
   return { guild, member };
 }
 

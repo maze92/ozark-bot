@@ -36,6 +36,17 @@ const gameNewsSchema = new Schema(
     lastSentAt: {
       type: Date,
       default: null
+    },
+
+    // HTTP cache hints for conditional RSS fetch (ETag / Last-Modified).
+    // These reduce bandwidth/CPU by enabling 304 Not Modified.
+    etag: {
+      type: String,
+      default: null
+    },
+    lastModified: {
+      type: String,
+      default: null
     }
   },
   { timestamps: true }
