@@ -33,15 +33,6 @@ const ticketSchema = new Schema(
 ticketSchema.index({ guildId: 1, ticketNumber: 1 }, { unique: true });
 ticketSchema.index({ guildId: 1, channelId: 1 }, { unique: true });
 ticketSchema.index({ guildId: 1, status: 1, createdAt: -1 });
-
-// Prevent duplicate open tickets per user within a guild.
-// This guards against duplicated reaction events creating two threads.
-ticketSchema.index(
-  { guildId: 1, userId: 1, status: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { status: 'open' }
-  }
-);
+ticketSchema.index({ guildId: 1, userId: 1, status: 1 }, { unique: true, partialFilterExpression: { status: 'open' } });
 
 module.exports = model('Ticket', ticketSchema);

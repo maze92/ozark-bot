@@ -47,6 +47,7 @@ async function ensureMongoIndexes() {
     };
 
     const Ticket = safeRequire('./database/models/Ticket');
+    const TicketCounter = safeRequire('./database/models/TicketCounter');
     const TicketLog = safeRequire('./database/models/TicketLog');
     const Infraction = safeRequire('./database/models/Infraction');
     const DashboardLog = safeRequire('./database/models/DashboardLog');
@@ -55,7 +56,7 @@ async function ensureMongoIndexes() {
     const GameNewsFeed = safeRequire('./database/models/GameNewsFeed');
     const GameNews = safeRequire('./database/models/GameNews');
 
-    [Ticket, TicketLog, Infraction, DashboardLog, DashboardAudit, User, GameNewsFeed, GameNews]
+    [Ticket, TicketCounter, TicketLog, Infraction, DashboardLog, DashboardAudit, User, GameNewsFeed, GameNews]
       .filter(Boolean)
       .forEach((m) => models.push(m));
 
