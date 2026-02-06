@@ -241,20 +241,7 @@ function registerTicketsRoutes(opts) {
           });
         }
 
-        return res.json({
-          ok: true,
-          message: sent
-            ? {
-                id: sent.id,
-                authorId: sent.author?.id || null,
-                authorUsername: sent.author?.username || null,
-                isBot: true,
-                isStaffReply: true,
-                createdAt: sent.createdAt ? sent.createdAt.toISOString() : null,
-                content: content
-              }
-            : null
-        });
+        return res.json({ ok: true });
       } catch (err) {
         console.error('[Dashboard] POST /api/tickets/:ticketId/close error:', err);
         return res.status(500).json({ ok: false, error: 'Internal Server Error' });

@@ -5,6 +5,7 @@ const { EmbedBuilder, ChannelType } = require('discord.js');
 const TicketLog = require('../database/models/TicketLog');
 const Ticket = require('../database/models/Ticket');
 const TicketCounter = require('../database/models/TicketCounter');
+const TicketOpenLock = require('../database/models/TicketOpenLock');
 const { isStaff } = require('../utils/staff');
 const { fetchMember } = require('../services/discordFetchCache');
 
@@ -79,12 +80,27 @@ async function handleTicketOpen(reaction, user) {
     if (!guild) return;
 
     const emojiName = reaction.emoji.name || reaction.emoji.id;
-    if (!emojiName || emojiName !== OPEN_EMOJI) return;// Anti-duplicate: the same reaction event can arrive twice.
-const dedupeKey = `${guild.id}:${user.id}:${message.id}`;
-if (isRecentOpen(dedupeKey)) return;
-markRecentOpen(dedupeKey);
+    if (!emojiName || emojiName !== OPEN_EMOJI) return;
 
-// If this user already has an open ticket, don't create a new one.
+    // Anti-duplicate: the same reaction event can arrive twice.
+    const dedupeKey = `${guild.id}:${user.id}:${message.id}`;
+    if (isRecentOpen(dedupeKey)) return;
+    markRecentOpen(dedupeKey);
+
+    // Cross-process / cross-event lock: prevents duplicate thread creation even if two events overlap.
+    let lockAcquired = false;
+    try {
+      await TicketOpenLock.create({ guildId: guild.id, userId: user.id, messageId: message.id });
+      lockAcquired = true;
+    } catch (e) {
+      // Duplicate lock means another open is in progress.
+      const isDup = e && (e.code == 11000 || String(e.message || '').includes('E11000'));
+      if (isDup) return;
+      throw e;
+    }
+
+    try {
+      // If this user already has an open ticket, don't create a new one.
 const existing = await Ticket.findOne({ guildId: guild.id, userId: user.id, status: 'open' }).lean();
 if (existing && existing.channelId) {
   try {
@@ -199,6 +215,12 @@ const ticketName = `ticket-${String(ticketNumber).padStart(3, '0')}`;
 
     // Adicionar reação de fecho
     await controlMessage.react(CLOSE_EMOJI).catch(() => {});
+    } finally {
+      if (lockAcquired) {
+        try { await TicketOpenLock.deleteOne({ guildId: guild.id, userId: user.id }).catch(() => {}); } catch (e) {}
+      }
+    }
+
   } catch (err) {
     console.error('[ticketThreads] handleTicketOpen error:', err);
   }

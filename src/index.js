@@ -161,15 +161,7 @@ async function handleClientReady() {
 
 // discord.js v14+ exposes the "clientReady" event name ("ready" is deprecated and
 // emits a deprecation warning). Use clientReady to avoid noisy logs.
-let readyEventName = 'clientReady';
-try {
-  const v = require('discord.js/package.json').version || '14.0.0';
-  const major = parseInt(String(v).split('.')[0], 10);
-  // For older majors (very unlikely in this repo), fall back to the legacy name.
-  if (Number.isFinite(major) && major < 14) readyEventName = 'ready';
-} catch (e) {
-  // ignore
-}
+const readyEventName = 'clientReady';
 client.once(readyEventName, handleClientReady);
 
 // Keep presence consistent on shard resume
