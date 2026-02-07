@@ -469,11 +469,11 @@ app.get('/index.html', (req, res) => {
 });
 
 // SPA fallback: serve the dashboard shell for unknown non-API routes.
-// This prevents "dashboard doesn't load" issues when a proxy rewrites paths.
-app.get('*', (req, res, next) => {
+// Express v5 (path-to-regexp v6) does NOT accept a bare "*" route pattern.
+// Use a regex route instead.
+app.get(/^\/(?!api\/|socket\.io\/).*/, (req, res, next) => {
   try {
     const p = req.path || '';
-    if (p.startsWith('/api') || p.startsWith('/socket.io')) return next();
     // If it's a real asset path, let static handle it.
     if (p.includes('.')) return next();
     return res.sendFile(path.join(__dirname, '../public/index.html'));
