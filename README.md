@@ -170,6 +170,14 @@ O projeto inclui uma camada básica de testes automatizados:
 npm test
 ```
 
+Além disso, podes validar traduções (i18n) com:
+
+```bash
+npm run i18n:audit
+```
+
+Recomendado: ativar CI no GitHub (workflow incluído em `.github/workflows/ci.yml`).
+
 ---
 
 ## 📚 Estrutura do projeto (resumo)
