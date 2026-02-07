@@ -112,11 +112,41 @@ const API_BASE = '/api';
 
   async function apiGet(path, options) {
     const opts = options || {};
-    const res = await fetch(API_BASE + path, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-      signal: opts.signal
-    });
+    async function sleep(ms) {
+      return new Promise(function (resolve) {
+        setTimeout(resolve, ms);
+      });
+    }
+
+    async function fetchWithRetry(attempt) {
+      const res = await fetch(API_BASE + path, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        signal: opts.signal
+      });
+
+      if (!res.ok) {
+        // Retry only for transient GET failures.
+        const retriable = res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504;
+        if (retriable && attempt < 2) {
+          let waitMs = 0;
+          const ra = res.headers && res.headers.get ? res.headers.get('retry-after') : null;
+          if (res.status === 429 && ra) {
+            const sec = Number(ra);
+            if (Number.isFinite(sec) && sec > 0) waitMs = Math.min(10_000, sec * 1000);
+          }
+          if (!waitMs) {
+            waitMs = (res.status === 429 ? 900 : 400) * Math.pow(2, attempt);
+          }
+          await sleep(waitMs);
+          return fetchWithRetry(attempt + 1);
+        }
+      }
+
+      return res;
+    }
+
+    const res = await fetchWithRetry(0);
     let payload = null;
     try {
       // Tentar ler JSON mesmo em erro, para extrair mensagem da API
@@ -853,6 +883,50 @@ function setLang(newLang) {
       fillRoleMultiSelect(staffModerationSelect, byFeat.moderation);
       fillRoleMultiSelect(staffGameNewsSelect, byFeat.gamenews);
       fillRoleMultiSelect(staffLogsSelect, byFeat.logs);
+
+      // Presets: copy global staff roles -> all feature lists, or clear all feature overrides.
+      const btnApplyGlobal = document.getElementById('btnStaffPresetApplyGlobal');
+      const btnClearOverrides = document.getElementById('btnStaffPresetClearOverrides');
+
+      function getSelectedValues(sel) {
+        const out = [];
+        if (!sel) return out;
+        Array.prototype.forEach.call(sel.selectedOptions || [], function (opt) {
+          if (opt && opt.value) out.push(opt.value);
+        });
+        return out;
+      }
+
+      function setSelectedValues(sel, values) {
+        if (!sel) return;
+        const set = new Set(Array.isArray(values) ? values : []);
+        Array.prototype.forEach.call(sel.options || [], function (opt) {
+          opt.selected = set.has(opt.value);
+        });
+      }
+
+      if (btnApplyGlobal && !btnApplyGlobal.dataset.bound) {
+        btnApplyGlobal.dataset.bound = '1';
+        btnApplyGlobal.addEventListener('click', function () {
+          const global = getSelectedValues(staffSelect);
+          setSelectedValues(staffTicketsSelect, global);
+          setSelectedValues(staffModerationSelect, global);
+          setSelectedValues(staffGameNewsSelect, global);
+          setSelectedValues(staffLogsSelect, global);
+          toast(t('config_staff_preset_applied'));
+        });
+      }
+
+      if (btnClearOverrides && !btnClearOverrides.dataset.bound) {
+        btnClearOverrides.dataset.bound = '1';
+        btnClearOverrides.addEventListener('click', function () {
+          setSelectedValues(staffTicketsSelect, []);
+          setSelectedValues(staffModerationSelect, []);
+          setSelectedValues(staffGameNewsSelect, []);
+          setSelectedValues(staffLogsSelect, []);
+          toast(t('config_staff_preset_cleared'));
+        });
+      }
 
       // Trust config preview (read-only, global)
       const trust = conf && conf.trust ? conf.trust : null;

@@ -319,6 +319,20 @@ try {
 
 const app = express();
 
+// Attach a lightweight request id for diagnostics.
+// Helps correlate frontend errors with server logs.
+app.use((req, res, next) => {
+  try {
+    const crypto = require('crypto');
+    const rid = (crypto.randomUUID && crypto.randomUUID()) || crypto.randomBytes(12).toString('hex');
+    req.requestId = rid;
+    res.setHeader('x-request-id', rid);
+  } catch (e) {
+    // no-op
+  }
+  next();
+});
+
 const isProd = process.env.NODE_ENV === 'production';
 
 // Enforce a strong JWT secret in production
@@ -840,6 +854,45 @@ registerTempVoiceRoutes({
   sanitizeText,
   GuildConfig,
   TempVoiceChannel
+});
+
+// ------------------------------
+// Final error handler (API-safe)
+// ------------------------------
+// Guarantees JSON for API endpoints even when an unexpected exception bubbles up.
+app.use((err, req, res, next) => {
+  try {
+    const path0 = (req && (req.originalUrl || req.path)) || '';
+    const isApi = typeof path0 === 'string' && (path0.startsWith('/api') || path0.startsWith('/health'));
+
+    if (!isApi) return next(err);
+
+    const statusCode =
+      (err && (err.statusCode || err.status)) && Number.isFinite(Number(err.statusCode || err.status))
+        ? Number(err.statusCode || err.status)
+        : 500;
+
+    const code = (err && err.code) ? String(err.code) : 'INTERNAL_ERROR';
+    const message =
+      (err && (err.apiMessage || err.message))
+        ? String(err.apiMessage || err.message)
+        : 'Internal server error';
+
+    // Avoid leaking stack traces to clients.
+    const out = {
+      ok: false,
+      error: message,
+      code,
+      requestId: req && req.requestId ? req.requestId : undefined
+    };
+
+    if (!res.headersSent) {
+      return res.status(statusCode).json(out);
+    }
+  } catch (e) {
+    // ignore
+  }
+  return next(err);
 });
 
 // SPA fallback: serve the dashboard shell for unknown non-API routes.
