@@ -458,7 +458,8 @@ app.use(express.static(path.join(__dirname, '../public'), {
     }
 
     // Never cache dashboard JS/CSS to avoid stale client bugs after deploy
-    const fp = filePath.replace(/\/g, '/');
+    // Normalize Windows path separators just in case.
+    const fp = String(filePath).replace(/\\/g, '/');
     if (/\/js\/.*\.js$/.test(fp) || /\/css\/.*\.css$/.test(fp)) {
       res.setHeader('Cache-Control', 'no-store');
       return;
