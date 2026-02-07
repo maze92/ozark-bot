@@ -14,22 +14,29 @@ const buckets = new Map();
 function rateLimit(options = {}) {
   const windowMs = options.windowMs ?? 60_000;
   const max = options.max ?? 120;
+  const keyPrefix = options.keyPrefix ?? 'rl:';
 
   return (req, res, next) => {
     const now = Date.now();
 
     // tenta apanhar IP real
+    // tenta apanhar IP real (primeiro hop do x-forwarded-for)
+    const xff = req.headers['x-forwarded-for'];
     const ip =
       req.ip ||
-      req.headers['x-forwarded-for'] ||
+      (typeof xff === 'string' ? xff.split(',')[0].trim() : '') ||
       req.connection?.remoteAddress ||
       'unknown';
 
-    let bucket = buckets.get(ip);
+    // IMPORTANT: Include a prefix so each endpoint can have its own bucket.
+    // Otherwise different endpoints share the same counter and trigger false 429s.
+    const bucketKey = `${keyPrefix}${ip}`;
+
+    let bucket = buckets.get(bucketKey);
 
     if (!bucket) {
       bucket = { count: 1, start: now };
-      buckets.set(ip, bucket);
+      buckets.set(bucketKey, bucket);
       return next();
     }
 

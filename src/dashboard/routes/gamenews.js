@@ -179,7 +179,6 @@ app.post('/api/gamenews/feeds', requireDashboardAuth, async (req, res) => {
         logChannelId: logChannelIdForSchema,
         enabled: f.enabled !== false,
         intervalMs: typeof f.intervalMs === 'number' ? f.intervalMs : null,
-        language: typeof f.language === 'string' ? f.language : undefined
       };
 
       const parsedResult = GameNewsFeedSchema.safeParse(candidate);
@@ -258,7 +257,13 @@ app.post('/api/gamenews/feeds', requireDashboardAuth, async (req, res) => {
     // If SOME were invalid but at least one is valid, proceed and return a warning.
     const warnings = [];
     if (invalidCount > 0 && sanitized.length === 0) {
-      try { console.warn('[Dashboard] /api/gamenews/feeds invalid payload', { guildId, invalidCount, details: invalidDetails }); } catch (_) {}
+      // Make validation issues readable in logs (otherwise arrays collapse to "[Array]").
+      try {
+        console.warn(
+          '[Dashboard] /api/gamenews/feeds invalid payload',
+          JSON.stringify({ guildId, invalidCount, details: invalidDetails }, null, 2)
+        );
+      } catch (_) {}
       return res.status(400).json({
         ok: false,
         error: 'All provided feeds are invalid. Check the URL (include http/https) and channel IDs (numeric or <#mention>).',

@@ -40,18 +40,29 @@ function registerUsersRoutes({
         const search = (req.query.search || '').toString().trim();
         const sync = String(req.query.sync || '') === '1';
 
-        // Sync mode (explicit): full fetch, but guarded to avoid gateway spam
-        if (sync) {
-          const now = Date.now();
-          const last = guildMembersLastFetch.get(guildId) || 0;
-          if (now - last < 2 * 60 * 1000) {
-            return res.status(429).json({ ok: false, error: 'Too many requests' });
-          }
+        // Sync mode (explicit): full fetch, but guarded to avoid gateway spam.
+        // If within cooldown, skip the fetch but still return cached results (avoid 429 UX).
+        const now = Date.now();
+        const last = guildMembersLastFetch.get(guildId) || 0;
+        const canSync = (now - last) >= 2 * 60 * 1000;
+
+        if (sync && canSync) {
           try {
             await guild.members.fetch();
             guildMembersLastFetch.set(guildId, Date.now());
           } catch (e) {
             console.warn('[Dashboard] Failed to sync member list for guild', guildId, e);
+          }
+        }
+
+        // Auto-warm cache once if empty and the user did not request search.
+        // This prevents "no users until I press Sync" for large guilds.
+        if (!sync && !search && guild.members.cache.size === 0 && canSync) {
+          try {
+            await guild.members.fetch();
+            guildMembersLastFetch.set(guildId, Date.now());
+          } catch (e) {
+            console.warn('[Dashboard] Failed to warm member cache for guild', guildId, e);
           }
         }
 

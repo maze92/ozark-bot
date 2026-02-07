@@ -175,6 +175,9 @@ const LogsQuerySchema = z.object({
   limit: z.string().regex(/^\d+$/).optional()
 });
 
+// NOTE: This schema validates each feed item received from the dashboard.
+// The UI may send forward-compatible fields (e.g., `language`).
+// Do not reject payloads due to unknown keys; accept-and-ignore instead.
 const GameNewsFeedSchema = z.object({
   name: z.string().trim().min(1).max(64),
 
@@ -200,8 +203,13 @@ const GameNewsFeedSchema = z.object({
   logChannelId: z.string().trim().min(10).max(32).nullable().optional(),
 
   enabled: z.boolean().optional(),
-  intervalMs: z.number().int().positive().max(7 * 24 * 60 * 60 * 1000).nullable().optional()
-}).strict();
+  intervalMs: z.number().int().positive().max(7 * 24 * 60 * 60 * 1000).nullable().optional(),
+
+  // Optional forward-compatible field.
+  language: z.string().trim().min(2).max(16).optional()
+})
+  // Accept unknown keys (dashboard may evolve). We will ignore what we don't persist.
+  .passthrough();
 
 
 
@@ -473,7 +481,8 @@ app.use(express.static(path.join(__dirname, '../public'), {
 // ✅ Global rate limit for all /api routes
 // Global API limiter: dashboard is behind auth; keep it high enough to avoid UX 429s
 // when multiple panels refresh and the operator clicks actions quickly.
-app.use('/api', rateLimit({ windowMs: 60_000, max: 300, keyPrefix: 'rl:api:' }));
+// Global API limiter (dashboard is authenticated; keep it generous and rely on per-route limits).
+app.use('/api', rateLimit({ windowMs: 60_000, max: 600, keyPrefix: 'rl:api:' }));
 
 registerCoreRoutes({
   app,

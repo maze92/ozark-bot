@@ -673,6 +673,10 @@ async function loadUserHistory(user) {
 
               if (!window.confirm(t('users_history_remove_confirm'))) return;
 
+              if (state._removeInfractionInFlight) return;
+              state._removeInfractionInFlight = true;
+              li.classList.add('removing');
+
               apiPost('/mod/remove-infraction', {
                 guildId: state.guildId,
                 userId: user.id,
@@ -684,14 +688,17 @@ async function loadUserHistory(user) {
                     toast(res && res.error ? String(res.error) : t('cases_error_generic'));
                     return;
                   }
-                  // Feedback visual e reload de histórico
-                  li.classList.add('removing');
                   toast(t('users_history_remove_success'));
                   window.OzarkDashboard.loadUserHistory(user).catch(function () {});
                 })
                 .catch(function (err) {
                   console.error('Remove infraction error', err);
-                  toast(t('cases_error_generic'));
+                  toast((err && err.apiMessage) || t('cases_error_generic'));
+                })
+                .finally(function () {
+                  state._removeInfractionInFlight = false;
+                  // Keep the visual state if the item was removed on refresh; otherwise re-enable.
+                  try { li.classList.remove('removing'); } catch (_) {}
                 });
             });
           });
