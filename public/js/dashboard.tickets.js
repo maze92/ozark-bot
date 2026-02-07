@@ -141,35 +141,18 @@
     const canClose = ticket.status !== 'closed';
     const canReopen = ticket.status === 'closed';
 
-    // Keep the header minimal: the list already shows "#N • subject".
-    // Here we show only a generic title + status badge.
+    // Detail header should be readable and not repeat what the list already shows.
+    // We show the generic title + status and compact meta badges.
     panel.innerHTML = `
-      <div class="user-row-header" style="margin-bottom:10px;">
-        <div class="title">${escapeHtml(t('tickets_detail_title'))}</div>
-        <div class="user-type-badge ${ticket.status === 'closed' ? 'bot' : 'human'}">${escapeHtml(status)}</div>
-      </div>
-
-      <div class="history-section">
-        <h3>${escapeHtml(t('tickets_detail_messages'))}</h3>
-        <div id="ticketsMessagesBox" class="ticket-messages">
-          <div class="empty">${escapeHtml(t('loading'))}</div>
+      <div class="ticket-detail-header">
+        <div class="user-row-header">
+          <div class="title">${escapeHtml(t('tickets_detail_title'))}</div>
+          <div class="user-type-badge ${ticket.status === 'closed' ? 'bot' : 'human'}">${escapeHtml(status)}</div>
         </div>
-      </div>
-
-      <div class="history-section">
-        <h3>${escapeHtml(t('tickets_detail_info'))}</h3>
-        <div class="row gap">
+        <div class="ticket-detail-meta">
           <div class="badge">${escapeHtml(t('tickets_detail_user'))}: ${escapeHtml(username)}</div>
-          <div class="badge">${escapeHtml(t('tickets_detail_status'))}: ${escapeHtml(status)}</div>
           <div class="badge">${escapeHtml(t('tickets_detail_created'))}: ${escapeHtml(created || '-')}</div>
           ${closedAt ? `<div class="badge">${escapeHtml(t('tickets_detail_closed'))}: ${escapeHtml(closedAt)}</div>` : ''}
-        </div>
-      </div>
-
-      <div class="history-section">
-        <h3>${escapeHtml(t('tickets_detail_audit'))}</h3>
-        <div id="ticketsAuditBox" class="ticket-audit">
-          <div class="empty">${escapeHtml(t('loading'))}</div>
         </div>
       </div>
 
@@ -185,6 +168,20 @@
           </div>
         </div>
       </div>
+
+      <details class="ticket-section" open>
+        <summary class="details-summary">${escapeHtml(t('tickets_detail_messages'))}</summary>
+        <div id="ticketsMessagesBox" class="ticket-messages">
+          <div class="empty">${escapeHtml(t('loading'))}</div>
+        </div>
+      </details>
+
+      <details class="ticket-section">
+        <summary class="details-summary">${escapeHtml(t('tickets_detail_audit'))}</summary>
+        <div id="ticketsAuditBox" class="ticket-audit">
+          <div class="empty">${escapeHtml(t('loading'))}</div>
+        </div>
+      </details>
     `;
 
     const guildId = getGuildId();
